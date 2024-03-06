@@ -73,7 +73,7 @@ email = args.email
 identity_threshold = args.identity_threshold
 
 list_species_db = args.list_species_database
-list_motifs_db = args.list_motifs_database
+list_motif_db = args.list_motif_database
 list_species = args.list_species
 
 verbose = args.verbose
@@ -110,7 +110,7 @@ if list_species_db:
     should_exit = True
 
 # Printing list of motif databases available
-if list_motifs_db:
+if list_motif_db:
     print("List of motif databases available:", flush=True)
     print(', '.join(MotifDBFactory.get_motif_db_names()), flush=True)
     print()
