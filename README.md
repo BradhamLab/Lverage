@@ -9,7 +9,7 @@ I'll get to it when I get to it.
 ## Requirements
   1. Clustalo http://www.clustal.org/omega/
   2. ORFFinder https://www.ncbi.nlm.nih.gov/orffinder/ -> https://ftp.ncbi.nlm.nih.gov/genomes/TOOLS/ORFfinder/linux-i64/
-  3. Python 3.8 and above
+  3. Python 3.8 or above
 
 Clone the directory and navigate inside of it.
   ```
