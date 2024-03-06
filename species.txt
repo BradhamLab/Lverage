@@ -1,0 +1,6 @@
+7654, lytechinus variegatus, lytechinus variegati, l. variegatus, l. variegati, l variegatus, l variegati, green sea urchin, green sea urchins
+9606, homo sapiens, h. sapiens, h sapiens, human, humans
+7227, drosophila melanogaster, d. melanogaster, fruit fly, frut flies
+10090, mus musculus, m. musculus, house mouse, house mice
+7955, danio rerio, d. rerio, zebra fish, zebra fishes
+8355, xenopus laevis, x. laevis, african clawed frog, african clawed frogs
