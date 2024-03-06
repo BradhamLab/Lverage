@@ -21,7 +21,9 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
 import requests
-from bs4 import BeautifulSoup
+import utils
+from Bio import pairwise2
+from Bio.Seq import Seq
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes
@@ -31,10 +33,18 @@ class MotifRecord:
     This class represents a motif record
     '''
 
-    def __init__(self, name, pfm, logo_link):
+    def __init__(self, matrix_id, name, pfm, logo_link, motif_class, uniprot_id, global_perc_id, dbd_perc_id):
+        self.matrix_id = matrix_id
         self.name = name
         self.pfm = pfm
         self.logo_link = logo_link
+        self.motif_class = motif_class
+        self.uniprot_id = uniprot_id
+        self.global_perc_id = global_perc_id
+        self.dbd_perc_id = dbd_perc_id
+
+    def get_matrix_id(self):
+        return self.matrix_id
 
     def get_name(self):
         return self.name
@@ -44,6 +54,20 @@ class MotifRecord:
     
     def get_logo_link(self):
         return self.logo_link
+    
+    def get_motif_class(self):
+        return self.motif_class
+    
+    def get_uniprot_id(self):
+        return self.uniprot_id
+    
+    def get_global_percent_identity(self):
+        return self.global_perc_id
+    
+    def get_dbd_percent_identity(self):
+        return self.dbd_perc_id
+    
+
 
 
 class MotifDBInterface:
@@ -71,60 +95,114 @@ class JasparDB(MotifDBInterface):
 
     name = "JASPAR"
 
-    search_url = "https://jaspar.elixir.no/search?q="
-    rest_url = "https://jaspar2020.genereg.net/api/v1/"
-    logo_url = "https://jaspar2020.genereg.net/static/logos/all/"
+    jaspar_rest_url = "https://jaspar2020.genereg.net/api/v1/"
+    jaspar_logo_url = "https://jaspar2020.genereg.net/static/logos/all/"
 
-    def __init__(self):
+    uniprot_rest_url = "https://rest.uniprot.org/uniprotkb/"
+
+    def __init__(self, n_hits = 10, dbd_threshold = 0.85):
+        '''
+        
+        '''
+
+        assert n_hits > 0, f"n_hits must be greater than 0, currently {n_hits} is given."
+        assert 0 <= dbd_threshold <= 1, f"dbd_threshold must be between 0 and 1, currently {dbd_threshold} is given."
+
+        self.n_hits = n_hits
+        self.dbd_threshold = dbd_threshold
         super().__init__()
 
 
-    def search(self, description, tax_id):
+    def search(self, description, tax_id, protein_seq, dbd):
         '''
         This function searches the JASPAR database for a given description and gets the corresponding motif
 
         Arguments:
         description: a string representing a description of a gene
         tax_id: a string representing the taxonomy ID of the species
+        protein_seq: the protein sequence of a gene from the species the user is trying to find motifs for
+        dbd: DNA-binding domain object corresponding to the protein-seq; should be able to retrieve start and size of DBD
+
+        Returns:
+        A list of validated (by calculating identity) motifs
         '''
 
         assert len(description) > 0, "Description must be non-empty"
         assert tax_id.isdigit(), "Taxonomy ID must be a number"
 
+        r = [] # list of motifs to return
+        found_exact = False # condition to break the loop if a perfect match is found
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Get the matrix ID for the motif
+        # search for motif using description and species
+        query = f"matrix/?tax_id={tax_id}&search={description}&page_size={self.n_hits}"
+        matrix_download = requests.get(self.jaspar_rest_url + query)
 
-        search = requests.get(self.search_url + description + "&tax_id=" + tax_id)
 
-        # Search for matrix ID
-        matrix_id = None
-        if search.ok:
-            table = BeautifulSoup(search.text, "html.parser").find("table")
+        if matrix_download.ok:
+            data = matrix_download.json()['results']
 
-            for row in table.find_all("tr"):
-                a_tag = row.find('a', href=True)
-                if a_tag:
-                    matrix_id = a_tag['href'].split('/')[-1]
+            # Sort the data list based on similarity to the description variable
+            data = sorted(data, key=lambda motif: motif['name'] != description)
+
+            # For each hit motif
+            for motif in data:
+                matrix_id = motif['matrix_id']
+                name = motif['name']
+
+                logo = self.jaspar_logo_url + matrix_id + ".png"
+
+                profile_download = requests.get(self.jaspar_rest_url + "matrix/" + matrix_id)
+
+                if not profile_download.ok:
+                    continue
+
+                profile = profile_download.json()
+                pfm = profile['pfm']
+                motif_class = profile['class']
+                uniprot_ids = profile['uniprot_ids']
+
+                #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+                # For each uniprot id, VALIDATE THE MOTIF with a percent identity threshold
+                for uniprot_id in uniprot_ids:
+
+                    # obtain the uniprot sequence
+                    uniprot_download = requests.get(self.uniprot_rest_url + uniprot_id + ".fasta")
+
+                    if not uniprot_download.ok:
+                        continue
+
+                    uniprot_fasta = uniprot_download.text.split('>')[1] # get the first fasta entry
+                    uniprot_seq = ''.join(uniprot_fasta.split('\n')[1:]) # remove the header and join the sequence
+
+                    # globally align the uniprot sequence with the protein sequence
+                    alignments = pairwise2.align.globalxx(uniprot_seq, protein_seq)[0]
+                    global_perc_id = utils._calculate_similarity(list(alignments))
+
+                    # locally align the uniprot sequence with the protein sequence
+                    alignments = pairwise2.align.localxx(uniprot_seq, protein_seq)[0]
+
+                    # If the dbd has low similarity with the unitprot sequence, skip this motif
+                    dbd_perc_id = utils._calculate_similarity(list(alignments), dbd.get_start(), dbd.get_size())
+                    if dbd_perc_id < self.dbd_threshold:
+                        continue
+
+                    r.append(MotifRecord(matrix_id, name, pfm, logo, motif_class, uniprot_id, global_perc_id, dbd_perc_id))
+
+                    # If the motif found has an exact match to the description, break the loop and return the motif
+                    if name == description:
+                        found_exact = True
+                        break
+
+                if found_exact:
                     break
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Get motif name, pfm, and logo
-                
-        name = None
-        pfm = None
-        logo = None
+        return r
 
-        if matrix_id:
-            motif_download = requests.get(self.rest_url + "matrix/" + matrix_id)
 
-            if motif_download.ok:
-                data = motif_download.json()
-                name = data['name']
-                pfm = data['pfm']
-                logo = self.logo_url + matrix_id + ".png"
 
-        return MotifRecord(name, pfm, logo) if name else None
+
+        
 
 class MotifDBFactory:
     '''

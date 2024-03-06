@@ -95,6 +95,7 @@ from DBDScanner import DBDScanner
 from OrthologSearcher import OrthologSearcher
 from Aligner import Aligner
 from MotifDB import MotifDBFactory
+import utils
 import os
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -192,15 +193,15 @@ os = OrthologSearcher(hitlist_size=20, verbose=verbose, species_list=ortholog_li
 # Setting up Clustal Omega
 aligner = Aligner(clustalo_path, verbose=verbose)
 
-# Setting up JASPAR
-mdb = MotifDBFactory.get_motif_db(motif_database)
+# Setting up motif database
+mdb = MotifDBFactory.get_motif_db(motif_database, n_hits=10)
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Setting up output file
 
 f = open(output_path, "w")
 
-headers = ["ID", "DBD Name", "Ref Seq ID", "BLAST Hit Description", "BLAST E-value", "BLAST Identity", "Motif Database Query", "Motif ID", "Motif Name", "Motif Species", "Motif Class", "Motif Logo", "Motif PWM", "Uniprot ID", "Lv-Uniprot Identity", "LvDBD-UniprotDBD Identity"]
+headers = ["ID", "DBD Name", "BLAST Hit Description", "BLAST Hit Species", "BLAST Hit E-value", "BLAST Hit Percent Identity", "BLAST Hit Query Coverage",  "Motif Database Query", "Motif ID", "Motif Name", "Motif Class", "Motif Logo", "Motif PWM", "Uniprot ID", "Lv-Uniprot Identity", "LvDBD-UniprotDBD Identity"]
 # headers = ['ID', 'DBD Name', 'Ortholog Species', 'BLAST Hit Description', 'Motif Database Query', 'Motif Name', 'Logo Link', 'PWM']
 f.write(species + '\n')
 f.write('\t'.join(headers) + '\n')
@@ -285,7 +286,7 @@ for gene_id, gene_sequence_list in sdb:
     for dbd in dbd_list:
 
         # getting similarity between alignments
-        sim_array = aligner.calculate_similarity(alignment_list, dbd.get_start(), dbd.get_size()) # similarity of all sequences to the first sequence at the dbd's location
+        sim_array = utils.calculate_similarity(alignment_list, dbd.get_start(), dbd.get_size()) # similarity of all sequences to the first sequence at the dbd's location
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step five: find conserved motifs from orthologous sequences that had 70% or more identity with the gene from given species
@@ -307,8 +308,12 @@ for gene_id, gene_sequence_list in sdb:
                 ortholog_species = ortholog_hit.get_species()
                 ortholog_taxon_id = SpeciesDBFactory.get_taxon_id(ortholog_species)
 
+                ortholog_escore = ortholog_hit.get_escore()
+                ortholog_percent_identity = ortholog_hit.get_percent_identity()
+                ortholog_query_coverage = ortholog_hit.get_query_coverage()
+
                 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-                # Step six: for each orthologous sequence with a conserved dbd, search JASPAR for motif
+                # Step six: for each orthologous sequence with a conserved dbd, search motif database for motif
 
                 if verbose:
                     print(f"\t-Looking for ({ortholog_description}) with combinations of ({ortholog_reduced_description})", flush=True)
@@ -317,21 +322,40 @@ for gene_id, gene_sequence_list in sdb:
                 
                 # Use combinations of words from the ortholog's hit name; sometimes the full name doesn't work but a reduced form of it does
                 for ortholog_name in ortholog_hit.yield_usable_name_combos():
-                    motif = mdb.search(ortholog_name, ortholog_taxon_id)
+                    motif_list = mdb.search(ortholog_name, ortholog_taxon_id)
 
                     # if motif was found, add to output
-                    if motif is not None:
+                    if motif_list:
 
-                        # This is same format as headers variable above the outermost for loop; keep the same!!!
-                        # output = [gene_id, dbd.get_name(), ortholog_species, ortholog_description, ortholog_name, motif.get_name(), motif.get_logo_link(), str(motif.get_pfm())]
-                        output = []
+                        for motif in motif_list:
 
-                        f.write('\t'.join(output) + '\n')
-                        f.flush()
-                        found_motif = True
 
-                        if verbose:
-                            print(f"\t\tFound logo for {ortholog_name}", flush=True)
+                            # This is same format as headers variable above the outermost for loop; keep the same!!!
+                            output = [gene_id,
+                                      dbd.get_name(),
+                                      ortholog_description,
+                                      ortholog_species,
+                                      ortholog_escore,
+                                      ortholog_percent_identity,
+                                      ortholog_query_coverage,
+                                      ortholog_name,
+                                      motif.get_matrix_id(),
+                                      motif.get_name(),
+                                      motif.get_motif_class(),
+                                      motif.get_logo_link(),
+                                      motif.get_pfm(),
+                                      motif.get_uniprot_id(),
+                                      motif.get_global_percent_identity(),
+                                      motif.get_dbd_percent_identity()
+                            ]
+                                      
+
+                            f.write('\t'.join(output) + '\n')
+                            f.flush()
+                            found_motif = True
+
+                            if verbose:
+                                print(f"\t\tFound logo for {ortholog_name}", flush=True)
 
                 if not found_motif:
                     if verbose:

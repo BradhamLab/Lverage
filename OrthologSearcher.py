@@ -33,14 +33,16 @@ class AlignmentRecord:
     '''
 
     # List of words that are uneeded in the name of the BLAST description; we can remove them
-    uneeded_words_list = [', partial', 'protein', 'transcription factor']
+    uneeded_words_list = ['transcription factor']
 
 
-    def __init__(self, alignment):        
+    def __init__(self, alignment, query_coverage):        
         '''
         Arguments:
         alignment: a Bio.Blast.Record.Alignment object
-        '''
+        query_coverage: the percentage of the query sequence that is covered by the alignment
+        '''                        
+        
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -72,6 +74,13 @@ class AlignmentRecord:
         self.accession = alignment.accession
 
         self.expect = alignment.hsps[0].expect
+
+        hsp = alignment.hsps[0]
+        self.percent_identity = (hsp.identities / hsp.align_length) * 100
+
+        self.query_coverage = query_coverage
+
+        
         
 
     def __str__(self):
@@ -103,13 +112,18 @@ class AlignmentRecord:
         usable_name = self.get_usable_name()
         words = usable_name.split()
         
+        c = []
         for combination in product(*[(word, '') for word in words]):
             r = ' '.join(filter(None, combination))
             
             # if the combination is not empty and if the combination isn't just a number
             if r and not r.replace(' ', '').isdigit():
-                yield r
-        
+                c.append(r)
+
+        c.sort(key=lambda x: len(x.split()))
+
+        for combo in c:
+            yield combo
     
     def get_species(self):
         return self.species
@@ -120,11 +134,22 @@ class AlignmentRecord:
     def get_accession(self):
         return self.accession
     
+    def get_escore(self):
+        return self.expect
+    
+    def get_percent_identity(self):
+        return self.percent_identity
+    
+    def get_query_coverage(self):
+        return self.query_coverage
+    
 
 class OrthologSearcher:
     '''
     Searches for orthologous sequences of a given sequence using blastp
     '''
+    bad_words = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform', 'protein'] # Words that we don't want in the name of the sequence; discard the alignment if it contains any of these words
+
 
     def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], hitlist_size = 50, verbose = False):
         '''
@@ -173,15 +198,24 @@ class OrthologSearcher:
         filtered_hits = []
         for alignment in blast_record.alignments:
             title = alignment.title.lower()
-            if all(sub not in title for sub in ['hypothetical', 'unnamed', 'uncharacterized', 'unknown']):
-                record = AlignmentRecord(alignment)
+
+            # If the title doesn't contain any of the bad words
+            if all(sub not in title for sub in self.bad_words):
+
+                query_coverage = alignment.hsps[0].align_length / len(sequence)
+
+                record = AlignmentRecord(alignment, query_coverage)
+                
 
                 if record.get_species().lower() in self.species_list:
+
                     if self.verbose:
-                        hsp = alignment.hsps[0]
-                        percent_identity = (hsp.identities / hsp.align_length) * 100
-                        print(f"\tObtained ortholog from {record.get_species()}: {record.get_name()}, with e-score {record.expect} and similarity {percent_identity}", flush=True)
-                    filtered_hits.append(record)
+
+                        print(f"\tObtained ortholog from {record.get_species()}: {record.get_name()}, with e-score {record.expect} and similarity {record.get_percent_identity()}", flush=True)
+
+                    # Only if e-score is less than 10^-6 do we keep the hit
+                    if record.expect < 10**-6:
+                        filtered_hits.append(record)
 
 
         filtered_hits.sort(key=lambda x: x.expect)  # Sort by E-Score
