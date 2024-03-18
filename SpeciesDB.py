@@ -200,7 +200,7 @@ class SpeciesDBFactory:
     
     @staticmethod
     def has_species(species):
-        return species in SpeciesDBFactory.species_taxon_name_dict[species.lower()]
+        return species.lower() in SpeciesDBFactory.species_taxon_name_dict
     
     @staticmethod
     def get_db_names():

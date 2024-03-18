@@ -25,18 +25,17 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 # Getting user inputs before importing other modules
 import argparse
 
-parser = argparse.ArgumentParser(description='''DBD-
-The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.
-This program works similar to a pipeline such that modules can be replaced with other modules to perform the same task but possibly on different species.
-Copyright: 
-Lab: Bradham Lab at Boston University
-Correspondence: anthonygarza124@gmail.com
-''')
+parser = argparse.ArgumentParser(description=
+    '''The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.
+    This program works similar to a pipeline such that modules can be replaced with other modules to perform the same task but possibly on different species.
+    Copyright: 
+    Lab: Bradham Lab at Boston University
+    Correspondence: anthonygarza124@gmail.com''')
 
 # Pipeline arguments
 parser.add_argument('-db', '--database', help='Path to database file for species of interest if required')
 parser.add_argument('-s', '--species', help='Species name associated with the database and its parser. Use -lsdb to see list of available species.')
-parser.add_argument('-mdb', '--motif_database', help='Name of motif database to use. Default is JASPAR. Use -lmdb to see list of available motif databases.')
+parser.add_argument('-mdb', '--motif_database', help='Name of motif database to use. Default is JASPAR. Use -lmdb to see list of available motif databases.', default='JASPAR')
 parser.add_argument('-or', '--orthologs', nargs='*', help='Ortholog species to search for motif in. Each species should be enclosed in quotes and separated by spaces. Default is only Homo Sapiens') 
 parser.add_argument('-o', '--output', help='Output file path; provide a path to a file or a directory where output.tsv will be made.', default='output.tsv')
 
@@ -50,8 +49,8 @@ parser.add_argument('-it', '--identity_threshold', help='Identity threshold for 
 
 # User info requests
 parser.add_argument('-lsdb', '--list_species_database', help='Prints list of species who have database parsers available', action='store_true')
-parser.add_argument('-lmdb', '--list_motif_database', help='Prints list of motif databases available')
-parser.add_argument('-ls', '--list_species', help='Prints list of all species available as orthologs')
+parser.add_argument('-lmdb', '--list_motif_database', help='Prints list of motif databases available', action='store_true')
+parser.add_argument('-ls', '--list_species', help='Prints list of all species available as orthologs', action='store_true')
 
 parser.add_argument('-v', '--verbose', help='Prints out more information', action='store_true', default=False)
 
@@ -130,8 +129,9 @@ if should_exit:
 # Validating arguments
 
 # Checking if required arguments are provided
-if not database_path or not species or not email or not output_path:
-    raise RuntimeError("Please provide a database path, a species name, an email, and an output path")
+if not database_path or not species or not email:
+    parser.print_help()
+    raise RuntimeError("Please provide a database path, a species name, and an email")
     
 # Check if ortholog species passed; if not, use homo sapiens
 if not ortholog_list:
@@ -194,15 +194,14 @@ os = OrthologSearcher(hitlist_size=20, verbose=verbose, species_list=ortholog_li
 aligner = Aligner(clustalo_path, verbose=verbose)
 
 # Setting up motif database
-mdb = MotifDBFactory.get_motif_db(motif_database, n_hits=10)
+mdb = MotifDBFactory.get_motif_db(db_name=motif_database, n_hits=10)
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Setting up output file
 
 f = open(output_path, "w")
 
-headers = ["ID", "DBD Name", "BLAST Hit Description", "BLAST Hit Species", "BLAST Hit E-value", "BLAST Hit Percent Identity", "BLAST Hit Query Coverage",  "Motif Database Query", "Motif ID", "Motif Name", "Motif Class", "Motif Logo", "Motif PWM", "Uniprot ID", "Lv-Uniprot Identity", "LvDBD-UniprotDBD Identity"]
-# headers = ['ID', 'DBD Name', 'Ortholog Species', 'BLAST Hit Description', 'Motif Database Query', 'Motif Name', 'Logo Link', 'PWM']
+headers = ["ID", "DBD Name", "BLAST Hit Description", "BLAST Hit Species", "BLAST Hit E-value", "BLAST Hit Percent Identity (%)", "BLAST Hit Query Coverage",  "Motif Database Query", "Motif ID", "Motif Name", "Motif Class", "Motif Logo", "Motif PWM", "Uniprot ID", "Lv-Uniprot Identity (%)", "LvDBD-UniprotDBD Identity (%)"]
 f.write(species + '\n')
 f.write('\t'.join(headers) + '\n')
 f.flush()
@@ -241,7 +240,8 @@ for gene_id, gene_sequence_list in sdb:
             print(f"\tWARNING:Unable to obtain a protein sequence for {gene_id}", flush=True)
             continue
             
-    print(protein_sequence, flush=True)
+    if verbose:
+        print(protein_sequence, flush=True)
 
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Step two: get start and size of DBD within protein
@@ -282,7 +282,7 @@ for gene_id, gene_sequence_list in sdb:
         print(f">Aligning sequences of {gene_id}...", flush=True)
 
     alignment_list = aligner.align([protein_sequence] + [x.get_seq() for x in ortholog_hit_list])
-
+    
     for dbd in dbd_list:
 
         # getting similarity between alignments
@@ -321,8 +321,8 @@ for gene_id, gene_sequence_list in sdb:
                 found_motif = False # if a motif is found at least once, set this to true so user can later know if no motif was found
                 
                 # Use combinations of words from the ortholog's hit name; sometimes the full name doesn't work but a reduced form of it does
-                for ortholog_name in ortholog_hit.yield_usable_name_combos():
-                    motif_list = mdb.search(ortholog_name, ortholog_taxon_id)
+                for mdb_query in ortholog_hit.yield_usable_name_combos():
+                    motif_list = mdb.search(mdb_query, ortholog_taxon_id, protein_sequence, dbd)
 
                     # if motif was found, add to output
                     if motif_list:
@@ -338,7 +338,7 @@ for gene_id, gene_sequence_list in sdb:
                                       ortholog_escore,
                                       ortholog_percent_identity,
                                       ortholog_query_coverage,
-                                      ortholog_name,
+                                      mdb_query,
                                       motif.get_matrix_id(),
                                       motif.get_name(),
                                       motif.get_motif_class(),
@@ -348,6 +348,7 @@ for gene_id, gene_sequence_list in sdb:
                                       motif.get_global_percent_identity(),
                                       motif.get_dbd_percent_identity()
                             ]
+                            output = [str(x) for x in output]
                                       
 
                             f.write('\t'.join(output) + '\n')
@@ -355,7 +356,8 @@ for gene_id, gene_sequence_list in sdb:
                             found_motif = True
 
                             if verbose:
-                                print(f"\t\tFound logo for {ortholog_name}", flush=True)
+                                print(f"\t\tFound logo for {mdb_query}", flush=True)
+
 
                 if not found_motif:
                     if verbose:

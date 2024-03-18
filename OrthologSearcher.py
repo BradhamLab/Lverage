@@ -76,6 +76,7 @@ class AlignmentRecord:
         self.expect = alignment.hsps[0].expect
 
         hsp = alignment.hsps[0]
+
         self.percent_identity = (hsp.identities / hsp.align_length) * 100
 
         self.query_coverage = query_coverage
@@ -120,7 +121,8 @@ class AlignmentRecord:
             if r and not r.replace(' ', '').isdigit():
                 c.append(r)
 
-        c.sort(key=lambda x: len(x.split()))
+        c.sort(key=lambda x: len(x.split()), reverse=True)
+
 
         for combo in c:
             yield combo
@@ -194,7 +196,10 @@ class OrthologSearcher:
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step three: filter blastp output
-        print("\tFiltering hits.")
+
+        if self.verbose:
+            print("\tFiltering hits.")
+            
         filtered_hits = []
         for alignment in blast_record.alignments:
             title = alignment.title.lower()
@@ -207,15 +212,14 @@ class OrthologSearcher:
                 record = AlignmentRecord(alignment, query_coverage)
                 
 
-                if record.get_species().lower() in self.species_list:
+                # Only if e-score is less than 10^-6 do we keep the hit
+                if record.get_species().lower() in self.species_list and record.expect < 10**-6:
+
+                    filtered_hits.append(record)
 
                     if self.verbose:
-
                         print(f"\tObtained ortholog from {record.get_species()}: {record.get_name()}, with e-score {record.expect} and similarity {record.get_percent_identity()}", flush=True)
 
-                    # Only if e-score is less than 10^-6 do we keep the hit
-                    if record.expect < 10**-6:
-                        filtered_hits.append(record)
 
 
         filtered_hits.sort(key=lambda x: x.expect)  # Sort by E-Score
