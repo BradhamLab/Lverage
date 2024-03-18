@@ -65,7 +65,7 @@ def calculate_similarity(alignment_list, start = None, size = None):
                 
                 count += 1
 
-        assert align_start != -1, "Start index not found."
+        assert align_start != -1, f"Start index not found. \nAlignment: {first_align}\nAlignment Size: {len(first_align)}\nStart: {start}\nSize: {size}"
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step two: find the end of the region

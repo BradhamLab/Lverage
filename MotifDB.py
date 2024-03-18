@@ -176,18 +176,19 @@ class JasparDB(MotifDBInterface):
                     uniprot_seq = ''.join(uniprot_fasta.split('\n')[1:]) # remove the header and join the sequence
 
                     # globally align the uniprot sequence with the protein sequence
-                    alignments = pairwise2.align.globalxx(uniprot_seq, protein_seq)[0]
-                    global_perc_id = utils._calculate_similarity(list(alignments))
+                    alignments = pairwise2.align.globalxx(protein_seq, uniprot_seq)[0][:2]
+                    global_perc_id = utils._calculate_similarity(*alignments)
 
                     # locally align the uniprot sequence with the protein sequence
-                    alignments = pairwise2.align.localxx(uniprot_seq, protein_seq)[0]
+                    alignments = pairwise2.align.localxx(protein_seq, uniprot_seq)[0][:2]
 
                     # If the dbd has low similarity with the unitprot sequence, skip this motif
-                    dbd_perc_id = utils._calculate_similarity(list(alignments), dbd.get_start(), dbd.get_size())
+                    dbd_perc_id = utils.calculate_similarity(alignments, dbd.get_start(), dbd.get_size())[1]
+
                     if dbd_perc_id < self.dbd_threshold:
                         continue
 
-                    r.append(MotifRecord(matrix_id, name, pfm, logo, motif_class, uniprot_id, global_perc_id, dbd_perc_id))
+                    r.append(MotifRecord(matrix_id, name, pfm, logo, motif_class, uniprot_id, global_perc_id * 100, dbd_perc_id * 100))
 
                     # If the motif found has an exact match to the description, break the loop and return the motif
                     if name == description:
@@ -214,7 +215,8 @@ class MotifDBFactory:
         "JASPAR": JasparDB
     }
 
-    def get_motif_db(self, db_name, **kwargs):
+    @staticmethod
+    def get_motif_db(db_name, **kwargs):
         '''
         This function returns a motif database based on the database name
 
@@ -223,9 +225,9 @@ class MotifDBFactory:
         **kwargs: keyword arguments to pass to the motif database
         '''
 
-        assert db_name in self.motif_db_dict, "Database name not found"
+        assert db_name in MotifDBFactory.motif_db_dict, "Database name not found"
 
-        return self.motif_db_dict[db_name](**kwargs)
+        return MotifDBFactory.motif_db_dict[db_name](**kwargs)
     
     @staticmethod
     def get_motif_db_names():
@@ -243,11 +245,18 @@ class MotifDBFactory:
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # FOR TESTING PURPOSES
 if __name__ == "__main__":
-    mdb = JasparDB()
-    rec = mdb.search("ETS transcription factor ERG", "9606")
-    print(rec.get_name())
-    print(rec.get_pfm())
-    print(rec.get_logo_link())
+    from DBDScanner import DBD
+
+    mdb = MotifDBFactory.get_motif_db(db_name="JASPAR", n_hits=10)
+    l = mdb.search("homeodomain", "9606", "MKDDKKMYCYQCSTIHHAGSPAAAAHLSNGGVCPHACDDSPYSELSYGGDLDETFARRKQRRNRTTFTVQQLEELESAFAKTHYPDVFTREDLALRINLTEARVQVWFQNRRAKWRKAERTKQERGPSSTSSPENEDRLSSSEGAVGQSREELNMSPGEPSEERRRDKMTVDGEKSDSQNDDGSPLHSLDRAPSSGRLMPPTFANPSASTMLNPFYHPGGAARLLLASQPYESLRGHGSSARFPSLISPSYASQLMSFASARKEPVPTSGGS", DBD("Homeodomain", 60, 57))
+
+    for rec in l:
+        print(rec.get_matrix_id())
+        print(rec.get_name())
+        print(rec.get_uniprot_id())
+        print(rec.get_global_percent_identity())
+        print(rec.get_dbd_percent_identity())
+        print("\n")
 
 
 
