@@ -24,5 +24,10 @@ Please install the required python modules. @@@ TO ME ADD A REQUIREMENTS.TXT FIL
 ## How To
   Not set in stone yet, please hold
 
+  For the GUI, call...
+   ```
+   python3 reader.py -g
+   ```
+
 ## Cite Us
   Maybe
