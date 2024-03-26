@@ -26,8 +26,9 @@ Please install the required python modules. @@@ TO ME ADD A REQUIREMENTS.TXT FIL
 
   For the GUI, call...
    ```
-   python3 reader.py -g
+   python3 reader.py -i lverage_output.tsv -g
    ```
+  Where lverage_output.tsv is the output file of lverage.py
 
 ## Cite Us
   Maybe
