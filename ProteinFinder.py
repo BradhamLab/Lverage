@@ -23,6 +23,7 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 import os
 import shutil
 from Bio import SeqIO
+from Bio.Seq import Seq
 from datetime import datetime # for random file generation
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -30,66 +31,83 @@ from datetime import datetime # for random file generation
 
 class ProteinFinder:
     '''
-    This class uses the tool ORFfinder and parses its output to find the longest open reading frame (ORF) of a DNA sequence.s
+    This class searches for the longest open reading frame (ORF) of a DNA sequence.
     '''
 
-    def __init__(self, orf_finder_path, verbose = False):
+    def __init__(self, table=1, start_codons=['ATG', 'CTG', 'TTG', 'GTG'], verbose = False):
         '''
         Arguments:
-        orf_finder_path: path to ORFfinder
+        table: translation table according to NCBI
+        start_codons: start codons to consider
         verbose: if True, prints messages to the console
         '''
-        self.orf_finder_path = orf_finder_path
+        self.table = table
+        self.start_codons = start_codons
         self.verbose = verbose
         
         self.is_message_printed = False
 
-        assert shutil.which(self.orf_finder_path) is not None or os.path.exists(self.orf_finder_path), "ORFfinder not found."
+        assert self.table >= 1, 'Invalid translation table'
 
     def find_protein(self, sequence):
         '''
-        This function finds the protein sequence of a DNA sequence using ORF Finder.
-        It goes through all open reading frames and returns the longest one.
+        This function finds the protein sequence of a DNA sequence by searching for the longest open reading frame (ORF).
 
         Arguments:
         sequence: a DNA sequence
         '''
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step one: write sequence to a temporary file
+    def find_protein(self, sequence):
+        '''
+        This function finds the protein sequence of a DNA sequence by searching for the longest open reading frame (ORF).
 
-        time_string = datetime.now().strftime('%Y%m%d%H%M%S')
-        temp_in_name = f'temp{time_string}.txt'
-        temp_out_name = f'temp_orf{time_string}.txt'
+        Arguments:
+        sequence: a DNA sequence
+        '''
 
-        with open(temp_in_name, "w") as f:
-            f.write(sequence)
+        protein = "" # return value
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step two: run ORF Finder
+        # if sequence is a string, convert it to a Seq object; if a Seq object, do nothing; otherwise, raise an error
+        if isinstance(sequence, str):
+            sequence = Seq(sequence)
+            reverse_sequence = sequence.reverse_complement()
+        elif isinstance(sequence, Seq):
+            reverse_sequence = sequence.reverse_complement()
+        else:
+            raise ValueError('Invalid sequence type')
+        
+        
+        # For both strands
+        for strand, nuc in [(+1, sequence), (-1, reverse_sequence)]:
 
-        if self.verbose:
-            if not self.is_message_printed:
-                print("\tRunning ORFfinder", end='')
-                self.is_message_printed = True
-            else:
-                print('.', end='')
-                
-            
-        os.system(f"{self.orf_finder_path} -in {temp_in_name} -out {temp_out_name} -outfmt 0 -s 1")
+            # For each reading frame
+            for frame in range(3):
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step three: find longest ORF  
-                  
-        orf = ""
-        for rec in SeqIO.parse(temp_out_name, 'fasta'):
-            seq = str(rec.seq)
-            orf = seq if len(seq) > len(orf) else orf
-            
-        os.remove(temp_in_name)
-        os.remove(temp_out_name)
+                # Extend to the length of a complete codon frame
+                length = 3 * ((len(nuc) - frame) // 3)
 
-        return orf
+                # Search for a start codon
+                for start in range(frame, length, 3):
+
+                    # Check if the current codon is a start codon
+                    if nuc[start:start+3] in self.start_codons:
+
+                        # Translate the sequence from this point
+                        orf = nuc[start:].translate(table=self.table, to_stop=True)
+                        if len(orf) > len(protein):
+
+                            if self.verbose:
+
+                                if not self.is_message_printed:
+                                    print('.')
+                                    self.is_message_printed = True
+                                else:
+                                    print('.', end='')
+
+                            protein = orf
+
+        return protein
+    
     
     def reset_message(self):
         '''
@@ -109,7 +127,7 @@ if __name__ == "__main__":
 
     sequence = str(SeqIO.read("testcases/lverg.fa", "fasta").seq)
 
-    pf = ProteinFinder("./ORFfinder")
+    pf = ProteinFinder()
 
     print(pf.find_protein(sequence))
 
