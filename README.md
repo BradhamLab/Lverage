@@ -7,6 +7,7 @@ Many species such as homo sapien and mus musculus have been well studied through
 
 Given a gene DNA sequence, Lverage will first convert this sequence to the protein sequence, using the largest open-reading frame. Pfamscan from [ecbi.uk link here] is then used to obtain the DNA-binding domains (DBD). This is stored for later. BLASTP is ran on the protein sequence of the gene with the standard database to find orthologous hits. We then perform multiple-alignment [with Clustalo? Ask team. Maybe do multiple pair-wise alignments?] with the protein sequence and the BLASTP hits. If the DBD is highly conserved between species, this alignment should match along it. Using the DBD we located earlier, we can calculate the similarity of the DBD with every hit's DBD. Based on [paper about 70%], we use a threshold of 70% similarity as any DBD that meets this value implies that a motif is conserved between the species. If a hit meets this criterion, we use the JASPAR motif database to obtain the orthologous motif. We then validate this motif by utilizing the corresponding uniprot sequence delineated by JASPAR and ask for an 85% match (through local alignment) with our gene's protein sequence.
 
+test
 
 Note this is a readme draft. Imma just be jotting down things that are needed and I'll beautify this later. One day. Eventually.
 
