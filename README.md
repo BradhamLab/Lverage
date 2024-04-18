@@ -1,4 +1,4 @@
-# LvERAGE
+# Lverage
 Motif Finder pipeline - searching for motifs through orthologous species.
 
 Note this is a readme draft. Imma just be jotting down things that are needed and I'll beautify this later. One day. Eventually.
