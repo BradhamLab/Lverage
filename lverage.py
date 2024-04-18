@@ -40,7 +40,6 @@ parser.add_argument('-or', '--orthologs', nargs='*', help='Ortholog species to s
 parser.add_argument('-o', '--output', help='Output file path; provide a path to a file or a directory where output.tsv will be made.', default='output.tsv')
 
 # Pipeline TOOL Arguments
-parser.add_argument('-of', '--orf_finder', help='Path to ORFfinder executable. If not provided, assumed to be in PATH')
 parser.add_argument('-c', '--clustalo', help='Path to Clustalo executable. If not provided, assumed to be in PATH')
 parser.add_argument('-e', '--email', help='Email address for EBML tools')
 
@@ -65,7 +64,6 @@ motif_database = args.motif_database
 ortholog_list = args.orthologs
 output_path = args.output
 
-orf_finder_path = args.orf_finder
 clustalo_path = args.clustalo
 email = args.email
 
@@ -158,15 +156,6 @@ else:
         raise RuntimeError("Output directory does not exist")
 
 
-# Checking if ORF Finder is available... maybe change this to be more generic
-if not orf_finder_path:
-    if shutil.which("ORFfinder") is None:
-        raise RuntimeError("ORF Finder not found. Please provide path to ORFfinder executable using -of or --orf_finder")
-    orf_finder_path = "ORFfinder"
-
-else:
-    assert os.path.exists(orf_finder_path), "ORFfinder not found. Please provide path to ORF Finder executable using -of or --orf_finder or ensure that ORFfinder is in PATH"
-
 # Checking if Clustalo is available
 if not clustalo_path:
     if shutil.which('clustalo') is None:
@@ -182,7 +171,7 @@ else:
 sdb = SpeciesDBFactory.get_species_db(species, file_path=database_path)
 
 # Setting up ORFfinder
-pf = ProteinFinder(orf_finder_path = orf_finder_path, verbose=verbose)
+pf = ProteinFinder(verbose=verbose)
 
 # Setting up pfamscan
 ds = DBDScanner(email=email, verbose=verbose)
@@ -215,7 +204,6 @@ if verbose:
     print(f"Using an identity threshold of {identity_threshold * 100}%", flush = True)
 
 for gene_id, gene_sequence_list in sdb:
-
 
     if verbose:
         print(flush=True) # newline
@@ -293,6 +281,7 @@ for gene_id, gene_sequence_list in sdb:
 
         if verbose:
             print(f">Finding conserved motifs of {gene_id} with dbd {dbd.get_name()}.", flush=True)
+        
 
         
         # for each ortholog sequence (sim_array at 0 is species of interest, 1 and after are orthologs)
@@ -316,12 +305,13 @@ for gene_id, gene_sequence_list in sdb:
                 # Step six: for each orthologous sequence with a conserved dbd, search motif database for motif
 
                 if verbose:
-                    print(f"\t-Looking for ({ortholog_description}) with combinations of ({ortholog_reduced_description})", flush=True)
-                    
+                    print(f"\n\t-Looking for ({ortholog_description}) with combinations of ({ortholog_reduced_description})", flush=True)
+                    print("\t\t", end='', flush=True)
+
                 found_motif = False # if a motif is found at least once, set this to true so user can later know if no motif was found
                 
                 # Use combinations of words from the ortholog's hit name; sometimes the full name doesn't work but a reduced form of it does
-                for mdb_query in ortholog_hit.yield_usable_name_combos():
+                for j, mdb_query in enumerate(ortholog_hit.get_usable_name_combos()):
                     motif_list = mdb.search(mdb_query, ortholog_taxon_id, protein_sequence, dbd)
 
                     # if motif was found, add to output
@@ -356,7 +346,12 @@ for gene_id, gene_sequence_list in sdb:
                             found_motif = True
 
                             if verbose:
-                                print(f"\t\tFound logo for {mdb_query}", flush=True)
+                                print('.', end='', flush=True)
+                            #     print(f"\t\tFound logo for {mdb_query}", flush=True)
+
+                        # If exact match found, break the loop early    
+                        if j == 0:
+                            break
 
 
                 if not found_motif:

@@ -96,7 +96,6 @@ class DBDScanner:
         self.try_count = try_count
         self.time_interval = time_interval
 
-
     def find_dbds(self, protein_seq):
         '''
         This function finds the DNA binding domains of a protein sequence.

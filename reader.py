@@ -123,6 +123,8 @@ class LverageBrowser(tk.Tk):
         self.dbd = ""
         self.blast_hit = ""
 
+        self.font = ("Arial", 24)
+
         self.create_widgets()
 
     def create_widgets(self):
@@ -135,11 +137,11 @@ class LverageBrowser(tk.Tk):
         self.listbox_frame.pack(side="top", fill="both", expand=True)
         
         # Create listboxes within the frame
-        self.gene_listbox = tk.Listbox(self.listbox_frame)
+        self.gene_listbox = tk.Listbox(self.listbox_frame, font=self.font)
         self.gene_listbox.bind('<<ListboxSelect>>', self.update_dbd_list)
-        self.dbd_listbox = tk.Listbox(self.listbox_frame)
+        self.dbd_listbox = tk.Listbox(self.listbox_frame, font=self.font)
         self.dbd_listbox.bind('<<ListboxSelect>>', self.update_blast_hit_list)
-        self.blast_hit_listbox = tk.Listbox(self.listbox_frame)
+        self.blast_hit_listbox = tk.Listbox(self.listbox_frame, font=self.font)
         self.blast_hit_listbox.bind('<<ListboxSelect>>', self.update_record_list)
         
         # Pack the listboxes side by side
@@ -148,10 +150,10 @@ class LverageBrowser(tk.Tk):
         self.blast_hit_listbox.pack(side="left", fill="both", expand=True)
         
         # Create and pack the records_text widget separately at the bottom
-        self.records_text = tk.Text(self, height=10)
+        self.records_text = tk.Text(self, height=10, font=self.font)
         self.records_text.pack(side="top", fill="both", expand=True)
 
-        self.download_button = tk.Button(self, text="Download Records", command=self.download_records)
+        self.download_button = tk.Button(self, text="Download Records", command=self.download_records, font=self.font)
         self.download_button.pack(side="bottom", pady=10)
 
         self.populate_gene_list() # populating the gene listbox from the get-go

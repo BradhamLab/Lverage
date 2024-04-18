@@ -22,6 +22,7 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 # Imports
 import requests
 import utils
+from Bio.Align import PairwiseAligner
 from Bio import pairwise2
 from Bio.Seq import Seq
 
@@ -104,13 +105,22 @@ class JasparDB(MotifDBInterface):
         '''
         
         '''
+        super().__init__()
 
         assert n_hits > 0, f"n_hits must be greater than 0, currently {n_hits} is given."
         assert 0 <= dbd_threshold <= 1, f"dbd_threshold must be between 0 and 1, currently {dbd_threshold} is given."
 
         self.n_hits = n_hits
         self.dbd_threshold = dbd_threshold
-        super().__init__()
+
+        self.local_aligner = PairwiseAligner()
+        self.local_aligner.mode = 'local'
+
+        self.global_aligner = PairwiseAligner()
+        self.global_aligner.mode = 'global'
+        self.global_aligner.match_score = 2
+        self.global_aligner.mismatch_score = -1
+
 
 
     def search(self, description, tax_id, protein_seq, dbd):
@@ -176,11 +186,11 @@ class JasparDB(MotifDBInterface):
                     uniprot_seq = ''.join(uniprot_fasta.split('\n')[1:]) # remove the header and join the sequence
 
                     # globally align the uniprot sequence with the protein sequence
-                    alignments = pairwise2.align.globalxx(protein_seq, uniprot_seq)[0][:2]
+                    alignments = self.global_aligner.align(protein_seq, uniprot_seq)[0]
                     global_perc_id = utils._calculate_similarity(*alignments)
 
                     # locally align the uniprot sequence with the protein sequence
-                    alignments = pairwise2.align.localxx(protein_seq, uniprot_seq)[0][:2]
+                    alignments = self.local_aligner.align(protein_seq, uniprot_seq)[0]
 
                     # If the dbd has low similarity with the unitprot sequence, skip this motif
                     dbd_perc_id = utils.calculate_similarity(alignments, dbd.get_start(), dbd.get_size())[1]

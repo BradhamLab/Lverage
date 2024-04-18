@@ -105,10 +105,10 @@ class AlignmentRecord:
         usable_name = ' '.join(usable_name.split()) # Removing extra spaces
         return usable_name
     
-    def yield_usable_name_combos(self):
+    def get_usable_name_combos(self):
         '''
 
-        This function yields all possible combinations of the usable name of the sequence
+        This function returns all possible combinations of the usable name of the sequence
         '''
         usable_name = self.get_usable_name()
         words = usable_name.split()
@@ -124,8 +124,7 @@ class AlignmentRecord:
         c.sort(key=lambda x: len(x.split()), reverse=True)
 
 
-        for combo in c:
-            yield combo
+        return c
     
     def get_species(self):
         return self.species
