@@ -93,20 +93,25 @@ class ProteinFinder:
                     if nuc[start:start+3] in self.start_codons:
 
                         # Translate the sequence from this point
-                        orf = nuc[start:].translate(table=self.table, to_stop=True)
+                        nuc_to_translate = nuc[start:]
+
+                        # pad the sequence with Ns to make it a multiple of 3
+                        nuc_to_translate += 'N' * (3 - len(nuc_to_translate) % 3)
+
+                        orf = nuc_to_translate.translate(table=self.table, to_stop=True)
                         if len(orf) > len(protein):
 
                             if self.verbose:
 
                                 if not self.is_message_printed:
-                                    print('.')
+                                    print('\t.', end='')
                                     self.is_message_printed = True
                                 else:
                                     print('.', end='')
 
                             protein = orf
 
-        return protein
+        return str(protein)
     
     
     def reset_message(self):
