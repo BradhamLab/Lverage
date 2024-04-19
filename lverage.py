@@ -3,8 +3,6 @@
 The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.
 This program works similar to a pipeline such that modules can be replaced with other modules to perform the same task but possibly on different species.
 
-# ADD REQUIREMENTS HERE ANTHONY JESUS CHRIST DON'T FORGET
-
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
 
     This program is free software: you can redistribute it and/or modify
@@ -54,8 +52,6 @@ parser.add_argument('-ls', '--list_species', help='Prints list of all species av
 parser.add_argument('-v', '--verbose', help='Prints out more information', action='store_true', default=False)
 
 
-
-
 args = parser.parse_args()
 
 database_path = args.database
@@ -101,7 +97,7 @@ import os
 should_exit = False
 # Printing list of species available to use
 if list_species_db:
-    print("List of species with available database parsers:", flush=True)
+    print("List of species taxon ids with available database parsers:", flush=True)
     print(', '.join(SpeciesDBFactory.get_species()), flush=True)
     print()
     should_exit = True
@@ -229,7 +225,7 @@ for gene_id, gene_sequence_list in sdb:
             continue
             
     if verbose:
-        print(protein_sequence, flush=True)
+        print("\t" + protein_sequence, flush=True)
 
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Step two: get start and size of DBD within protein
@@ -364,11 +360,5 @@ for gene_id, gene_sequence_list in sdb:
 
 
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-    # Step seven: profit (forever out of our reach)
-
-    # Step eight: ???
-
-    # Step nine: cry
-    
 
 f.close()

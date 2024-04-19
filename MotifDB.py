@@ -23,7 +23,6 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 import requests
 import utils
 from Bio.Align import PairwiseAligner
-from Bio import pairwise2
 from Bio.Seq import Seq
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#

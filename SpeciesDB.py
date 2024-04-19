@@ -136,6 +136,12 @@ class SpeciesDBFactory:
     # Taxon id or Alternative Species Names -> standard scientific name
     species_taxon_name_dict = {}
 
+    # taxon id set
+    taxon_id_set = set()
+
+    # standard scientific name set
+    standard_name_set = set()
+
     @staticmethod
     def load_species_names():
         with open("species.txt", "r") as f:
@@ -145,6 +151,10 @@ class SpeciesDBFactory:
                     name_list = [name.strip() for name in line.split(',')]
                     taxon_id = name_list[0]      # Taxon id should always be first column.
                     standard_name = name_list[1] # standard scientific name should always be second column.
+
+                    SpeciesDBFactory.taxon_id_set.add(taxon_id)
+                    SpeciesDBFactory.standard_name_set.add(standard_name)
+
                     for name in name_list:
                         SpeciesDBFactory.species_name_taxon_dict[name] = taxon_id
                         SpeciesDBFactory.species_taxon_name_dict[name] = standard_name
@@ -184,7 +194,7 @@ class SpeciesDBFactory:
     
     @staticmethod
     def get_all_species():
-        return list(SpeciesDBFactory.species_taxon_name_dict.keys())
+        return list(SpeciesDBFactory.standard_name_set)
     
     @staticmethod
     def get_dbs():
