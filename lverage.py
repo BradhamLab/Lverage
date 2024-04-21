@@ -78,18 +78,18 @@ verbose = args.verbose
 # Importing modules
 
 import warnings
-from Bio import BiopythonDeprecationWarning
+import os
 import shutil
+from Bio import BiopythonDeprecationWarning
 warnings.simplefilter('ignore', BiopythonDeprecationWarning)
 
-from SpeciesDB import SpeciesDBFactory
-from ProteinFinder import ProteinFinder
-from DBDScanner import DBDScanner
-from OrthologSearcher import OrthologSearcher
-from Aligner import Aligner
-from MotifDB import MotifDBFactory
-import utils
-import os
+from src.SpeciesDB import SpeciesDBFactory
+from src.ProteinFinder import ProteinFinder
+from src.DBDScanner import DBDScanner
+from src.OrthologSearcher import OrthologSearcher
+from src.Aligner import Aligner
+from src.MotifDB import MotifDBFactory
+import src.utils as lvutils
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Printing lists if asked for by user
@@ -270,7 +270,7 @@ for gene_id, gene_sequence_list in sdb:
     for dbd in dbd_list:
 
         # getting similarity between alignments
-        sim_array = utils.calculate_similarity(alignment_list, dbd.get_start(), dbd.get_size()) # similarity of all sequences to the first sequence at the dbd's location
+        sim_array = lvutils.calculate_similarity(alignment_list, dbd.get_start(), dbd.get_size()) # similarity of all sequences to the first sequence at the dbd's location
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step five: find conserved motifs from orthologous sequences that had 70% or more identity with the gene from given species

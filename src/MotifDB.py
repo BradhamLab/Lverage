@@ -21,7 +21,7 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
 import requests
-import utils
+import src.utils
 from Bio.Align import PairwiseAligner
 from Bio.Seq import Seq
 
