@@ -55,8 +55,22 @@ The following table shows all arguments for Lverage.
 |-or/--orthologs|Ortholog species to search through. Povide the NCBI Tax IDs or scientific names, each one enclosed in quotes and separated by spaces|
 |-o/--output|Output file path; if a directory is provided, output.tsv will be made there|
 |-c/--clustalo| Path to the clustalo executable. If not provided, assumed to be in PATH|
-|-e/--email|Email address for EBML Tools|
+|-e/--email|Email address for EMBL Tools|
 |-v/--verbose|If provided, will print out every step along the way as well as intermittent reuslts|
 
 
 
+### Examples
+
+#### Calling Lverage on Green Sea Urchin
+
+```
+python3 lverage.py -db Data/LvEdgeIDS.csv -s "green sea urchin" -e useremail@mail.com -o ../Output/lvedge_output.tsv -v
+```
+Here, we link -db to the database file that contains the IDs we wish to look at. -s is the name of the species we are looking at and this links us to the correct parser of the database file. In -e, we provide an email for any EMBL tools. We provide a path for an output file we wish to be created with -o. Finally, we ask that it prints out each step with -v.
+
+#### Providing clustalo binary
+```
+python3 lverage.py -db Data/LvEdgeIDS.csv -s "green sea urchin" -e useremail@mail.com -o ../Output/lvedge_output.tsv -v -c ~/Tools/clustalo
+```
+At the very end of this command we add the -c argument and provide a path to the *clutsalo* binary. This is if *clustalo* is not on the PATH which Lverage uses by default.
