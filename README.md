@@ -65,12 +65,12 @@ The following table shows all arguments for Lverage.
 #### Calling Lverage on Green Sea Urchin
 
 ```
-python3 lverage.py -db Data/LvEdgeIDS.csv -s "green sea urchin" -e useremail@mail.com -o ../Output/lvedge_output.tsv -v
+python3 lverage.py -db Data/LvEdgeIDs.csv -s "green sea urchin" -e useremail@mail.com -o ../Output/lvedge_output.tsv -v
 ```
 Here, we link -db to the database file that contains the IDs we wish to look at. -s is the name of the species we are looking at and this links us to the correct parser of the database file. In -e, we provide an email for any EMBL tools. We provide a path for an output file we wish to be created with -o. Finally, we ask that it prints out each step with -v.
 
 #### Providing clustalo binary
 ```
-python3 lverage.py -db Data/LvEdgeIDS.csv -s "green sea urchin" -e useremail@mail.com -o ../Output/lvedge_output.tsv -v -c ~/Tools/clustalo
+python3 lverage.py -db Data/LvEdgeIDs.csv -s "green sea urchin" -e useremail@mail.com -o ../Output/lvedge_output.tsv -v -c ~/Tools/clustalo
 ```
 At the very end of this command we add the -c argument and provide a path to the *clutsalo* binary. This is if *clustalo* is not on the PATH which Lverage uses by default.
