@@ -50,12 +50,13 @@ The following table shows all arguments for Lverage.
 |Argument|Description|
 |---|---|
 |-h/--help| Provides a description of the tool and arguments |
-|-db/--database| Path to database file |
+|-f/--fasta| Path to folder of fasta files. Each fasta file should be for a singular gene. A fasta file may contain multiple scaffolds of this gene in multi-FASTA format. The name of the file should be the gene's name. |
 |-mdb/--motif_database| Path to motif database to search; currently only JASPAR which is default|
 |-or/--orthologs|Ortholog species to search through. Povide the NCBI Tax IDs or scientific names, each one enclosed in quotes and separated by spaces|
 |-o/--output|Output file path; if a directory is provided, output.tsv will be made there|
 |-c/--clustalo| Path to the clustalo executable. If not provided, assumed to be in PATH|
 |-e/--email|Email address for EMBL Tools|
+|-it/--identity_threshold| According to <insert paper here>, 70% similarity with an ortholog sequence means that the motif is conserved in the ortholog. This parameter asks that any ortholog sequence must be 70% similar to a provided gene's sequence.
 |-v/--verbose|If provided, will print out every step along the way as well as intermittent reuslts|
 
 
@@ -65,12 +66,12 @@ The following table shows all arguments for Lverage.
 #### Calling Lverage on Green Sea Urchin
 
 ```
-python3 lverage.py -db Data/LvEdgeIDs.csv -s "green sea urchin" -e useremail@mail.com -o ../Output/lvedge_output.tsv -v
+python3 lverage.py -f Data/LvGenes/ -e useremail@mail.com -o ../Output/lvedge_output.tsv -v
 ```
-Here, we link -db to the database file that contains the IDs we wish to look at. -s is the name of the species we are looking at and this links us to the correct parser of the database file. In -e, we provide an email for any EMBL tools. We provide a path for an output file we wish to be created with -o. Finally, we ask that it prints out each step with -v.
+Here we provide a directory of fasta files with -f. The fasta files used in this example were gathered from LvEDGE and are provided in this repository. In -e, we provide an email for any EMBL tools. We provide a path for an output file we wish to be created with -o. Finally, we ask that it prints out each step with -v.
 
 #### Providing clustalo binary
 ```
-python3 lverage.py -db Data/LvEdgeIDs.csv -s "green sea urchin" -e useremail@mail.com -o ../Output/lvedge_output.tsv -v -c ~/Tools/clustalo
+python3 lverage.py -f Data/LvGenes/ -e useremail@mail.com -o ../Output/lvedge_output.tsv -v -c ~/Tools/clustalo
 ```
 At the very end of this command we add the -c argument and provide a path to the *clutsalo* binary. This is if *clustalo* is not on the PATH which Lverage uses by default.
