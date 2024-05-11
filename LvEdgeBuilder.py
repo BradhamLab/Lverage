@@ -118,52 +118,52 @@ class GreenSeaUrchinDB(SpeciesDBInterface):
             raise StopIteration
         
 
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description=
+        '''The purpose of this script is to build a directory of FASTA files for each gene in the LvEDGE database.
+        Multi-FASTA format files are used if a gene has multiple scaffolds.
+        The name of each FASTA file is: <gene name>.fa
+        Copyright: 
+        Lab: Bradham Lab at Boston University
+        Correspondence: anthonygarza124@gmail.com''')
+
+    parser.add_argument('-o', '--output', type=str, required=True, help='The directory to save the FASTA files. Recommended to be empty.')
+    parser.add_argument('-db', '--database', type=str, required=True, help='The path to the LvEDGE IDs file')
+
+    args = parser.parse_args()
+
+    output_path = args.output
+    db_path = args.database
 
 
-parser = argparse.ArgumentParser(description=
-    '''The purpose of this script is to build a directory of FASTA files for each gene in the LvEDGE database.
-    Multi-FASTA format files are used if a gene has multiple scaffolds.
-    The name of each FASTA file is: <gene name>.fa
-    Copyright: 
-    Lab: Bradham Lab at Boston University
-    Correspondence: anthonygarza124@gmail.com''')
 
-parser.add_argument('-o', '--output', type=str, required=True, help='The directory to save the FASTA files. Recommended to be empty.')
-parser.add_argument('-db', '--database', type=str, required=True, help='The path to the LvEDGE IDs file')
+    # Validate
+    if not os.path.exists(output_path):
+        raise FileNotFoundError(f'The output directory does not exist: {output_path}')
 
-args = parser.parse_args()
+    if not os.path.isdir(output_path):
+        raise NotADirectoryError(f'The output path is not a directory: {output_path}')
 
-output_path = args.output
-db_path = args.database
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(f'The LvEDGE IDs file does not exist: {db_path}')
 
+    # Getting list of genes that already have a FASTA file
+    fasta_files = os.listdir(output_path)
+    gene_ids = [file.split('.')[0] for file in fasta_files]
 
+    # Scrape the LvEDGE database
+    gsdb = GreenSeaUrchinDB(db_path, skip_list=gene_ids)
 
-# Validate
-if not os.path.exists(output_path):
-    raise FileNotFoundError(f'The output directory does not exist: {output_path}')
+    for gene_id, record_list in gsdb:
 
-if not os.path.isdir(output_path):
-    raise NotADirectoryError(f'The output path is not a directory: {output_path}')
+        if len(record_list) == 0:
+            print(gene_id)
+            continue
 
-if not os.path.exists(db_path):
-    raise FileNotFoundError(f'The LvEDGE IDs file does not exist: {db_path}')
-
-# Getting list of genes that already have a FASTA file
-fasta_files = os.listdir(output_path)
-gene_ids = [file.split('.')[0] for file in fasta_files]
-
-# Scrape the LvEDGE database
-gsdb = GreenSeaUrchinDB(db_path, skip_list=gene_ids)
-
-for gene_id, record_list in gsdb:
-
-    if len(record_list) == 0:
-        print(gene_id)
-        continue
-
-    gene_id = gene_id.replace('/', '_')
-    # Write the gene to a FASTA file
-    output_file = os.path.join(output_path, f'{gene_id}.fa')
-    with open(output_file, 'w') as f:
-        SeqIO.write(record_list, f, 'fasta')
-        
+        gene_id = gene_id.replace('/', '_')
+        # Write the gene to a FASTA file
+        output_file = os.path.join(output_path, f'{gene_id}.fa')
+        with open(output_file, 'w') as f:
+            SeqIO.write(record_list, f, 'fasta')
+            
