@@ -22,7 +22,6 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
 from Bio.Align.Applications import ClustalOmegaCommandline
-import numpy as np
 import os
 from Bio import SeqIO
 

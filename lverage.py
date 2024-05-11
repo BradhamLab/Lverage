@@ -1,7 +1,6 @@
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 '''
 The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.
-This program works similar to a pipeline such that modules can be replaced with other modules to perform the same task but possibly on different species.
 
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
 
@@ -18,6 +17,8 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
 Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 '''
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+# global variables
+is_optimize = True
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Getting user inputs before importing other modules
@@ -25,14 +26,13 @@ import argparse
 
 parser = argparse.ArgumentParser(description=
     '''The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.
-    This program works similar to a pipeline such that modules can be replaced with other modules to perform the same task but possibly on different species.
     Copyright: 
     Lab: Bradham Lab at Boston University
     Correspondence: anthonygarza124@gmail.com''')
 
 # Pipeline arguments
-parser.add_argument('-db', '--database', help='Path to database file for species of interest if required')
-parser.add_argument('-s', '--species', help='Species name associated with the database and its parser. Use -lsdb to see list of available species.')
+parser.add_argument('-f', '--fasta', help='Path to folder of fasta files. Each fasta file should be for a singular gene. A fasta file may contain multiple scaffolds of this gene in multi-FASTA format.')
+
 parser.add_argument('-mdb', '--motif_database', help='Name of motif database to use. Default is JASPAR. Use -lmdb to see list of available motif databases.', default='JASPAR')
 parser.add_argument('-or', '--orthologs', nargs='*', help='Ortholog species to search for motif in. Each species should be enclosed in quotes and separated by spaces. Default is only Homo Sapiens') 
 parser.add_argument('-o', '--output', help='Output file path; provide a path to a file or a directory where output.tsv will be made.', default='output.tsv')
@@ -45,17 +45,15 @@ parser.add_argument('-e', '--email', help='Email address for EBML tools')
 parser.add_argument('-it', '--identity_threshold', help='Identity threshold for similarity between sequences. Default is 0.7', default=0.7, type=float)
 
 # User info requests
-parser.add_argument('-lsdb', '--list_species_database', help='Prints list of species who have database parsers available', action='store_true')
 parser.add_argument('-lmdb', '--list_motif_database', help='Prints list of motif databases available', action='store_true')
-parser.add_argument('-ls', '--list_species', help='Prints list of all species available as orthologs', action='store_true')
 
+# options
 parser.add_argument('-v', '--verbose', help='Prints out more information', action='store_true', default=False)
 
 
 args = parser.parse_args()
 
-database_path = args.database
-species = args.species
+fasta_path = args.fasta
 motif_database = args.motif_database
 ortholog_list = args.orthologs
 output_path = args.output
@@ -65,9 +63,7 @@ email = args.email
 
 identity_threshold = args.identity_threshold
 
-list_species_db = args.list_species_database
 list_motif_db = args.list_motif_database
-list_species = args.list_species
 
 verbose = args.verbose
 
@@ -80,10 +76,9 @@ verbose = args.verbose
 import warnings
 import os
 import shutil
-from Bio import BiopythonDeprecationWarning
+from Bio import BiopythonDeprecationWarning, SeqIO
 warnings.simplefilter('ignore', BiopythonDeprecationWarning)
 
-from src.SpeciesDB import SpeciesDBFactory
 from src.ProteinFinder import ProteinFinder
 from src.DBDScanner import DBDScanner
 from src.OrthologSearcher import OrthologSearcher
@@ -91,28 +86,19 @@ from src.Aligner import Aligner
 from src.MotifDB import MotifDBFactory
 import src.utils as lvutils
 
+if is_optimize:
+    import time # for optimization only
+
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Printing lists if asked for by user
 
 should_exit = False
-# Printing list of species available to use
-if list_species_db:
-    print("List of species taxon ids with available database parsers:", flush=True)
-    print(', '.join(SpeciesDBFactory.get_species()), flush=True)
-    print()
-    should_exit = True
 
 # Printing list of motif databases available
 if list_motif_db:
     print("List of motif databases available:", flush=True)
     print(', '.join(MotifDBFactory.get_motif_db_names()), flush=True)
     print()
-    should_exit = True
-
-# Printing list of species available as orthologs
-if list_species:
-    print("List of species available as orthologs:", flush=True)
-    print(', '.join(SpeciesDBFactory.get_all_species()), flush=True)
     should_exit = True
 
 if should_exit:
@@ -123,25 +109,23 @@ if should_exit:
 # Validating arguments
 
 # Checking if required arguments are provided
-if not database_path or not species or not email:
-    parser.print_help()
-    raise RuntimeError("Please provide a database path, a species name, and an email")
-    
+if not fasta_path:
+    raise RuntimeError("Please provide a path to a folder of fasta files using -f or --fasta")
+
+if not os.path.isdir(fasta_path):
+    raise RuntimeError("Fasta folder does not exist or is not a folder")
+
+if not email:
+    raise RuntimeError("Please provide an email address using -e or --email")
+
+# Check if motif database available
+if not MotifDBFactory.has_db(motif_database):
+    raise RuntimeError(f"{motif_database} not found in motif databases")
+
 # Check if ortholog species passed; if not, use homo sapiens
 if not ortholog_list:
     ortholog_list = ['Homo Sapiens']
     
-# Checking if ortholog species available in species.txt; if so, convert to standard name
-for i, ortholog_species in enumerate(ortholog_list):
-    if not SpeciesDBFactory.has_species(ortholog_species):
-        raise RuntimeError(f"{ortholog_species} not found in species.txt")
-
-    ortholog_list[i] = SpeciesDBFactory.get_standard_name(ortholog_species)
-
-
-# Checking if database path exists
-if not os.path.exists(database_path):
-    raise RuntimeError("Database file does not exist")
 
 # Checking if output path exists
 if os.path.isdir(output_path):
@@ -160,11 +144,24 @@ if not clustalo_path:
 else:
     assert os.path.exists(clustalo_path), "clustalo not ofund. Please provide path to clustalo executable using -c or --clustalo or ensure that clustal is in PATH"
     
+
+# Checking if ortholog species are in NCBI database; if tax ID, converting to scientific name
+for i, ortholog_species in enumerate(ortholog_list):
+    if not lvutils.check_valid_species(ortholog_species):
+        raise RuntimeError(f"{ortholog_species} not found in the NCBI database")
+
+    # if tax ID, convert to species name
+    if ortholog_species.isdigit():
+        ortholog_list[i] = lvutils.get_species_name(ortholog_species)
+
+
+# Getting all fasta files in the directory
+gene_file_list = [os.path.join(fasta_path, x) for x in os.listdir(fasta_path) if x.endswith('.fasta') or x.endswith('.fa') or x.endswith('.fna')]
+assert len(gene_file_list) > 0, "No fasta files found in the directory. Make sure the files end with .fasta, .fa, or .fna"
+gene_file_list.sort(key=lambda x: os.path.basename(x))
+
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Setting up tools
-
-# Getting species database
-sdb = SpeciesDBFactory.get_species_db(species, file_path=database_path)
 
 # Setting up ORFfinder
 pf = ProteinFinder(verbose=verbose)
@@ -173,7 +170,7 @@ pf = ProteinFinder(verbose=verbose)
 ds = DBDScanner(email=email, verbose=verbose)
 
 # Setting up BlastP
-os = OrthologSearcher(hitlist_size=20, verbose=verbose, species_list=ortholog_list)
+ors = OrthologSearcher(hitlist_size=20, verbose=verbose, species_list=ortholog_list)
 
 # Setting up Clustal Omega
 aligner = Aligner(clustalo_path, verbose=verbose)
@@ -187,26 +184,29 @@ mdb = MotifDBFactory.get_motif_db(db_name=motif_database, n_hits=10)
 f = open(output_path, "w")
 
 headers = ["ID", "DBD Name", "BLAST Hit Description", "BLAST Hit Species", "BLAST Hit E-value", "BLAST Hit Percent Identity (%)", "BLAST Hit Query Coverage",  "Motif Database Query", "Motif ID", "Motif Name", "Motif Class", "Motif Logo", "Motif PWM", "Uniprot ID", "Lv-Uniprot Identity (%)", "LvDBD-UniprotDBD Identity (%)"]
-f.write(species + '\n')
 f.write('\t'.join(headers) + '\n')
 f.flush()
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-# For every gene sequence in the database, search for the motifs
+# For every gene sequence in the fasta file directory, search for the motifs
 
 if verbose:
-    print(f"Searching the {species} database.", flush=True)
     print(f"Utilizing the following orthologs: {', '.join(ortholog_list)}", flush = True)
     print(f"Using an identity threshold of {identity_threshold * 100}%", flush = True)
 
-for gene_id, gene_sequence_list in sdb:
+for gene_file in gene_file_list:
+
+    gene_id = os.path.basename(gene_file).split('.')[0]
+    gene_sequence_list = [str(x.seq) for x in SeqIO.parse(gene_file, "fasta")]
 
     if verbose:
         print(flush=True) # newline
 
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Step one: get the protein sequence of the gene
-        
+    if is_optimize:
+        start_time = time.time()
+
     if verbose:
         print(f">Obtaining protein sequence of {gene_id}.", flush=True)
 
@@ -227,8 +227,14 @@ for gene_id, gene_sequence_list in sdb:
     if verbose:
         print("\t" + protein_sequence, flush=True)
 
+    if is_optimize:
+        print(f"Time to find protein sequence: {time.time() - start_time}", flush=True)
+
+
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Step two: get start and size of DBD within protein
+    if is_optimize:
+        start_time = time.time()
 
     if verbose:
         print(f">Searching for DBD in {gene_id}.", flush=True)
@@ -242,14 +248,20 @@ for gene_id, gene_sequence_list in sdb:
             print(f"\tWARNING: Unable to find DBDs in {gene_id}, skipping.", flush=True)
 
         continue
+
+    if is_optimize:
+        print(f"Time to find DBD: {time.time() - start_time}", flush=True)
+        
         
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Step three: get ortholog sequences
+    if is_optimize:
+        start_time = time.time()
 
     if verbose:
         print(f">Searching for orthologs of {gene_id}.", flush=True)
 
-    ortholog_hit_list = os.search(protein_sequence)
+    ortholog_hit_list = ors.search(protein_sequence)
 
     # if failed to find orthologs
     if len(ortholog_hit_list) == 0:
@@ -258,22 +270,32 @@ for gene_id, gene_sequence_list in sdb:
             print(f"\tWARNING:Unable to find orthologs of {gene_id}, skipping.", flush=True)
 
         continue
+
+    if is_optimize:
+        print(f"Time to find orthologs: {time.time() - start_time}", flush=True)
         
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Step four: multiple sequence alignment of protein sequences between species of interest and orthologs
+    if is_optimize:
+        start_time = time.time()
 
     if verbose:
         print(f">Aligning sequences of {gene_id}...", flush=True)
 
     alignment_list = aligner.align([protein_sequence] + [x.get_seq() for x in ortholog_hit_list])
     
+    if is_optimize:
+        print(f"Time to align sequences: {time.time() - start_time}", flush=True)
+
+    #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+    # Step five: find conserved motifs from orthologous sequences that had 70% or more identity with the gene from given species
+    start_time = time.time()
+
     for dbd in dbd_list:
 
         # getting similarity between alignments
         sim_array = lvutils.calculate_similarity(alignment_list, dbd.get_start(), dbd.get_size()) # similarity of all sequences to the first sequence at the dbd's location
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step five: find conserved motifs from orthologous sequences that had 70% or more identity with the gene from given species
 
         if verbose:
             print(f">Finding conserved motifs of {gene_id} with dbd {dbd.get_name()}.", flush=True)
@@ -291,7 +313,12 @@ for gene_id, gene_sequence_list in sdb:
             # If the similarity is greater than or equal to the identity threshold, get the motif
             if sim_array[i] >= identity_threshold:
                 ortholog_species = ortholog_hit.get_species()
-                ortholog_taxon_id = SpeciesDBFactory.get_taxon_id(ortholog_species)
+                ortholog_taxon_id = str(lvutils.get_tax_id(ortholog_species))
+
+                if ortholog_taxon_id is None:
+                    if verbose:
+                        print(f'\tWARNING:Unable to find taxon ID for {ortholog_species}! Skipping...', flush=True)
+                    continue
 
                 ortholog_escore = ortholog_hit.get_escore()
                 ortholog_percent_identity = ortholog_hit.get_percent_identity()
@@ -358,7 +385,9 @@ for gene_id, gene_sequence_list in sdb:
                 if verbose:
                     print(f'\tWARNING:{dbd.get_name()} is not conserved enough with dbd in {ortholog_description}! {sim_array[i]} similarity', flush=True)
 
-
+    if is_optimize:
+        print(f"Time to find motifs: {time.time() - start_time}", flush=True)
+        
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
 f.close()

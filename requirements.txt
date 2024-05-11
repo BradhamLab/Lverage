@@ -1,2 +1,4 @@
 selenium
 biopython
+six
+ete3
