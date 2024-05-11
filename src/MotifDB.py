@@ -21,9 +21,8 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
 import requests
-import src.utils
+import src.utils as utils
 from Bio.Align import PairwiseAligner
-from Bio.Seq import Seq
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes
@@ -249,6 +248,9 @@ class MotifDBFactory:
     def get_dbs():
         return list(MotifDBFactory.motif_db_dict.values())
 
+    @staticmethod
+    def has_db(db_name):
+        return db_name in MotifDBFactory.motif_db_dict
 
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#

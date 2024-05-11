@@ -20,11 +20,8 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
-import os
-import shutil
 from Bio import SeqIO
 from Bio.Seq import Seq
-from datetime import datetime # for random file generation
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes
@@ -49,13 +46,6 @@ class ProteinFinder:
 
         assert self.table >= 1, 'Invalid translation table'
 
-    def find_protein(self, sequence):
-        '''
-        This function finds the protein sequence of a DNA sequence by searching for the longest open reading frame (ORF).
-
-        Arguments:
-        sequence: a DNA sequence
-        '''
 
     def find_protein(self, sequence):
         '''

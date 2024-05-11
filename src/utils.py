@@ -21,6 +21,7 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
 import numpy as np
+from ete3 import NCBITaxa
 
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -131,3 +132,81 @@ def _calculate_similarity(align1, align2):
 
     # returning the similarity; ratio of similar characters over alignment length
     return similarity / len(align1)
+
+def get_species_name(tax_id):
+    '''
+    This function returns the species name of a given taxonomic ID.
+    
+    Arguments:
+    tax_id: taxonomic ID of species
+    
+    Returns:
+    species name of taxonomic ID
+    '''
+
+    if type(tax_id) == str:
+        assert tax_id.isdigit(), "Tax ID must be a number."
+        tax_id = int(tax_id)
+    
+    elif type(tax_id) != int:
+        assert False, "Tax ID must be a number."
+    
+    assert tax_id > 0, "Tax ID must be a positive number."
+
+    ncbi = NCBITaxa()
+    lineage = ncbi.get_lineage(tax_id)
+    names = ncbi.get_taxid_translator(lineage)
+
+    return names.get(tax_id, None)
+
+
+def get_tax_id(species_name):
+    '''
+    This function returns the taxonomic ID of a given species name.
+    
+    Arguments:
+    species_name: name of species
+    
+    Returns:
+    taxonomic ID of species
+    '''
+
+    assert type(species_name) == str, "Species name must be a string."
+
+    ncbi = NCBITaxa()
+    name_dict = ncbi.get_name_translator([species_name])
+    name_list = name_dict.get(species_name, None)
+
+    return name_list[0] if name_list is not None else None
+
+
+def check_valid_species(species_name):
+    '''
+    This function checks if a species name is valid.
+    
+    Arguments:
+    species_name: name of species or taxonomic ID
+    
+    Returns:
+    boolean value of whether species name is valid
+    '''
+
+    ncbi = NCBITaxa()
+
+    r = False # result
+
+    # If the species name is a number, then it is a taxonomic ID
+    if species_name.isdigit():
+        tax_id = int(species_name)
+        r = ncbi.get_rank([tax_id]).get(tax_id, None) is not None
+    
+    # If the species name is a string, then it is a species name
+    else:
+        name_dict = ncbi.get_name_translator([species_name])
+        r = name_dict.get(species_name, None) is not None
+
+    return r
+
+
+
+
