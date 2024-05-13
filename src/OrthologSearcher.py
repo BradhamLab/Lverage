@@ -96,6 +96,7 @@ class AlignmentRecord:
     def get_usable_name(self):
         '''
         This function returns the name of the sequence without any uneeded words
+        Also removes parentheses if they are at the beginning and end of the name
         '''
 
         usable_name = self.name
@@ -103,6 +104,11 @@ class AlignmentRecord:
             usable_name = usable_name.replace(uneeded, '')
             
         usable_name = ' '.join(usable_name.split()) # Removing extra spaces
+
+        # remove parentheses if they are at the beginning and end of the name
+        if usable_name.startswith('(') and usable_name.endswith(')'):
+            usable_name = usable_name[1:-1]
+
         return usable_name
     
     def get_usable_name_combos(self):
