@@ -211,11 +211,16 @@ for gene_file in gene_file_list:
         print(f">Obtaining protein sequence of {gene_id}.", flush=True)
 
     # Get longest Open Reading Frame
-    protein_sequence = ""
-    for gene_sequence in gene_sequence_list:
-        ps = pf.find_protein(gene_sequence)
-        protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
-        
+    try:
+        protein_sequence = ""
+        for gene_sequence in gene_sequence_list:
+            ps = pf.find_protein(gene_sequence)
+            protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
+            
+    except Exception as e:
+        print(f"\tERROR: SKIPPING {gene_id} - {e}")
+        continue
+
     pf.reset_message()
     print(flush=True)
         
@@ -239,7 +244,11 @@ for gene_file in gene_file_list:
     if verbose:
         print(f">Searching for DBD in {gene_id}.", flush=True)
 
-    dbd_list = ds.find_dbds(protein_sequence)
+    try:
+        dbd_list = ds.find_dbds(protein_sequence)
+    except Exception as e:
+        print(f"\tERROR: SKIPPING {gene_id} - {e}")
+        continue
     
     # if failed to find DBD
     if len(dbd_list) == 0:
@@ -261,7 +270,11 @@ for gene_file in gene_file_list:
     if verbose:
         print(f">Searching for orthologs of {gene_id}.", flush=True)
 
-    ortholog_hit_list = ors.search(protein_sequence)
+    try:
+        ortholog_hit_list = ors.search(protein_sequence)
+    except Exception as e:
+        print(f"\tERROR: SKIPPING {gene_id} - {e}")
+        continue
 
     # if failed to find orthologs
     if len(ortholog_hit_list) == 0:
@@ -282,8 +295,12 @@ for gene_file in gene_file_list:
     if verbose:
         print(f">Aligning sequences of {gene_id}...", flush=True)
 
-    alignment_list = aligner.align([protein_sequence] + [x.get_seq() for x in ortholog_hit_list])
-    
+    try:
+        alignment_list = aligner.align([protein_sequence] + [x.get_seq() for x in ortholog_hit_list])
+    except Exception as e:
+        print(f"\tERROR: SKIPPING {gene_id} - {e}")
+        continue
+
     if is_optimize:
         print(f"Time to align sequences: {time.time() - start_time}", flush=True)
 
@@ -294,8 +311,11 @@ for gene_file in gene_file_list:
     for dbd in dbd_list:
 
         # getting similarity between alignments
-        sim_array = lvutils.calculate_similarity(alignment_list, dbd.get_start(), dbd.get_size()) # similarity of all sequences to the first sequence at the dbd's location
-
+        try:
+            sim_array = lvutils.calculate_similarity(alignment_list, dbd.get_start(), dbd.get_size()) # similarity of all sequences to the first sequence at the dbd's location
+        except Exception as e:
+            print(f"\tERROR: SKIPPING DBD {dbd.get_name()} - {e}")
+            continue
 
         if verbose:
             print(f">Finding conserved motifs of {gene_id} with dbd {dbd.get_name()}.", flush=True)
@@ -335,7 +355,12 @@ for gene_file in gene_file_list:
                 
                 # Use combinations of words from the ortholog's hit name; sometimes the full name doesn't work but a reduced form of it does
                 for j, mdb_query in enumerate(ortholog_hit.get_usable_name_combos()):
-                    motif_list = mdb.search(mdb_query, ortholog_taxon_id, protein_sequence, dbd)
+
+                    try:
+                        motif_list = mdb.search(mdb_query, ortholog_taxon_id, protein_sequence, dbd)
+                    except Exception as e:
+                        print(f"\tERROR: SKIPPING QUERY {mdb_query} - {e}")
+                        continue
 
                     # if motif was found, add to output
                     if motif_list:
