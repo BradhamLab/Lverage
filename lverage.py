@@ -361,7 +361,7 @@ for gene_file in gene_file_list:
                     except Exception as e:
                         print(f"\tERROR: SKIPPING QUERY {mdb_query} - {e}")
                         continue
-
+ 
                     # if motif was found, add to output
                     if motif_list:
 

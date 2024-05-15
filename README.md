@@ -51,7 +51,7 @@ The following table shows all arguments for Lverage.
 |---|---|
 |-h/--help| Provides a description of the tool and arguments |
 |-f/--fasta| Path to folder of fasta files. Each fasta file should be for a singular gene. A fasta file may contain multiple scaffolds of this gene in multi-FASTA format. The name of the file should be the gene's name. |
-|-mdb/--motif_database| Path to motif database to search; currently only JASPAR which is default|
+|-mdb/--motif_database| Motif database to search; currently only JASPAR which is default|
 |-or/--orthologs|Ortholog species to search through. Povide the NCBI Tax IDs or scientific names, each one enclosed in quotes and separated by spaces|
 |-o/--output|Output file path; if a directory is provided, output.tsv will be made there|
 |-c/--clustalo| Path to the clustalo executable. If not provided, assumed to be in PATH|
