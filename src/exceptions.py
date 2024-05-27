@@ -37,6 +37,7 @@ class LverageErrorCode(Enum):
     CANT_CONVERT_TO_TAX_ID = "Can't convert ortholog to taxon ID"
     INVALID_BLAST_HIT_COUNT = "Invalid number of hits for BlastP. Must be greater than 0."
     INVALID_MOTIF_HIT_COUNT = "Invalid number of hits for motif database. Must be greater than 0."
+    INVALID_ESCORE_THRESHOLD = "Invalid e-score threshold. Must be greater than 0."
 
 class LverageError(Exception):
     '''
@@ -111,3 +112,11 @@ class MotifHitCountError(LverageError):
 
     def __init__(self, message=LverageErrorCode.INVALID_MOTIF_HIT_COUNT.value):
         super().__init__(message, LverageErrorCode.INVALID_MOTIF_HIT_COUNT)
+
+class EScoreThresholdError(LverageError):
+    '''
+    Exception raised for invalid e-score threshold.
+    '''
+
+    def __init__(self, message=LverageErrorCode.INVALID_ESCORE_THRESHOLD.value):
+        super().__init__(message, LverageErrorCode.INVALID_ESCORE_THRESHOLD)

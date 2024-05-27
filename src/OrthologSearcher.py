@@ -160,7 +160,8 @@ class OrthologSearcher:
     bad_words = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform'] # Words that we don't want in the name of the sequence; discard the alignment if it contains any of these words
 
 
-    def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], hitlist_size = 100, email = None, verbose = False):
+    def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], 
+                 hitlist_size = 100, email = None, escore_threshold = 10**-6, verbose = False):
         '''
         Arguments:
         species_list: list of orthologous species to look through
@@ -171,12 +172,14 @@ class OrthologSearcher:
 
         assert hitlist_size > 0, "hitlist_size must be greater than 0"
         assert email is not None, "Email must be provided!"
+        assert escore_threshold > 0, "E-score threshold must be greater than 0!"
 
 
         self.species_list = [x.lower() for x in species_list]
         self.entrez_query = f'({" OR ".join([species.lower() + "[ORGN]" for species in species_list])})'
         self.hitlist_size = hitlist_size
         self.email = email
+        self.escore_threshold = escore_threshold
         self.verbose = verbose
 
         Entrez.email = self.email
@@ -229,7 +232,7 @@ class OrthologSearcher:
             record = AlignmentRecord(alignment, query_coverage, ortholog_sequence)
 
             # E-score must be less than 10^-6. If not, we stop searching completely as the rest of the hits will be worse
-            if record.expect > 10**-6:
+            if record.expect > self.escore_threshold:
                 break
 
             # If the title contains any of the bad words, we skip this alignment
