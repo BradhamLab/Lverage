@@ -51,6 +51,11 @@ assert os.path.exists(input_path), f"Input file does not exist: {input_path}"
 def query_similarity(record):
     '''
     This function calculates the similarity of a query to the description it came from
+
+    Arguments:
+    record: a MotifRecord object
+
+    Returns: The ratio of the number of words in the query to the number of words in the description
     '''
     
     description = record.get_value("BLAST Hit Description")

@@ -26,33 +26,33 @@ from Bio.Seq import Seq
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes
 
-class ProteinFinder:
+class ProteinTranslator:
     '''
-    This class searches for the longest open reading frame (ORF) of a DNA sequence.
+    This class searches for the longest open reading frame (ORF) of a DNA sequence, and translates the DNA to protein.
     '''
 
-    def __init__(self, table=1, start_codons=['ATG', 'CTG', 'TTG', 'GTG'], verbose = False):
+    def __init__(self, table=1, start_codons=['ATG', 'CTG', 'TTG', 'GTG']):
         '''
         Arguments:
         table: translation table according to NCBI
         start_codons: start codons to consider
-        verbose: if True, prints messages to the console
         '''
+
         self.table = table
         self.start_codons = start_codons
-        self.verbose = verbose
         
-        self.is_message_printed = False
-
         assert self.table >= 1, 'Invalid translation table'
 
 
-    def find_protein(self, sequence):
+    def translate(self, sequence):
         '''
-        This function finds the protein sequence of a DNA sequence by searching for the longest open reading frame (ORF).
+        This method finds the protein sequence of a DNA sequence by searching for the longest open reading frame (ORF).
 
         Arguments:
         sequence: a DNA sequence
+
+        Returns:
+        protein: the protein sequence of the DNA sequence
         '''
 
         protein = "" # return value
@@ -91,26 +91,9 @@ class ProteinFinder:
                         orf = nuc_to_translate.translate(table=self.table, to_stop=True)
                         if len(orf) > len(protein):
 
-                            if self.verbose:
-
-                                if not self.is_message_printed:
-                                    print('\t.', end='')
-                                    self.is_message_printed = True
-                                else:
-                                    print('.', end='')
-
                             protein = orf
 
         return str(protein)
-    
-    
-    def reset_message(self):
-        '''
-        When find_protein is called, it prints a message.
-        Every time it is called, this message is extended.
-        When this function is called, it prints a new message to the next line.
-        '''
-        self.is_message_printed = False
 
         
 
@@ -120,9 +103,8 @@ if __name__ == "__main__":
 
     from Bio import SeqIO
 
-    sequence = str(SeqIO.read("testcases/lverg.fa", "fasta").seq)
+    sequence = str((list(SeqIO.parse("../Data/TestCases/Lv-Alx1.fa", "fasta")))[0].seq)
 
-    pf = ProteinFinder()
+    pf = ProteinTranslator()
 
-    print(pf.find_protein(sequence))
-
+    print(pf.translate(sequence))

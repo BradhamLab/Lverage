@@ -23,6 +23,7 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 from Bio.Blast import NCBIWWW
 from Bio.Blast import NCBIXML
 from itertools import product
+from Bio import Entrez, SeqIO
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes
@@ -36,11 +37,12 @@ class AlignmentRecord:
     uneeded_words_list = ['transcription factor']
 
 
-    def __init__(self, alignment, query_coverage):        
+    def __init__(self, alignment, query_coverage, sequence):        
         '''
         Arguments:
         alignment: a Bio.Blast.Record.Alignment object
         query_coverage: the percentage of the query sequence that is covered by the alignment
+        sequence: the sequence of the query
         '''                        
         
 
@@ -67,7 +69,7 @@ class AlignmentRecord:
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Get the first alignment sequence without gaps
-        self.seq = alignment.hsps[0].sbjct.replace("-", "")
+        self.seq = sequence
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Getting other information
@@ -155,24 +157,29 @@ class OrthologSearcher:
     '''
     Searches for orthologous sequences of a given sequence using blastp
     '''
-    bad_words = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform', 'protein'] # Words that we don't want in the name of the sequence; discard the alignment if it contains any of these words
+    bad_words = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform'] # Words that we don't want in the name of the sequence; discard the alignment if it contains any of these words
 
 
-    def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], hitlist_size = 50, verbose = False):
+    def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], hitlist_size = 100, email = None, verbose = False):
         '''
         Arguments:
         species_list: list of orthologous species to look through
         hitlist_size: how many hits should we look through
+        email: email to use for Entrez
         verbose: should we print out the current status and results?
         '''
 
         assert hitlist_size > 0, "hitlist_size must be greater than 0"
+        assert email is not None, "Email must be provided!"
 
 
         self.species_list = [x.lower() for x in species_list]
         self.entrez_query = f'({" OR ".join([species.lower() + "[ORGN]" for species in species_list])})'
         self.hitlist_size = hitlist_size
+        self.email = email
         self.verbose = verbose
+
+        Entrez.email = self.email
 
 
     def search(self, sequence):
@@ -197,7 +204,8 @@ class OrthologSearcher:
         if self.verbose:
             print("\tParsing NCBI blastp output", flush=True)
 
-        blast_record = NCBIXML.read(result_handle)
+        self.blast_record = NCBIXML.read(result_handle)
+        blast_record = self.blast_record
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step three: filter blastp output
@@ -206,28 +214,41 @@ class OrthologSearcher:
             print("\tFiltering hits.")
             
         filtered_hits = []
+
+        # default sorted by e-score
         for alignment in blast_record.alignments:
-            title = alignment.title.lower()
+ 
+            handle = Entrez.efetch(db="protein", id=alignment.accession, rettype="fasta", retmode="text")
+            record = SeqIO.read(handle, "fasta")
+            handle.close()
 
-            # If the title doesn't contain any of the bad words
-            if all(sub not in title for sub in self.bad_words):
+            ortholog_sequence = str(record.seq)
 
-                query_coverage = alignment.hsps[0].align_length / len(sequence)
+            query_coverage = alignment.hsps[0].align_length / len(sequence)
 
-                record = AlignmentRecord(alignment, query_coverage)
-                
+            record = AlignmentRecord(alignment, query_coverage, ortholog_sequence)
 
-                # Only if e-score is less than 10^-6 do we keep the hit
-                if record.get_species().lower() in self.species_list and record.expect < 10**-6:
+            # E-score must be less than 10^-6. If not, we stop searching completely as the rest of the hits will be worse
+            if record.expect > 10**-6:
+                break
 
-                    filtered_hits.append(record)
+            # If the title contains any of the bad words, we skip this alignment
+            if not all(sub not in record.name for sub in self.bad_words):
+                continue
+        
+            # Check if species is in species list
+            is_species = False
+            for species in self.species_list:
+                if species in record.get_species().lower():
+                    is_species = True
+                    break
 
-                    if self.verbose:
-                        print(f"\tObtained ortholog from {record.get_species()}: {record.get_name()}, with e-score {record.expect} and similarity {record.get_percent_identity()}", flush=True)
+            if is_species:
 
+                filtered_hits.append(record)
 
-
-        filtered_hits.sort(key=lambda x: x.expect)  # Sort by E-Score
+                if self.verbose:
+                    print(f"\tObtained ortholog from {record.get_species()}: {record.get_name()}, with e-score {record.expect} and similarity {record.get_percent_identity()}", flush=True)
 
         return filtered_hits
 
@@ -236,9 +257,9 @@ class OrthologSearcher:
 if __name__ == "__main__":
     import sys
 
-    sequence ="ORF12MVLHAGDRFPQRHRSMSMAVNSWRNEDHLTADKHHGPPQQTGLEPSPLDPCPPDTDHYADTGPLRLPPPPPQPQPPHSAAGPPPPQAQQPPQAPIGPPPPSGALQAATPQQTPATPTQTGPGSQGGGGAAQNGPQSGSDGSNVTSNNNNNSQHIECVVCHDKSSGKHYGQFTCEGCKSFFKRSVRRNLTYSCRANRNCPIDQHHRNQCQYCRLKKCLKMGMRREAVQRGRMPPTQPGPGQYLDGRFEGHTFLSGYISLLLRAEPYPTSRYAQCMQTNSVMGIDNICELAARLLFSAVEWARNIPFFPDLQVTDQVALLRMCWSELFVLNASQCSMPLHVAPLLAASGLHASPMSADRVVAFMDHIRIFQEQVEKLKALHVDSAEYSCIKAIVLFTSDACGLSDAAHIEALQEKSQCALEEYVRSQYPNQPNRFGKLLLRLPSLRTVSSHVIEQLFFVRLVGKTPIETLIRDMLLSGSSFSWPYMTMQ"
-
+    sequence ="LQRTTRSXLALLLCMWPVTRTNDRVLVWFQNRRAKWRKRERFQQFQNMRGLGPGSGYEMPIAPRPDAYSQVNSPGFHVLGDTHQPPAPVEGAMLRICRNLQNLRREFDSRKIGCHPSSSVGGTPGTSTTNESQDTSNHSSMIHQSSPWATAANMASPLASSMSPVGQQPQMPGQNPINSCMAPQSTLPSFMGVPAHQMNNTGVMNPMSNMTSMTSMPTSMPPSSGTAPVSSPSSNFMSSVGGLNAAAYNGQYTDMHPTVEGVGGVDRRTNSIAALRLRAKEHSSVMGMMNGYS"
 
     ortho = OrthologSearcher(verbose=True)
 
     hits = ortho.search(sequence)
+    

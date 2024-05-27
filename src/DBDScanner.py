@@ -57,7 +57,7 @@ class DBD:
         return self.size
     
     def get_end(self):
-        return self.start + self.size - 1
+        return self.start + self.size
     
     def __str__(self):
         return f"DBD {self.name} {self.start} {self.size}"
@@ -173,7 +173,6 @@ class DBDScanner:
 
                     
         return r
-
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # FOR TESTING PURPOSES
