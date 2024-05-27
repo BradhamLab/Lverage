@@ -22,93 +22,53 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 # Imports
 import numpy as np
 from ete3 import NCBITaxa
+from src.DBDScanner import DBDScanner, DBD
+from Bio.Align import PairwiseAligner
+
 
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Functions
 
-def calculate_similarity(alignment_list, start = None, size = None):
+def align_dbds(sequence_one : str, dbd_one : DBD, sequence_two : str, dbd_scanner : DBDScanner, aligner : PairwiseAligner):
     '''
-    This function calculates the similarity between the first alignment and every other alignment
-    If start and size are given, then calculate similarity in a region defined by where start and start + size in the original sequence of the first alignment are (mapped to alignments)
+    This function aligns the DBDs of two sequences globally.
+    The DBD of the first sequence is already provided.
+    The second DBD is found using a DBDScanner object.
 
     Arguments:
-    alignment_list: a list of alignments
-    start: start index of region in original sequence of first alignment
-    size: size of region in original sequence of first alignment
+    sequence_one: first sequence
+    dbd_one: DBD object (DBDScanner.DBD) of first sequence
+    sequence_two: second sequence
+    dbd_scanner: DBDScanner object for second sequence
+    aligner: PairwiseAligner object for alignment
 
     Returns:
-    numpy array of similarities, where each value is the similarity of the corresponding alignment to the first alignment.
+    Alignments of the two DBDs or None if the second DBD is not found.
     '''
 
-    #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-    # validating arguments
-    assert start + size <= len(alignment_list[0]), f"End index can not be larger than the first alignment: {size} vs. {len(alignment_list[0])}"
+    # Get the second DBD
+    dbd_two_list = dbd_scanner.find_dbds(sequence_two)
 
-    region_list = []
+    # for each DBD in the second sequence, find the corresponding DBD
+    dbd_two = None
+    for dbd in dbd_two_list:
+        if dbd.get_name() == dbd_one.get_name():
+            dbd_two = dbd
+            break
 
-    #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-    # if start and size are given (corresponding to first alignment), grab those regions across all alignments. Else, grab entire region
-    if start is not None and size is not None:
+    # Only align if the dbd_two is found
+    alignments = None
+    if dbd_two is not None:
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step one: map the start to the first alignment
+        alignments = aligner.align(sequence_one[dbd_one.get_start():dbd_one.get_end()], sequence_two[dbd_two.get_start():dbd_two.get_end()])
 
-        first_align = alignment_list[0] # First alignment we map start and start + size to
-
-        count = 0
-        align_start = -1
-        for i, c in enumerate(first_align):
-            if c != '-':
-                if count == start:
-                    align_start = i
-                    break
-                
-                count += 1
-
-        assert align_start != -1, f"Start index not found. \nAlignment: {first_align}\nAlignment Size: {len(first_align)}\nStart: {start}\nSize: {size}"
-
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step two: find the end of the region
-        count = 0
-        align_end = -1
-        for i, c in enumerate(first_align[align_start:]):
-            if c != '-':
-                if count == size:
-                    align_end = i + align_start
-                    break
-                
-                count += 1
-
-        assert align_end != -1, "End index not found."
-
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step three: get the regions
-        for align in alignment_list:
-            region_list.append(align[align_start:align_end])
-
-    
-    else:
-        region_list = alignment_list
+    return alignments
 
 
-    #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-    # Step four: calculate similarity to first region
-    similarity_array = np.zeros((len(region_list)), dtype=np.float32)
-
-    similarity_array[0] = 1
-    for i in range(1, len(region_list)):
-        similarity_array[i] = _calculate_similarity(region_list[0], region_list[i])
-
-    
-    return similarity_array
-
-
-
-def _calculate_similarity(align1, align2):
+def calculate_alignment_similarity(align1, align2):
     '''
     This function calculates the similarity between two alignments.
-    Hidden function; use calculate_similarity to calculate across list of alignments instead.
 
     Arguments:
     align1: first alignment
@@ -132,6 +92,7 @@ def _calculate_similarity(align1, align2):
 
     # returning the similarity; ratio of similar characters over alignment length
     return similarity / len(align1)
+
 
 def get_species_name(tax_id):
     '''
