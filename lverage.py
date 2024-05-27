@@ -130,6 +130,10 @@ class Lverage:
         if motif_hit_count <= 0:
             raise lvexceptions.MotifHitCountError()
         
+        # Checking if e-score threshold is greater than 0
+        if escore_threshold <= 0:
+            raise lvexceptions.EScoreThresholdError()
+        
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Assigning arguments to class variables
 
@@ -140,6 +144,7 @@ class Lverage:
         self.verbose = verbose
         self.blast_hit_count = blast_hit_count
         self.motif_hit_count = motif_hit_count
+        self.escore_threshold = escore_threshold
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -158,7 +163,9 @@ class Lverage:
         self.aligner.mismatch_score = -1
 
         # Setting up BlastP
-        self.ors = OrthologSearcher(hitlist_size = self.blast_hit_count, verbose = self.verbose, species_list = self.ortholog_name_list, email = self.email)
+        self.ors = OrthologSearcher(hitlist_size = self.blast_hit_count, verbose = self.verbose, 
+                                    species_list = self.ortholog_name_list, email = self.email, 
+                                    escore_threshold = self.escore_threshold)
 
         # Setting up motif database
         self.mdb = MotifDBFactory.get_motif_db(db_name = self.motif_database, n_hits = self.motif_hit_count, dbd_scanner = self.ds)
