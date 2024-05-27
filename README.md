@@ -36,9 +36,6 @@ Then the user must install the required libraries. Located in the repository is 
 python3 -m pip install -r requirements.txt
 ```
 
-### Clustal Omega
-A ClustalOmega binary is also required. This can be obtained from the clustal [website](http://www.clustal.org/omega/ "http://www.clustal.org/omega/"). Download the pre-compiled binary that matches your system or compile the source code. Next, either add the binary to your PATH environment variable or when calling Lverage, provide the path to the binary with the appropriate argument.
-
 ## How to Use
 We warn against moving any file within the directory anywhere else as this will create errors. If you wish to access from other places, we suggest appending the directory to your PATH environment variable, creating an alias, or creating a shortcut.
 
@@ -54,7 +51,6 @@ The following table shows all arguments for Lverage.
 |-mdb/--motif_database| Motif database to search; currently only JASPAR which is default|
 |-or/--orthologs|Ortholog species to search through. Povide the NCBI Tax IDs or scientific names, each one enclosed in quotes and separated by spaces|
 |-o/--output|Output file path; if a directory is provided, output.tsv will be made there|
-|-c/--clustalo| Path to the clustalo executable. If not provided, assumed to be in PATH|
 |-e/--email|Email address for EMBL Tools|
 |-it/--identity_threshold| According to <insert paper here>, 70% similarity with an ortholog sequence means that the motif is conserved in the ortholog. This parameter asks that any ortholog sequence must be 70% similar to a provided gene's sequence.
 |-v/--verbose|If provided, will print out every step along the way as well as intermittent reuslts|
@@ -69,9 +65,3 @@ The following table shows all arguments for Lverage.
 python3 lverage.py -f Data/LvGenes/ -e useremail@mail.com -o ../Output/lvedge_output.tsv -v
 ```
 Here we provide a directory of fasta files with -f. The fasta files used in this example were gathered from LvEDGE and are provided in this repository. In -e, we provide an email for any EMBL tools. We provide a path for an output file we wish to be created with -o. Finally, we ask that it prints out each step with -v.
-
-#### Providing clustalo binary
-```
-python3 lverage.py -f Data/LvGenes/ -e useremail@mail.com -o ../Output/lvedge_output.tsv -v -c ~/Tools/clustalo
-```
-At the very end of this command we add the -c argument and provide a path to the *clutsalo* binary. This is if *clustalo* is not on the PATH which Lverage uses by default.
