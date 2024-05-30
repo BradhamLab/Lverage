@@ -31,7 +31,6 @@ class LverageErrorCode(Enum):
     '''
     MOTIF_DATABASE_NOT_FOUND = "Motif database not found"
     ORTHOLOG_SPECIES_NOT_FOUND = "Ortholog species not found in NCBI database"
-    CLUSTALO_PATH_NOT_FOUND = "Clustalo executable not found"
     INVALID_EMAIL = "Invalid email address"
     INVALID_IDENTITY_THRESHOLD = "Invalid identity threshold. Must be between 0 and 1"
     CANT_CONVERT_TO_TAX_ID = "Can't convert ortholog to taxon ID"
@@ -64,13 +63,6 @@ class OrthologSpeciesError(LverageError):
     def __init__(self, message=LverageErrorCode.ORTHOLOG_SPECIES_NOT_FOUND.value):
         super().__init__(message, LverageErrorCode.ORTHOLOG_SPECIES_NOT_FOUND)
 
-class ClustaloPathError(LverageError):
-    '''
-    Exception raised for errors in Clustalo path.
-    '''
-
-    def __init__(self, message=LverageErrorCode.CLUSTALO_PATH_NOT_FOUND.value):
-        super().__init__(message, LverageErrorCode.CLUSTALO_PATH_NOT_FOUND)
 
 class EmailError(LverageError):
     '''
