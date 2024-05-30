@@ -20,10 +20,11 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
-from Bio.Blast import NCBIWWW
 from Bio.Blast import NCBIXML
-from itertools import product
 from Bio import Entrez, SeqIO
+
+import requests
+import time
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes
@@ -113,26 +114,6 @@ class AlignmentRecord:
 
         return usable_name
     
-    def get_usable_name_combos(self):
-        '''
-
-        This function returns all possible combinations of the usable name of the sequence
-        '''
-        usable_name = self.get_usable_name()
-        words = usable_name.split()
-        
-        c = []
-        for combination in product(*[(word, '') for word in words]):
-            r = ' '.join(filter(None, combination))
-            
-            # if the combination is not empty and if the combination isn't just a number
-            if r and not r.replace(' ', '').isdigit():
-                c.append(r)
-
-        c.sort(key=lambda x: len(x.split()), reverse=True)
-
-
-        return c
     
     def get_species(self):
         return self.species
@@ -158,7 +139,7 @@ class OrthologSearcher:
     Searches for orthologous sequences of a given sequence using blastp
     '''
     bad_words = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform'] # Words that we don't want in the name of the sequence; discard the alignment if it contains any of these words
-
+    url = "https://blast.ncbi.nlm.nih.gov/Blast.cgi"
 
     def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], 
                  hitlist_size = 100, email = None, escore_threshold = 10**-6, verbose = False):
@@ -191,16 +172,79 @@ class OrthologSearcher:
 
         Arguments:
         sequence: a string representing a protein sequence
+
+        Returns:
+        hit_list : a list of AlignmentRecord objects
         '''
 
         assert len(sequence) > 0, "Sequence must be non-empty"
+
+        hit_list = []
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step one: run blastp
         if self.verbose:
             print("\tRunning NCBI blastp.", flush=True)
 
-        result_handle = NCBIWWW.qblast("blastp", "nr", sequence, entrez_query=self.entrez_query, hitlist_size=self.hitlist_size)
+        # REST API parameters for blastp query
+        params = {
+            "CMD": "Put",
+            "PROGRAM": "blastp",
+            "DATABASE": "nr",
+            "QUERY": sequence,
+            "EXPECT": self.escore_threshold,
+            "ENTREZ_QUERY": self.entrez_query,
+            "EMAIL": self.email,
+            "HITLIST_SIZE": self.hitlist_size,
+            "FORMAT_TYPE": "XML",
+        }
+
+        # posting query to ncbi
+        response = requests.post(self.url, data=params)
+
+        if response.status_code != 200:
+            raise Exception(f"Error: {response.status_code}")
+        
+        # rid is the request ID; lets us track the job and status
+        rid = response.text.split("RID = ")[1].split("\n")[0]
+        if self.verbose:
+            print(f"\tUse the following link to check the status of the search: https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Get&RID={rid}", flush=True)
+
+        # REST API parameters for checking status of job
+        check_params = {
+            "CMD": "Get",
+            "FORMAT_TYPE": "XML",
+            "RID": rid
+        }
+
+        # Until the server is done processing the request, we keep checking the status
+        while True:
+            check_response = requests.post(self.url, data=check_params)
+            if "Status=WAITING" in check_response.text:
+                time.sleep(30)
+
+            elif "Status=FAILED" in check_response.text:
+                raise Exception("Search failed")
+            
+            elif "Status=READY" in check_response.text:
+                break
+
+            else:
+                raise Exception("Unknown status")
+
+        # REST API parameters for getting the results of the job  
+        result_params = {
+            "CMD": "Get",
+            "FORMAT_TYPE": "XML",
+            "RID": rid
+        }
+
+        result_response = requests.get(self.url, data=result_params)
+
+        if result_response.status_code != 200:
+            raise Exception(f"Error: {result_response.status_code}")
+        
+        result_handle = result_handle.text
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step two: read blastp output
@@ -216,24 +260,23 @@ class OrthologSearcher:
         if self.verbose:
             print("\tFiltering hits.")
             
-        filtered_hits = []
+        hit_list = []
 
         # default sorted by e-score
         for alignment in blast_record.alignments:
  
+            # get the sequence of the ortholog
             handle = Entrez.efetch(db="protein", id=alignment.accession, rettype="fasta", retmode="text")
             record = SeqIO.read(handle, "fasta")
             handle.close()
+            time.sleep(1) # no more than 3 requests per second, so we need to sleep
+
 
             ortholog_sequence = str(record.seq)
 
             query_coverage = alignment.hsps[0].align_length / len(sequence)
 
             record = AlignmentRecord(alignment, query_coverage, ortholog_sequence)
-
-            # E-score must be less than 10^-6. If not, we stop searching completely as the rest of the hits will be worse
-            if record.expect > self.escore_threshold:
-                break
 
             # If the title contains any of the bad words, we skip this alignment
             if not all(sub not in record.name for sub in self.bad_words):
@@ -248,12 +291,12 @@ class OrthologSearcher:
 
             if is_species:
 
-                filtered_hits.append(record)
+                hit_list.append(record)
 
                 if self.verbose:
                     print(f"\tObtained ortholog from {record.get_species()}: {record.get_name()}, with e-score {record.expect} and similarity {record.get_percent_identity()}", flush=True)
 
-        return filtered_hits
+        return hit_list
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # FOR TESTING PURPOSES
@@ -262,7 +305,7 @@ if __name__ == "__main__":
 
     sequence ="LQRTTRSXLALLLCMWPVTRTNDRVLVWFQNRRAKWRKRERFQQFQNMRGLGPGSGYEMPIAPRPDAYSQVNSPGFHVLGDTHQPPAPVEGAMLRICRNLQNLRREFDSRKIGCHPSSSVGGTPGTSTTNESQDTSNHSSMIHQSSPWATAANMASPLASSMSPVGQQPQMPGQNPINSCMAPQSTLPSFMGVPAHQMNNTGVMNPMSNMTSMTSMPTSMPPSSGTAPVSSPSSNFMSSVGGLNAAAYNGQYTDMHPTVEGVGGVDRRTNSIAALRLRAKEHSSVMGMMNGYS"
 
-    ortho = OrthologSearcher(verbose=True)
+    ortho = OrthologSearcher(verbose=True, email = 'anthonygarza124@gmail.com', species_list=['homo sapiens', 'mus musculus'], hitlist_size=10)
 
     hits = ortho.search(sequence)
     
