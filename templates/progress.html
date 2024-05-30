@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progress</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .logo-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .logo {
+            max-width: 400px;
+            width: 100%;
+        }
+        .progress-container {
+            text-align: center;
+            border: 1px solid #ccc;
+            padding: 20px;
+            width: 50%;
+            box-sizing: border-box;
+        }
+        .project-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .progress {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .cancel-button {
+            padding: 10px 20px;
+            background-color: #f44336; /* Red background */
+            color: white; /* White text */
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo" class="logo">
+    </div>
+    <div class="progress-container">
+        <div class="project-title" id="project-title"></div>
+        <div class="progress" id="progress-counter">0 / 0</div>
+        <button class="cancel-button" onclick="cancelRun()">Cancel</button>
+    </div>
+
+    <script>
+        // Initialize progress counter
+        let fastaFiles = [];
+        let currentIndex = 0;
+
+        // title of project
+        let projectTitle = '';
+
+        // list of files that failed to process
+        let failedFiles = [];
+
+        // Load the result of the run command (fasta files for lverage call and title)
+        const result = JSON.parse(localStorage.getItem('runResult'));
+
+        if (result && result.status === 'progress') {
+            fastaFiles = result.fasta_files;
+            projectTitle = result.project_title;
+
+            document.getElementById('project-title').textContent = `Working on ${projectTitle}`;
+            document.getElementById('progress-counter').textContent = `${currentIndex} / ${fastaFiles.length}`;
+            
+            processNextFile();
+        }
+        else {
+            console.error('No valid result found in local storage');
+            window.location.href = '/';
+        }
+
+        // delete the run result from local storage
+        localStorage.removeItem('runResult');
+
+        function processNextFile() {
+            if (currentIndex < fastaFiles.length) {
+                const data = {
+                    fasta_file: fastaFiles[currentIndex],
+                };
+
+                fetch('/process_file', {
+                    method: 'POST',
+                    headers : {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success') {
+                        currentIndex++;
+                        document.getElementById('progress-counter').textContent = `${currentIndex} / ${fastaFiles.length}`;
+                        processNextFile();
+                    } else {
+                        console.error('Error processing file:', result.message);
+                        alert('Error processing file, skipping:', result.message);
+                        failedFiles.push(fastaFiles[currentIndex]);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+
+            } else {
+                // all files have been processed, close lverage session and redirect to results page
+                closeSession();
+                window.location.href = '/';
+            }
+        }
+
+        function closeSession() {
+            fetch('/close_session', {
+                method: 'POST',
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success') {
+                        console.log('Session closed');
+                    } else {
+                        console.error('Error closing session:', result.message);
+                    }
+                });
+        }
+
+        function cancelRun() {
+            // close lverage session and redirect to home page
+            
+            fetch('/cancel_run', {
+                method: 'POST',
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'success') {
+                        console.log('Run cancelled');
+
+                        closeSession();
+                        window.location.href = '/';
+                    } else {
+                        console.error('Error cancelling run:', result.message);
+                    }
+                });
+        }
+    </script>
+</body>
+</html>

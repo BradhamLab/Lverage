@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA-binding Domain Motif Prediction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .logo-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .logo {
+            max-width: 400px;
+            width: 100%;
+        }
+        .form-container {
+            display: flex;
+            justify-content: space-between;
+            width: 80%;
+        }
+        .box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            width: 45%;
+            box-sizing: border-box;
+        }
+        .box input[type="text"], .box input[type="email"], .box input[type="file"], .box select {
+            display: block;
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .box button {
+            padding: 10px 20px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .ortholog-species-container {
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .ortholog-species-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .ortholog-species-container table td {
+            padding: 5px;
+        }
+        .ortholog-species-container table td:first-child {
+            width: 90%;
+        }
+        .ortholog-species-container table td:last-child {
+            width: 10%;
+            text-align: center;
+        }
+        .ortholog-species-container button {
+            background-color: #f44336; /* Red background */
+            color: white; /* White text */
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #add-species-button {
+            margin-bottom: 20px; /* Add more space below the Add Species button */
+        }
+        .error {
+            border-color: red;
+            color: red;
+        }
+        .run-button-error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <!-- Logo Container -->
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo" class="logo">
+    </div>
+
+    <!-- Form Container -->
+    <div class="form-container">
+        <!-- Lverage Box -->
+        <div class="box">
+            <h3>Lverage Run</h3>
+            <form id="lverage-form">
+                <!-- Project Title Input Field -->
+                <label for="project-title">Project Title:</label>
+                <input type="text" id="project-title" placeholder="Enter project title">
+
+                <!-- FASTA Directory Input Field -->
+                <label for="fasta-directory">FASTA Directory:</label>
+                <input type="text" id="fasta-directory" placeholder="Enter directory path">
+
+                <!-- Output Directory Input Field -->
+                <label for="output-directory">Output Directory:</label>
+                <input type="text" id="output-directory" placeholder="Enter output directory path">
+
+                <!-- Email Input Field -->
+                <label for="email">Email:</label>
+                <input type="email" id="email" placeholder="Enter your email">
+
+                <!-- Ortholog Species Input Field -->
+                <label for="ortholog-species">Ortholog Species:</label>
+                <div class="ortholog-species-container">
+                    <table id="ortholog-species-table">
+                        <tr>
+                            <td><input type="text" value="Homo Sapiens"></td>
+                            <td><button type="button" onclick="removeSpecies(this)">X</button></td>
+                        </tr>
+                    </table>
+                </div>
+                <button type="button" id="add-species-button" onclick="addOrthologSpecies()">Add Species</button>
+
+                <!-- Motif Database Dropdown -->
+                <label for="motif-db">Motif Database:</label>
+                <select id="motif-db"></select>
+
+                <!-- Run Button -->
+                <button type="button" id="run-button">Run</button>
+            </form>
+        </div>
+
+        <!-- Output View Box -->
+        <div class="box">
+            <h3>Output View</h3>
+            <form>
+                <!-- Output File Input Field -->
+                <label for="output-file">Load Output File:</label>
+                <input type="file" id="output-file" accept=".tsv">
+
+                <!-- View Button -->
+                <button type="button" id="view-button">View</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+
+        // Fetch and populate the motif database dropdown
+        fetch('/get_motif_db_names')
+            .then(response => response.json())
+            .then(data => {
+                const motifDbSelect = document.getElementById('motif-db');
+                data.forEach(dbName => {
+                    const option = document.createElement('option');
+                    option.value = dbName;
+                    option.textContent = dbName;
+                    motifDbSelect.appendChild(option);
+                });
+            });
+
+        // Add ortholog species input field
+        function addOrthologSpecies() {
+
+            // Getting table and creating new row
+            const table = document.getElementById('ortholog-species-table');
+            const row = document.createElement('tr');
+
+            // Creating input field for ortholog species
+            const cell1 = document.createElement('td');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Enter ortholog species';
+            input.style.width = '100%';
+            cell1.appendChild(input);
+
+            // Creating remove button which removes row
+            const cell2 = document.createElement('td');
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.textContent = 'X';
+            removeButton.style.backgroundColor = '#f44336'; // Red background
+            removeButton.style.color = 'white'; // White text
+            removeButton.style.border = 'none';
+            removeButton.style.cursor = 'pointer';
+            removeButton.style.padding = '10px';
+            removeButton.style.fontSize = '16px';
+            removeButton.onclick = () => table.removeChild(row);
+            cell2.appendChild(removeButton);
+
+            // Appending cells to row and row to table
+            row.appendChild(cell1);
+            row.appendChild(cell2);
+            table.appendChild(row);
+        }
+
+        // Remove species input field
+        function removeSpecies(button) {
+            const table = document.getElementById('ortholog-species-table');
+            table.removeChild(button.closest('tr'));
+        }
+
+        // Handle form submission for running Lverage
+        document.getElementById('run-button').addEventListener('click', () => {
+            const email = document.getElementById('email').value; // Get email value
+            const orthologs = Array.from(document.querySelectorAll('#ortholog-species-table input')).map(input => input.value); // Get ortholog species values as an array
+            const motifDb = document.getElementById('motif-db').value; // Get motif database value
+            const projectTitle = document.getElementById('project-title').value; // Get project title value
+            const fastaDirectory = document.getElementById('fasta-directory').value; // Get FASTA directory value
+            const outputDirectory = document.getElementById('output-directory').value; // Get output directory value
+
+            // packing fields into data object
+            const data = {
+                email,
+                orthologs,
+                motif_db: motifDb,
+                project_title: projectTitle,
+                fasta_directory: fastaDirectory,
+                output_directory: outputDirectory
+            };
+
+            /**
+             * Posting data to the server, i.e., python code.
+             * If there is an exception in building Lverage, the server will return an error response and the error will be displayed to the user.
+             * If the Lverage object was built successfully, the server will navigate to the progress page.
+             */
+            fetch('/run', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'error') {
+                    handleMultipleFieldErrors(result.errors);
+                    // handleFieldError(result.field, result.message);
+                } else if (result.status === 'progress') {
+                    localStorage.setItem('runResult', JSON.stringify(result));
+                    window.location.href = '/progress';
+                }
+            });
+        });
+
+        // Handle multiple field errors by displaying an alert that shows all errors and highlighting every field with an error
+        function handleMultipleFieldErrors(errors) {
+            const errorMessages = errors.map(error => error.message).join('\n');
+            alert(errorMessages);
+            errors.forEach(error => {
+                const fieldElement = document.getElementById(error.field);
+                fieldElement.classList.add('error');
+                fieldElement.addEventListener('input', () => {
+                    fieldElement.classList.remove('error');
+                });
+            });
+        }
+
+        // Handle form submission for viewing output
+        document.getElementById('view-button').addEventListener('click', () => {
+            const outputFileInput = document.getElementById('output-file')
+            const outputFile = outputFileInput.files[0];
+
+            // Check if an output file was selected
+            if (!outputFile) {
+                alert('Please select an output file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const fileContent = event.target.result;
+
+                const data = {
+                    file_content : fileContent
+                };
+
+                // Validate the output file
+                fetch ('/validate_output', {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'error') {
+                        alert(result.message);
+                    } else if (result.status === 'success') {
+                        localStorage.setItem('outputFileContent', fileContent);
+                        window.location.href = '/output';
+                    }
+                });
+
+            };
+
+            reader.readAsText(outputFile);
+
+
+        });
+        
+    </script>
+</body>
+</html>

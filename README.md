@@ -1,4 +1,4 @@
-![Logo](logo.jpg "Lverage Logo")
+![Logo](static/logo.jpg "Lverage Logo")
 
 # Lverage (WIP)
 Motif Finder pipeline - searching for motifs through orthologous species.

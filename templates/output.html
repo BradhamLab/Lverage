@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Output</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .highlight {
+            background-color: blue;
+            color: white;
+        }
+        .half {
+            height: 50%;
+            display: flex;
+            overflow: hidden;
+            resize: vertical;
+        }
+        .box {
+            flex: 1;
+            border: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background-color: #f0f0f0;
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #000;
+        }
+        .content {
+            flex: 1;
+            overflow: auto;
+            padding: 10px;
+        }
+        #search-criteria-form {
+            height: 50%;
+            resize: vertical;
+            overflow: hidden;
+        }
+        #motif-result {
+            height: 50%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #motif-info {
+            flex: 1;
+            display: flex;
+            border-top: 1px solid #000;
+        }
+        #motif-text-values {
+            flex: 1;
+            overflow: auto;
+            border: 1px solid #000;
+            white-space: pre-wrap; /* Preserve new lines and white spaces */
+        }
+        #motif-visualization {
+            flex: 1;
+            overflow: auto;
+            border: 1px solid #000;
+            min-height: 100px; /* Ensure minimum height */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #motif-visualization img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        #motif-page-changer {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-top: 1px solid #000;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        .page-nav {
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="search-criteria-form" class="half">
+        <div class="box">
+            <div class="header">Gene ID</div>
+            <div class="content" id="gene-id-content">
+                <!-- Content will be populated here -->
+            </div>
+        </div>
+        <div class="box">
+            <div class="header">Gene DBD Name</div>
+            <div class="content" id="gene-dbd-name-content">
+                <!-- Content will be populated here -->
+            </div>
+        </div>
+        <div class="box">
+            <div class="header">Ortholog BLAST Description</div>
+            <div class="content" id="ortholog-blast-description-content">
+                <!-- Content will be populated here -->
+            </div>
+        </div>
+    </div>
+    <div id="motif-result" class="half">
+        <div class="header">Motifs</div>
+        <div id="motif-info">
+            <div id="motif-text-values" class="box">
+                <!-- Text values will be displayed here -->
+            </div>
+            <div id="motif-visualization" class="box">
+                <!-- Visualization will be displayed here -->
+            </div>
+        </div>
+        <div id="motif-page-changer">
+            <button class="page-nav" id="first-page">First</button>
+            <button class="page-nav" id="previous-page">Previous</button>
+            <div class="page-nav" id="page-number">1</div>
+            <button class="page-nav" id="next-page">Next</button>
+            <button class="page-nav" id="last-page">Last</button>
+            <select class="page-nav" id="page-select">
+                <!-- Dropdown for page selection -->
+            </select>
+        </div>
+    </div>
+
+    <script>
+        // Initialize the output file content
+        let outputFileContent = '';
+        let motifInfo = [];
+        let motifLinks = [];
+        let currentPage = 0;
+
+        // Load the output file content
+        const outputFileContentResult = localStorage.getItem('outputFileContent');
+
+        if (outputFileContentResult) {
+            outputFileContent = outputFileContentResult;
+
+            const data = {
+                file_content: outputFileContent
+            };
+
+            fetch('/prepare_output', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    const motifDict = result.motif_dict;
+                    const geneIdContent = document.getElementById('gene-id-content');
+                    const geneDbdNameContent = document.getElementById('gene-dbd-name-content');
+                    const orthologBlastDescriptionContent = document.getElementById('ortholog-blast-description-content');
+
+                    // Populate Gene ID content
+                    for (const geneId in motifDict) {
+                        const geneIdElement = document.createElement('div');
+                        geneIdElement.textContent = geneId;
+                        geneIdElement.classList.add('gene-id');
+                        geneIdElement.addEventListener('click', () => {
+                            handleHighlight(geneIdElement, 'gene-id-content');
+                            populateDbdNames(geneId);
+                        });
+                        geneIdContent.appendChild(geneIdElement);
+                    }
+
+                    function populateDbdNames(geneId) {
+                        // Clear previous content
+                        geneDbdNameContent.innerHTML = '';
+                        orthologBlastDescriptionContent.innerHTML = '';
+
+                        const dbdNames = motifDict[geneId];
+                        for (const dbdName in dbdNames) {
+                            const dbdNameElement = document.createElement('div');
+                            dbdNameElement.textContent = dbdName;
+                            dbdNameElement.classList.add('dbd-name');
+                            dbdNameElement.addEventListener('click', () => {
+                                handleHighlight(dbdNameElement, 'gene-dbd-name-content');
+                                populateBlastDescriptions(geneId, dbdName);
+                            });
+                            geneDbdNameContent.appendChild(dbdNameElement);
+                        }
+                    }
+
+                    function populateBlastDescriptions(geneId, dbdName) {
+                        // Clear previous content
+                        orthologBlastDescriptionContent.innerHTML = '';
+
+                        const blastDescriptions = motifDict[geneId][dbdName];
+                        for (const description in blastDescriptions) {
+                            const descriptionElement = document.createElement('div');
+                            descriptionElement.textContent = description;
+                            descriptionElement.classList.add('blast-description');
+                            descriptionElement.addEventListener('click', () => {
+                                handleHighlight(descriptionElement, 'ortholog-blast-description-content');
+                                fetchMotifInfo(motifDict[geneId][dbdName][description]);
+                            });
+                            orthologBlastDescriptionContent.appendChild(descriptionElement);
+                        }
+                    }
+
+                    // Function to handle highlighting per box
+                    function handleHighlight(element, containerId) {
+                        const container = document.getElementById(containerId);
+
+                        // Remove highlight from any previously highlighted element in the same container
+                        const previousHighlighted = container.querySelector('.highlight');
+                        if (previousHighlighted) {
+                            previousHighlighted.classList.remove('highlight');
+                        }
+
+                        // Highlight the clicked element
+                        element.classList.add('highlight');
+
+                        // If the container is 'gene-id-content', clear highlights in downstream containers
+                        if (containerId === 'gene-id-content') {
+                            clearHighlights('gene-dbd-name-content');
+                            clearHighlights('ortholog-blast-description-content');
+                        }
+                    }
+
+                    // Function to clear highlights in a container
+                    function clearHighlights(containerId) {
+                        const container = document.getElementById(containerId);
+                        const highlighted = container.querySelector('.highlight');
+                        if (highlighted) {
+                            highlighted.classList.remove('highlight');
+                        }
+                    }
+
+                    // Function to fetch motif info
+                    function fetchMotifInfo(motifLines) {
+                        const data = {
+                            motif_lines: motifLines
+                        };
+
+                        fetch('/get_motifs_info', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.status === 'success') {
+                                motifInfo = result.motif_info;
+                                motifLinks = result.motif_links;
+                                currentPage = 0;
+                                updateMotifDisplay();
+                                updatePagination();
+                            } else {
+                                console.error('Error fetching motif info:', result.message);
+                                alert('Error fetching motif info:', result.message);
+                            }
+                        });
+                    }
+
+                    // Function to update motif display
+                    function updateMotifDisplay() {
+                        const motifTextValues = document.getElementById('motif-text-values');
+                        const motifVisualization = document.getElementById('motif-visualization');
+                        motifTextValues.textContent = motifInfo[currentPage];
+                        motifVisualization.innerHTML = `<img src="${motifLinks[currentPage]}" alt="Motif Image">`;
+                    }
+
+                    // Function to update pagination controls
+                    function updatePagination() {
+                        const pageNumber = document.getElementById('page-number');
+                        const pageSelect = document.getElementById('page-select');
+                        pageNumber.textContent = currentPage + 1;
+
+                        // Update page select dropdown
+                        pageSelect.innerHTML = '';
+                        for (let i = 0; i < motifInfo.length; i++) {
+                            const option = document.createElement('option');
+                            option.value = i;
+                            option.textContent = i + 1;
+                            pageSelect.appendChild(option);
+                        }
+                        pageSelect.value = currentPage;
+                    }
+
+                    // Event listeners for pagination controls
+                    document.getElementById('first-page').addEventListener('click', () => {
+                        currentPage = 0;
+                        updateMotifDisplay();
+                        updatePagination();
+                    });
+
+                    document.getElementById('previous-page').addEventListener('click', () => {
+                        if (currentPage > 0) {
+                            currentPage--;
+                            updateMotifDisplay();
+                            updatePagination();
+                        }
+                    });
+
+                    document.getElementById('next-page').addEventListener('click', () => {
+                        if (currentPage < motifInfo.length - 1) {
+                            currentPage++;
+                            updateMotifDisplay();
+                            updatePagination();
+                        }
+                    });
+
+                    document.getElementById('last-page').addEventListener('click', () => {
+                        currentPage = motifInfo.length - 1;
+                        updateMotifDisplay();
+                        updatePagination();
+                    });
+
+                    document.getElementById('page-select').addEventListener('change', (event) => {
+                        currentPage = parseInt(event.target.value, 10);
+                        updateMotifDisplay();
+                        updatePagination();
+                    });
+                } else {
+                    console.error('Error preparing output:', result.message);
+                    alert('Error preparing output:', result.message);
+                    window.location.href = '/';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
