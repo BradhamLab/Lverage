@@ -76,7 +76,7 @@ class DiagnosticRecord:
 
     @staticmethod
     def get_test_record():
-        return DiagnosticRecord('DBD', 'Ortholog Description', 'Ortholog Species', 0.0, 0.0, 0.0, 0.0)
+        return DiagnosticRecord('Sample DBD', 'Sample Ortholog Description', 'Sample Ortholog Species', 0.0, 0.0, 0.0, 0.0)
 
 class Lverage:
     '''
@@ -513,8 +513,10 @@ class Lverage:
         
         # only if testing, return test motif and diagnostic record
         if is_testing:
-            motif_list.append(MotifDBFactory.get_db_record(self.motif_database).get_test_motif())
-            self.diagnostic_list.append(DiagnosticRecord.get_test_record())
+            for i in range(5):
+                motif_list.append(MotifDBFactory.get_db_record(self.motif_database).get_test_motif())
+                self.diagnostic_list.append(DiagnosticRecord.get_test_record())
+                time.sleep(2)
             return motif_list
 
 
