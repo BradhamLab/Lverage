@@ -90,7 +90,14 @@ class JasparRecord(MotifRecord):
     
     @staticmethod
     def get_test_motif():
-        return JasparRecord("MA0001.1", "test", [[1, 1, 1, 1], [1, 1, 1, 1]], "https://jaspar2020.genereg.net/static/logos/all/MA0001.1.png", "test", "P53_HUMAN", 0.9, 0.9)
+        import random
+        l = range(1, 400)
+        matrix_id = random.choice(l)
+
+        # pad the matrix_id with 0 up to 4 digits
+        matrix_id = str(matrix_id).zfill(4)
+
+        return JasparRecord("Sample Matrix ID", "Sample Motif Name", [[1, 1, 1, 1], [1, 1, 1, 1]], f"https://jaspar2020.genereg.net/static/logos/all/MA{matrix_id}.1.png", "Sample Motif Class", "Sample UniPort Validation ID", 0.9, 0.9)
 
 class MotifDBInterface:
     '''
