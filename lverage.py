@@ -19,11 +19,6 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-# global variables
-is_optimize = False
-
-
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Importing modules
 
 import warnings
@@ -44,7 +39,9 @@ import src.exceptions as lvexceptions
 
 warnings.simplefilter('ignore', BiopythonDeprecationWarning)
 
-
+#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+# global variables
+is_testing = False
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes
@@ -72,10 +69,14 @@ class DiagnosticRecord:
     ortholog_query_coverage: float
     ortholog_dbd_percent_identity: float
 
-    header_list = ["Gene DBD Name, Ortholog BLAST Description, Ortholog BLAST Species, Ortholog BLAST E-value, Ortholog BLAST Percent Identity, Ortholog BLAST Query Coverage, Gene_DBD-Ortholog_DBD Percent Identity"]
+    header_list = ['Gene DBD Name', 'Ortholog BLAST Description', 'Ortholog BLAST Species', 'Ortholog BLAST E-value', 'Ortholog BLAST Percent Identity', 'Ortholog BLAST Query Coverage', 'Gene_DBD-Ortholog_DBD Percent Identity']
 
     def get_values(self):
         return [self.dbd_name, self.ortholog_description, self.ortholog_species, self.ortholog_escore, self.ortholog_percent_identity, self.ortholog_query_coverage, self.ortholog_dbd_percent_identity]
+
+    @staticmethod
+    def get_test_record():
+        return DiagnosticRecord('DBD', 'Ortholog Description', 'Ortholog Species', 0.0, 0.0, 0.0, 0.0)
 
 class Lverage:
     '''
@@ -86,7 +87,7 @@ class Lverage:
     # Class variables
 
 
-    def __init__(self, motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float, verbose : bool,
+    def __init__(self, motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float = 0.7, verbose : bool = False,
                         blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6):
         '''
         Arguments:
@@ -107,12 +108,11 @@ class Lverage:
         if not MotifDBFactory.has_db(motif_database):
             raise lvexceptions.MotifDatabaseError()
         
-        # Checking if ortholog species are in NCBI database; if tax ID, converting to scientific name
+        # Checking if ortholog species are in NCBI database;
         for i, ortholog_species in enumerate(ortholog_name_list):
             if not lvutils.check_valid_species(ortholog_species):
-                raise lvexceptions.OrthologSpeciesError()
+                raise lvexceptions.OrthologSpeciesError(f"Ortholog species ({ortholog_species}) not found in NCBI database")
 
-        
         # Checking if email is valid
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(pattern, email):
@@ -176,6 +176,76 @@ class Lverage:
         # For each call, this list will contain a DiagnosticRecord object for each hit. This list is overwritten on each call
         self.diagnostic_list = []
 
+    def to_dict(self):
+        '''
+        Returns a dictionary representation of the object
+        '''
+
+        return {
+            'motif_database': self.motif_database,
+            'ortholog_name_list': self.ortholog_name_list,
+            'email': self.email,
+            'identity_threshold': self.identity_threshold,
+            'verbose': self.verbose,
+            'blast_hit_count': self.blast_hit_count,
+            'motif_hit_count': self.motif_hit_count,
+            'escore_threshold': self.escore_threshold
+        }   
+    
+    @classmethod
+    def from_dict(cls, dict_obj):
+        return cls(
+            motif_database = dict_obj['motif_database'],
+            ortholog_name_list = dict_obj['ortholog_name_list'],
+            email = dict_obj['email'],
+            identity_threshold = dict_obj['identity_threshold'],
+            verbose = dict_obj['verbose'],
+            blast_hit_count = dict_obj['blast_hit_count'],
+            motif_hit_count = dict_obj['motif_hit_count'],
+            escore_threshold = dict_obj['escore_threshold']
+        )
+
+    @staticmethod
+    def check_valid(motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float = 0.7, verbose : bool = False,
+                        blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6):
+        '''
+        Uses the same arguments as __init__ to check if the arguments are valid
+        Returns a list of exceptions if any are raised, otherwise returns an empty list
+        '''
+
+        exceptions = []
+
+        # Checking if motif database is available
+        if not MotifDBFactory.has_db(motif_database):
+            exceptions.append(lvexceptions.MotifDatabaseError())
+        
+        # Checking if ortholog species are in NCBI database;
+        for i, ortholog_species in enumerate(ortholog_name_list):
+            if not lvutils.check_valid_species(ortholog_species):
+                exceptions.append(lvexceptions.OrthologSpeciesError(f"Ortholog species ({ortholog_species}) not found in NCBI database"))
+
+        # Checking if email is valid
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pattern, email):
+            exceptions.append(lvexceptions.EmailError())
+        
+        # Checking if identity threshold is between 0 and 1
+        if not 0 <= identity_threshold <= 1:
+            exceptions.append(lvexceptions.IdentityThresholdError())
+        
+        # Checking if number of blast hits to search for is greater than 0
+        if blast_hit_count <= 0:
+            exceptions.append(lvexceptions.BlastHitCountError())
+        
+        # Checking if number of motif hits to search for is greater than 0
+        if motif_hit_count <= 0:
+            exceptions.append(lvexceptions.MotifHitCountError())
+        
+        # Checking if e-score threshold is greater than 0
+        if escore_threshold <= 0:
+            raise exceptions.append(lvexceptions.EScoreThresholdError())
+        
+        return exceptions
 
     def find_protein(self, gene_sequence_list : list):
         '''
@@ -192,8 +262,6 @@ class Lverage:
         if self.verbose:
             print(f">Obtaining protein sequence.", flush=True)
 
-        if is_optimize:
-            start_time = time.time()
 
         # translate DNA to protein
         protein_sequence = ""
@@ -202,9 +270,6 @@ class Lverage:
         for gene_sequence in gene_sequence_list:
             ps = self.pf.translate(gene_sequence)
             protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
-
-        if is_optimize:
-                print(f"Time to find protein sequence: {time.time() - start_time}", flush=True)    
 
         # Only print protein sequence if found
         if protein_sequence and self.verbose:
@@ -232,14 +297,8 @@ class Lverage:
         if self.verbose:
             print(f">Searching for orthologs.", flush=True)
 
-        if is_optimize:
-            start_time = time.time()
-
         # search for orthologs
         ortholog_hit_list = self.ors.search(protein_sequence)
-
-        if is_optimize:
-            print(f"Time to find orthologs: {time.time() - start_time}", flush=True)
 
         if not ortholog_hit_list and self.verbose:
             print(f"\tWARNING: Unable to find orthologs.", flush=True)
@@ -262,17 +321,11 @@ class Lverage:
         if self.verbose:
             print(f">Searching for DBD.", flush=True)
 
-        if is_optimize:
-            start_time = time.time()
-        
         # search for DBDs
         dbd_list = []
         for protein_sequence in protein_sequence_list:
             dbd_list.append(self.ds.find_dbds(protein_sequence))
             time.sleep(5) # to prevent overloading the server
-
-        if is_optimize:
-            print(f"Time to find DBD: {time.time() - start_time}", flush=True)
 
         if not dbd_list and self.verbose:
             print(f"\tWARNING: Unable to find DBDs.", flush=True)
@@ -299,9 +352,6 @@ class Lverage:
 
         if self.verbose:
             print(f"\tAligning sequences...", flush=True)
-
-        if is_optimize:
-            start_time = time.time()
 
         # for each ortholog sequence
         alignment_list = []
@@ -331,10 +381,6 @@ class Lverage:
             # getting best alignment
             alignment_list.append(alignments[0])
 
-            
-        if is_optimize:
-            print(f"Time to align sequences: {time.time() - start_time}", flush=True)
-
         return alignment_list
     
     def find_motifs(self, dbd_list : list, ortholog_hit_list : list, protein_sequence : str):
@@ -355,9 +401,6 @@ class Lverage:
 
         # return value
         result_motif_list = []
-
-        if is_optimize:
-            start_time = time.time
 
         main_dbd_list = dbd_list[0]
         ortholog_dbd_list = dbd_list[1:]
@@ -436,9 +479,6 @@ class Lverage:
                     if self.verbose:
                         print(f'\tWARNING: {dbd.get_name()} is not conserved enough with the DBD in {ortholog_description}! {sim_array[i]} similarity! Skipping...', flush=True)
 
-        if is_optimize:
-            print(f"Time to find motifs: {time.time() - start_time}", flush=True)
-
         return result_motif_list
 
 
@@ -469,6 +509,13 @@ class Lverage:
 
         if self.verbose:
             print('---------------------------------', flush=True)
+
+        
+        # only if testing, return test motif and diagnostic record
+        if is_testing:
+            motif_list.append(MotifDBFactory.get_db_record(self.motif_database).get_test_motif())
+            self.diagnostic_list.append(DiagnosticRecord.get_test_record())
+            return motif_list
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -624,6 +671,7 @@ if __name__ == "__main__":
 
         headers = ["Gene ID"] + DiagnosticRecord.header_list + MotifDBFactory.get_db_record(motif_database).header_list
         f.write('\t'.join(headers) + '\n')
+        f.flush()
 
         for gene_file in gene_file_list:
 
@@ -632,7 +680,10 @@ if __name__ == "__main__":
             if verbose:
                 print(flush=True) # newline
 
-            motif_list = lverage.call(gene_file = gene_file)
+            try:
+                motif_list = lverage.call(gene_file = gene_file)
+            except Exception as e:
+                continue
             diagnostic_list = lverage.diagnostic_list
 
             assert len(motif_list) == len(diagnostic_list), "Motif list and diagnostic list are not the same length"
