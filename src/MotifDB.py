@@ -49,6 +49,10 @@ class MotifRecord:
     
     def get_values(self):
         raise [self.matrix_id]
+    
+    @staticmethod
+    def get_test_motif():
+        return MotifRecord("test")
 
 class JasparRecord(MotifRecord):
     '''
@@ -83,6 +87,10 @@ class JasparRecord(MotifRecord):
         r = [self.matrix_id, self.name, self.pfm, self.logo_link, self.motif_class, self.uniprot_id, self.sequence_perc_id, self.dbd_perc_id]
         assert len(r) == len(JasparRecord.header_list), "Length of values does not match length of header"
         return r
+    
+    @staticmethod
+    def get_test_motif():
+        return JasparRecord("MA0001.1", "test", [[1, 1, 1, 1], [1, 1, 1, 1]], "https://jaspar2020.genereg.net/static/logos/all/MA0001.1.png", "test", "P53_HUMAN", 0.9, 0.9)
 
 class MotifDBInterface:
     '''
@@ -335,7 +343,10 @@ class MotifDBFactory:
         db_name: a string representing the name of the database
         '''
 
+
         assert db_name in MotifDBFactory.motif_record_dict, "Database name not found"
+
+
         return MotifDBFactory.motif_record_dict[db_name]
 
 
