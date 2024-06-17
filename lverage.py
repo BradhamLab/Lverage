@@ -682,10 +682,13 @@ if __name__ == "__main__":
             if verbose:
                 print(flush=True) # newline
 
-            try:
-                motif_list = lverage.call(gene_file = gene_file)
-            except Exception as e:
-                continue
+            # try:
+            #     motif_list = lverage.call(gene_file = gene_file)
+            # except Exception as e:
+            #     if verbose:
+            #         print(f"ERROR: {e}", flush=True)
+            #     continue
+            motif_list = lverage.call(gene_file = gene_file)
             diagnostic_list = lverage.diagnostic_list
 
             assert len(motif_list) == len(diagnostic_list), "Motif list and diagnostic list are not the same length"

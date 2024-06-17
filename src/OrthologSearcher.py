@@ -208,18 +208,19 @@ class OrthologSearcher:
         # rid is the request ID; lets us track the job and status
         rid = response.text.split("RID = ")[1].split("\n")[0]
         if self.verbose:
-            print(f"\tUse the following link to check the status of the search: https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Get&RID={rid}", flush=True)
+            print(f"\tUse the following link to check the status of the search: {self.url}?CMD=Get&RID={rid}", flush=True)
 
         # REST API parameters for checking status of job
         check_params = {
             "CMD": "Get",
-            "FORMAT_TYPE": "XML",
+            "FORMAT_TYPE": "HTML",
             "RID": rid
         }
 
         # Until the server is done processing the request, we keep checking the status
         while True:
             check_response = requests.post(self.url, data=check_params)
+
             if "Status=WAITING" in check_response.text:
                 time.sleep(30)
 
@@ -239,13 +240,11 @@ class OrthologSearcher:
             "RID": rid
         }
 
-        result_response = requests.get(self.url, data=result_params)
+        result_handle = requests.get(self.url, data=result_params)
 
-        if result_response.status_code != 200:
-            raise Exception(f"Error: {result_response.status_code}")
+        if result_handle.status_code != 200:
+            raise Exception(f"Error: {result_handle.status_code}")
         
-        result_handle = result_handle.text
-
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step two: read blastp output
         if self.verbose:

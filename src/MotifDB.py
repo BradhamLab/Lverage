@@ -281,7 +281,8 @@ class JasparDB(MotifDBInterface):
 
                     # If the dbd percent identity is below the threshold, skip this uniprot id
                     if dbd_perc_id < self.dbd_threshold:
-                        continue
+                        # continue
+                        pass
 
                     # If the validation is the best so far, update the best validation
                     if best_validation is None or dbd_perc_id > best_validation[2]:
