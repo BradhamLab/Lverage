@@ -22,6 +22,7 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 # Imports
 from Bio.Blast import NCBIXML
 from Bio import Entrez, SeqIO
+import io
 
 import requests
 import time
@@ -239,8 +240,9 @@ class OrthologSearcher:
             "FORMAT_TYPE": "XML",
             "RID": rid
         }
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
-        result_handle = requests.get(self.url, data=result_params)
+        result_handle = requests.get(self.url, params=result_params, headers=headers)
 
         if result_handle.status_code != 200:
             raise Exception(f"Error: {result_handle.status_code}")
@@ -250,8 +252,7 @@ class OrthologSearcher:
         if self.verbose:
             print("\tParsing NCBI blastp output", flush=True)
 
-        self.blast_record = NCBIXML.read(result_handle)
-        blast_record = self.blast_record
+        blast_record = NCBIXML.read(io.StringIO(result_handle.text))
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step three: filter blastp output
