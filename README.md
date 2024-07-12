@@ -88,6 +88,6 @@ To contact us, please use the following contact information.
 |--------------------|---------------------|
 | Cynthia A. Bradham | cbradham@bu.edu     |
 | Anthony B. Garza   | abgarza@bu.edu      |
-| Stephanie Hao      | sphao@bu.edu        |
-| Yeting Lee         | yetingli@bu.edu     |
+| Stephanie P. Hao   | sphao@bu.edu        |
+| Yeting Li          | yetingli@bu.edu     |
 | Nofal Ouardaoui    | naouarda@bu.edu     |
