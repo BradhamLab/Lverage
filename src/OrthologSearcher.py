@@ -99,7 +99,7 @@ class AlignmentRecord:
     
     def get_usable_name(self):
         '''
-        This function returns the name of the sequence without any uneeded words
+        This function returns the name of the sequence without any unneeded words
         Also removes parentheses if they are at the beginning and end of the name
         '''
 
