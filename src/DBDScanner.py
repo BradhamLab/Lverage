@@ -14,7 +14,15 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
+Correspondence: Correspondence: 
+    Cynthia A. Bradham - cbradham@bu.edu - *
+    Anthony B. Garza   - abgarza@bu.edu  - **
+    Stephanie P. Hao   - sphao@bu.edu    - **
+    Yeting Li          - yetingli@bu.edu - **
+    Nofal Ouardaoui    - naouarda@bu.edu - **
+
+    *  - Principle Investigator
+    ** - Software Developers
 '''
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
