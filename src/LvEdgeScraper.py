@@ -8,8 +8,6 @@ This code also comes with an object that can be imported to perform the same fun
 Input: SPU ID (ex. SPU_003582)
 Output: 'Gene name / SPU ID: pfam domain' for each gene, outputed to console
 
-# ADD DEPENDENCIES HERE ANTHONY, plEaSe dOn't f0rgEt ##### :( ####
-
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
 
     This program is free software: you can redistribute it and/or modify
@@ -22,7 +20,15 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
+Correspondence: Correspondence: 
+    Cynthia A. Bradham - cbradham@bu.edu - *
+    Anthony B. Garza   - abgarza@bu.edu  - **
+    Stephanie P. Hao   - sphao@bu.edu    - **
+    Yeting Li          - yetingli@bu.edu - **
+    Nofal Ouardaoui    - naouarda@bu.edu - **
+
+    *  - Principle Investigator
+    ** - Software Developers
 '''
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
