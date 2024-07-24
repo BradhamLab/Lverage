@@ -28,6 +28,7 @@ from Bio import BiopythonDeprecationWarning, SeqIO
 from Bio.Align import PairwiseAligner
 from dataclasses import dataclass
 import time
+import shutil
 
 
 from src.ProteinTranslator import ProteinTranslator
@@ -88,7 +89,8 @@ class Lverage:
 
 
     def __init__(self, motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float = 0.7, verbose : bool = False,
-                        blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6):
+                        blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6, blast_db_path : str = None,
+                        blastp_path : str = None):
         '''
         Arguments:
         motif_database: name of motif database to use
@@ -99,6 +101,8 @@ class Lverage:
         blast_hit_count: number of hits to use from BlastP
         motif_hit_count: number of hits to use from motif database
         escore_threshold: E-value threshold required for any alignment to be considered
+        blast_db_path: path to the BLAST database to use if running BLAST locally
+        blastp_path: path to the BLASTP executable if running BLAST locally
         '''
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@# 
@@ -134,6 +138,15 @@ class Lverage:
         if escore_threshold <= 0:
             raise lvexceptions.EScoreThresholdError()
         
+        # If using local BLAST
+        if blast_db_path:
+            if not os.path.exists(blast_db_path):
+                raise lvexceptions.BlastDatabaseError()
+            
+            # Checking if BLASTP executable is available
+            if not os.path.exists(blastp_path):
+                raise lvexceptions.BlastPError()
+        
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Assigning arguments to class variables
 
@@ -145,6 +158,8 @@ class Lverage:
         self.blast_hit_count = blast_hit_count
         self.motif_hit_count = motif_hit_count
         self.escore_threshold = escore_threshold
+        self.blast_db_path = blast_db_path
+        self.blastp_path = blastp_path
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -165,7 +180,8 @@ class Lverage:
         # Setting up BlastP
         self.ors = OrthologSearcher(hitlist_size = self.blast_hit_count, verbose = self.verbose, 
                                     species_list = self.ortholog_name_list, email = self.email, 
-                                    escore_threshold = self.escore_threshold)
+                                    escore_threshold = self.escore_threshold, database_path = self.blast_db_path, 
+                                    blastp_path = self.blastp_path)
 
         # Setting up motif database
         self.mdb = MotifDBFactory.get_motif_db(db_name = self.motif_database, n_hits = self.motif_hit_count, dbd_scanner = self.ds)
@@ -578,6 +594,9 @@ if __name__ == "__main__":
 
     # Pipeline TOOL Arguments
     parser.add_argument('-e', '--email', help='Email address for EBML tools')
+    parser.add_argument('-b', '--blast', help='Path to the BLAST tools. If not provided, assumed to be on PATH.', default='')
+    parser.add_argument('-bdb', '--blastdb', help='Path to the protein database to use with BLAST if being done locally. Ensure this database has the ortholog species of interest. If this argument is provided, BLAST WILL be run locally!', default = None)
+
 
     # Pipeline parameters
     parser.add_argument('-it', '--identity_threshold', help='Identity threshold for similarity between sequences. Default is 0.7', default=0.7, type=float)
@@ -597,6 +616,8 @@ if __name__ == "__main__":
     output_path = args.output
 
     email = args.email
+    blast_path = args.blast
+    blast_db_path = args.blastdb
 
     identity_threshold = args.identity_threshold
 
@@ -638,7 +659,22 @@ if __name__ == "__main__":
     # Check if ortholog species passed; if not, use homo sapiens
     if not ortholog_name_list:
         ortholog_name_list = ['Homo Sapiens']
-        
+
+    # Checking if using local BLAST and if so, if the blastp executable is available and if the database is avaialble
+    blastp_path = None
+    if blast_db_path:
+        if not os.path.exists(blast_db_path):
+            raise RuntimeError(f"BLAST Database at {blast_db_path} doesn't exist!")
+
+        # checking if blastp executable is available
+        if blast_path:
+            blastp_path = os.path.join(blast_path, "blastp")
+            if not os.path.exists(blastp_path):
+                raise RuntimeError(f"blastp executable does not exist in {blast_path}")
+        else:
+            blastp_path = shutil.which("blastp")
+            if blastp_path is None:
+                raise RuntimeError("blastp executable is not in PATH")
 
     # Checking if output path exists
     if os.path.isdir(output_path):
@@ -658,7 +694,7 @@ if __name__ == "__main__":
     # Setting up Lverage
 
     lverage = Lverage(motif_database = motif_database, ortholog_name_list = ortholog_name_list, email = email, 
-                      identity_threshold = identity_threshold, verbose = verbose)
+                      identity_threshold = identity_threshold, verbose = verbose, blast_db_path = blast_db_path, blastp_path = blastp_path)
 
 
 
