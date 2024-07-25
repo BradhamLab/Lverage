@@ -34,12 +34,14 @@ import os
 import re
 from Bio import BiopythonDeprecationWarning, SeqIO
 from Bio.Align import PairwiseAligner
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+from orffinder import orffinder
 from dataclasses import dataclass
 import time
 import shutil
 
 
-from src.ProteinTranslator import ProteinTranslator
 from src.DBDScanner import DBDScanner, DBD
 from src.OrthologSearcher import OrthologSearcher
 from src.MotifDB import MotifDBFactory
@@ -148,7 +150,7 @@ class Lverage:
         
         # If using local BLAST
         if blast_db_path:
-            if not os.path.exists(blast_db_path):
+            if not os.path.exists(blast_db_path + ".pot"):
                 raise lvexceptions.BlastDatabaseError()
             
             # Checking if BLASTP executable is available
@@ -172,9 +174,6 @@ class Lverage:
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Setting up tools
-
-        # Setting up ORFfinder
-        self.pf = ProteinTranslator()
 
         # Setting up pfamscan
         self.ds = DBDScanner(email = self.email, verbose = self.verbose)
@@ -292,7 +291,7 @@ class Lverage:
 
         # Get longest protein sequence
         for gene_sequence in gene_sequence_list:
-            ps = self.pf.translate(gene_sequence)
+            ps = str(max(orffinder.getORFProteins(SeqRecord(gene_sequence)), key=len)).rstrip('*')
             protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
 
         # Only print protein sequence if found
@@ -477,7 +476,7 @@ class Lverage:
 
                     if self.verbose:
                         print(f"\n\t-Looking for ({ortholog_description}) from {ortholog_hit.get_species()}", flush=True)
-                        print("\t\t", end='', flush=True)
+                        # print("\t\t", end='', flush=True)
 
                     found_motif = False
 
@@ -533,6 +532,7 @@ class Lverage:
 
         if self.verbose:
             print('---------------------------------', flush=True)
+            print(f"Processing {gene_file}...", flush=True)
 
         
         # only if testing, return test motif and diagnostic record
@@ -588,10 +588,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description=
-        '''The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.
-        Copyright: 
-        Lab: Bradham Lab at Boston University
-        Correspondence: anthonygarza124@gmail.com''')
+'''The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.''')
 
     # Pipeline arguments
     parser.add_argument('-f', '--fasta', help='Path to folder of fasta files. Each fasta file should be for a singular gene. A fasta file may contain multiple scaffolds of this gene in multi-FASTA format.')
@@ -656,12 +653,15 @@ if __name__ == "__main__":
 
     # Checking if required arguments are provided
     if not fasta_path:
+        parser.print_help()
         raise RuntimeError("Please provide a path to a folder of fasta files using -f or --fasta")
 
     if not os.path.isdir(fasta_path):
+        parser.print_help()
         raise RuntimeError("Fasta folder does not exist or is not a folder")
 
     if not email:
+        parser.print_help()
         raise RuntimeError("Please provide an email address using -e or --email")
 
     # Check if ortholog species passed; if not, use homo sapiens
@@ -671,25 +671,30 @@ if __name__ == "__main__":
     # Checking if using local BLAST and if so, if the blastp executable is available and if the database is avaialble
     blastp_path = None
     if blast_db_path:
-        if not os.path.exists(blast_db_path):
+
+        if not os.path.exists(blast_db_path + ".pot"):
+            parser.print_help()
             raise RuntimeError(f"BLAST Database at {blast_db_path} doesn't exist!")
 
         # checking if blastp executable is available
         if blast_path:
             blastp_path = os.path.join(blast_path, "blastp")
             if not os.path.exists(blastp_path):
+                parser.print_help()
                 raise RuntimeError(f"blastp executable does not exist in {blast_path}")
         else:
             blastp_path = shutil.which("blastp")
             if blastp_path is None:
+                parser.print_help()
                 raise RuntimeError("blastp executable is not in PATH")
 
     # Checking if output path exists
     if os.path.isdir(output_path):
-        output_path = os.path.join(output_path, "output.tsv")
+        output_path = os.path.join(output_path, "output.tsv")  
     else:
         output_dir = os.path.dirname(output_path)
         if not os.path.exists(output_dir):
+            parser.print_help()
             raise RuntimeError("Output directory does not exist")
 
 
