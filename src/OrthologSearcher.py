@@ -207,24 +207,40 @@ class OrthologSearcher:
             f.write(sequence)
 
         # Run blastp
-        output_path = "blastp_output.xml"
+        output_file = "blastp_output.xml"
         blastp_cmd = [self.blastp_path, 
-                      "-query", query_file, 
-                      "-db", self.database_path,
-                      "-out", output_path,
-                      "-outfmt", "5", # XML format
-                      "-evalue", str(self.escore_threshold), 
-                      "-max_target_seqs", str(self.hitlist_size)]
-        
-        subprocess.run(blastp_cmd, check=True)
+                  "-query", query_file, 
+                  "-db", self.database_path,
+                  "-out", output_file,
+                  "-outfmt", "5", # XML format
+                  "-evalue", str(self.escore_threshold), 
+                  "-max_target_seqs", str(self.hitlist_size)]
 
-        #@#@#@@
-        # Step two: read blastp output
-        if self.verbose:
-            print("\tParsing local blastp output", flush=True)
+        try:
+            subprocess.run(blastp_cmd, check=True)
 
-        with open(output_path, "r") as f:
-            blast_record = NCBIXML.read(f)
+            #@#@#@@
+            # Step two: read blastp output
+            if self.verbose:
+                print("\tParsing local blastp output", flush=True)
+
+            with open(output_file, "r") as f:
+                blast_record = NCBIXML.read(f)
+
+        except Exception as e:
+            print(f"Unable to run or parse blastp: {e}")
+            raise e
+                
+        finally:
+            # Delete query_file and output_file
+            if os.path.exists(query_file):
+                os.remove(query_file)
+            if os.path.exists(output_file):
+                os.remove(output_file)
+
+        # We have to adjust for the accession. If a custom database is used, the accession gets replaced with the local sequence ID.
+        for alignment in blast_record.alignments:
+            alignment.accession = alignment.hit_def.split()[0]
 
         return blast_record
 
@@ -344,9 +360,15 @@ class OrthologSearcher:
             
         # default sorted by e-score
         for alignment in blast_record.alignments:
- 
+
             # get the sequence of the ortholog
-            handle = Entrez.efetch(db="protein", id=alignment.accession, rettype="fasta", retmode="text")
+            try:
+                handle = Entrez.efetch(db="protein", id=alignment.accession, rettype="fasta", retmode="text")
+            except Exception as e:
+                if self.verbose:
+                    print(f"\tUnable to fetch sequence with accession {alignment.accession}: {e}")
+                continue
+            
             record = SeqIO.read(handle, "fasta")
             handle.close()
             time.sleep(1) # no more than 3 requests per second, so we need to sleep
