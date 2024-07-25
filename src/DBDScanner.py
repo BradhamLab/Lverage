@@ -97,7 +97,7 @@ class DBDScanner:
         assert time_interval >= 0, f'Invalid time_interval of {time_interval}!'
 
         if time_interval < 1:
-            print("\WARNING: time_interval is less than 1 second. This may cause issues with the online tool.")
+            print("\tWARNING: time_interval is less than 1 second. This may cause issues with the online tool.")
 
         self.email = email
         self.verbose = verbose
