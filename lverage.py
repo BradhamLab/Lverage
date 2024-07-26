@@ -291,8 +291,10 @@ class Lverage:
 
         # Get longest protein sequence
         for gene_sequence in gene_sequence_list:
-            ps = str(max(orffinder.getORFProteins(SeqRecord(gene_sequence)), key=len)).rstrip('*')
-            protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
+            ps_list = orffinder.getORFProteins()
+            if ps_list:
+                ps = str(max(ps_list, key=len)).rstrip('*')
+                protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
 
         # Only print protein sequence if found
         if protein_sequence and self.verbose:
