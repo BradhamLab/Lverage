@@ -14,7 +14,15 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
+Correspondence: Correspondence: 
+    Cynthia A. Bradham - cbradham@bu.edu - *
+    Anthony B. Garza   - abgarza@bu.edu  - **
+    Stephanie P. Hao   - sphao@bu.edu    - **
+    Yeting Li          - yetingli@bu.edu - **
+    Nofal Ouardaoui    - naouarda@bu.edu - **
+
+    * - Principle Investigator
+    ** - Software Developers
 '''
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
@@ -26,11 +34,14 @@ import os
 import re
 from Bio import BiopythonDeprecationWarning, SeqIO
 from Bio.Align import PairwiseAligner
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+from orffinder import orffinder
 from dataclasses import dataclass
 import time
+import shutil
 
 
-from src.ProteinTranslator import ProteinTranslator
 from src.DBDScanner import DBDScanner, DBD
 from src.OrthologSearcher import OrthologSearcher
 from src.MotifDB import MotifDBFactory
@@ -88,7 +99,8 @@ class Lverage:
 
 
     def __init__(self, motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float = 0.7, verbose : bool = False,
-                        blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6):
+                        blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6, blast_db_path : str = None,
+                        blastp_path : str = None):
         '''
         Arguments:
         motif_database: name of motif database to use
@@ -99,6 +111,8 @@ class Lverage:
         blast_hit_count: number of hits to use from BlastP
         motif_hit_count: number of hits to use from motif database
         escore_threshold: E-value threshold required for any alignment to be considered
+        blast_db_path: path to the BLAST database to use if running BLAST locally
+        blastp_path: path to the BLASTP executable if running BLAST locally
         '''
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@# 
@@ -134,6 +148,15 @@ class Lverage:
         if escore_threshold <= 0:
             raise lvexceptions.EScoreThresholdError()
         
+        # If using local BLAST
+        if blast_db_path:
+            if not os.path.exists(blast_db_path + ".pot"):
+                raise lvexceptions.BlastDatabaseError()
+            
+            # Checking if BLASTP executable is available
+            if not os.path.exists(blastp_path):
+                raise lvexceptions.BlastPError()
+        
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Assigning arguments to class variables
 
@@ -145,13 +168,12 @@ class Lverage:
         self.blast_hit_count = blast_hit_count
         self.motif_hit_count = motif_hit_count
         self.escore_threshold = escore_threshold
+        self.blast_db_path = blast_db_path
+        self.blastp_path = blastp_path
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Setting up tools
-
-        # Setting up ORFfinder
-        self.pf = ProteinTranslator()
 
         # Setting up pfamscan
         self.ds = DBDScanner(email = self.email, verbose = self.verbose)
@@ -165,7 +187,8 @@ class Lverage:
         # Setting up BlastP
         self.ors = OrthologSearcher(hitlist_size = self.blast_hit_count, verbose = self.verbose, 
                                     species_list = self.ortholog_name_list, email = self.email, 
-                                    escore_threshold = self.escore_threshold)
+                                    escore_threshold = self.escore_threshold, database_path = self.blast_db_path, 
+                                    blastp_path = self.blastp_path)
 
         # Setting up motif database
         self.mdb = MotifDBFactory.get_motif_db(db_name = self.motif_database, n_hits = self.motif_hit_count, dbd_scanner = self.ds)
@@ -268,8 +291,10 @@ class Lverage:
 
         # Get longest protein sequence
         for gene_sequence in gene_sequence_list:
-            ps = self.pf.translate(gene_sequence)
-            protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
+            ps_list = orffinder.getORFProteins()
+            if ps_list:
+                ps = str(max(ps_list, key=len)).rstrip('*')
+                protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
 
         # Only print protein sequence if found
         if protein_sequence and self.verbose:
@@ -453,7 +478,7 @@ class Lverage:
 
                     if self.verbose:
                         print(f"\n\t-Looking for ({ortholog_description}) from {ortholog_hit.get_species()}", flush=True)
-                        print("\t\t", end='', flush=True)
+                        # print("\t\t", end='', flush=True)
 
                     found_motif = False
 
@@ -509,6 +534,7 @@ class Lverage:
 
         if self.verbose:
             print('---------------------------------', flush=True)
+            print(f"Processing {gene_file}...", flush=True)
 
         
         # only if testing, return test motif and diagnostic record
@@ -564,10 +590,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description=
-        '''The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.
-        Copyright: 
-        Lab: Bradham Lab at Boston University
-        Correspondence: anthonygarza124@gmail.com''')
+'''The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.''')
 
     # Pipeline arguments
     parser.add_argument('-f', '--fasta', help='Path to folder of fasta files. Each fasta file should be for a singular gene. A fasta file may contain multiple scaffolds of this gene in multi-FASTA format.')
@@ -578,6 +601,9 @@ if __name__ == "__main__":
 
     # Pipeline TOOL Arguments
     parser.add_argument('-e', '--email', help='Email address for EBML tools')
+    parser.add_argument('-b', '--blast', help='Path to the BLAST tools. If not provided, assumed to be on PATH.', default='')
+    parser.add_argument('-bdb', '--blastdb', help='Path to the protein database to use with BLAST if being done locally. Ensure this database has the ortholog species of interest. If this argument is provided, BLAST WILL be run locally!', default = None)
+
 
     # Pipeline parameters
     parser.add_argument('-it', '--identity_threshold', help='Identity threshold for similarity between sequences. Default is 0.7', default=0.7, type=float)
@@ -597,6 +623,8 @@ if __name__ == "__main__":
     output_path = args.output
 
     email = args.email
+    blast_path = args.blast
+    blast_db_path = args.blastdb
 
     identity_threshold = args.identity_threshold
 
@@ -627,25 +655,48 @@ if __name__ == "__main__":
 
     # Checking if required arguments are provided
     if not fasta_path:
+        parser.print_help()
         raise RuntimeError("Please provide a path to a folder of fasta files using -f or --fasta")
 
     if not os.path.isdir(fasta_path):
+        parser.print_help()
         raise RuntimeError("Fasta folder does not exist or is not a folder")
 
     if not email:
+        parser.print_help()
         raise RuntimeError("Please provide an email address using -e or --email")
 
     # Check if ortholog species passed; if not, use homo sapiens
     if not ortholog_name_list:
         ortholog_name_list = ['Homo Sapiens']
-        
+
+    # Checking if using local BLAST and if so, if the blastp executable is available and if the database is avaialble
+    blastp_path = None
+    if blast_db_path:
+
+        if not os.path.exists(blast_db_path + ".pot"):
+            parser.print_help()
+            raise RuntimeError(f"BLAST Database at {blast_db_path} doesn't exist!")
+
+        # checking if blastp executable is available
+        if blast_path:
+            blastp_path = os.path.join(blast_path, "blastp")
+            if not os.path.exists(blastp_path):
+                parser.print_help()
+                raise RuntimeError(f"blastp executable does not exist in {blast_path}")
+        else:
+            blastp_path = shutil.which("blastp")
+            if blastp_path is None:
+                parser.print_help()
+                raise RuntimeError("blastp executable is not in PATH")
 
     # Checking if output path exists
     if os.path.isdir(output_path):
-        output_path = os.path.join(output_path, "output.tsv")
+        output_path = os.path.join(output_path, "output.tsv")  
     else:
         output_dir = os.path.dirname(output_path)
         if not os.path.exists(output_dir):
+            parser.print_help()
             raise RuntimeError("Output directory does not exist")
 
 
@@ -658,7 +709,7 @@ if __name__ == "__main__":
     # Setting up Lverage
 
     lverage = Lverage(motif_database = motif_database, ortholog_name_list = ortholog_name_list, email = email, 
-                      identity_threshold = identity_threshold, verbose = verbose)
+                      identity_threshold = identity_threshold, verbose = verbose, blast_db_path = blast_db_path, blastp_path = blastp_path)
 
 
 

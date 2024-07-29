@@ -14,7 +14,15 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
+Correspondence: Correspondence: 
+    Cynthia A. Bradham - cbradham@bu.edu - *
+    Anthony B. Garza   - abgarza@bu.edu  - **
+    Stephanie P. Hao   - sphao@bu.edu    - **
+    Yeting Li          - yetingli@bu.edu - **
+    Nofal Ouardaoui    - naouarda@bu.edu - **
+
+    *  - Principle Investigator
+    ** - Software Developers
 '''
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
@@ -89,7 +97,7 @@ class DBDScanner:
         assert time_interval >= 0, f'Invalid time_interval of {time_interval}!'
 
         if time_interval < 1:
-            print("\WARNING: time_interval is less than 1 second. This may cause issues with the online tool.")
+            print("\tWARNING: time_interval is less than 1 second. This may cause issues with the online tool.")
 
         self.email = email
         self.verbose = verbose

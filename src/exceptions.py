@@ -14,7 +14,15 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
+Correspondence: Correspondence: 
+    Cynthia A. Bradham - cbradham@bu.edu - *
+    Anthony B. Garza   - abgarza@bu.edu  - **
+    Stephanie P. Hao   - sphao@bu.edu    - **
+    Yeting Li          - yetingli@bu.edu - **
+    Nofal Ouardaoui    - naouarda@bu.edu - **
+
+    *  - Principle Investigator
+    ** - Software Developers
 '''
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
@@ -37,6 +45,8 @@ class LverageErrorCode(Enum):
     INVALID_BLAST_HIT_COUNT = "Invalid number of hits for BlastP. Must be greater than 0."
     INVALID_MOTIF_HIT_COUNT = "Invalid number of hits for motif database. Must be greater than 0."
     INVALID_ESCORE_THRESHOLD = "Invalid e-score threshold. Must be greater than 0."
+    BLAST_DB_NOT_FOUND = "Blast database not found"
+    BLASTP_NOT_FOUND = "BlastP not found"
 
 class LverageError(Exception):
     '''
@@ -112,3 +122,19 @@ class EScoreThresholdError(LverageError):
 
     def __init__(self, message=LverageErrorCode.INVALID_ESCORE_THRESHOLD.value):
         super().__init__(message, LverageErrorCode.INVALID_ESCORE_THRESHOLD)
+
+class BlastDatabaseError(LverageError):
+    '''
+    Exception raised for errors in the blast database.
+    '''
+
+    def __init__(self, message=LverageErrorCode.BLAST_DB_NOT_FOUND.value):
+        super().__init__(message, LverageErrorCode.BLAST_DB_NOT_FOUND)
+
+class BlastPError(LverageError):
+    '''
+    Exception raised for BlastP not found.
+    '''
+
+    def __init__(self, message=LverageErrorCode.BLASTP_NOT_FOUND.value):
+        super().__init__(message, LverageErrorCode.BLASTP_NOT_FOUND)
