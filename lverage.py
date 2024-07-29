@@ -100,7 +100,7 @@ class Lverage:
 
     def __init__(self, motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float = 0.7, verbose : bool = False,
                         blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6, blast_db_path : str = None,
-                        blastp_path : str = None):
+                        blastp_path : str = None, start_codons : list = ['ATG']):
         '''
         Arguments:
         motif_database: name of motif database to use
@@ -113,6 +113,7 @@ class Lverage:
         escore_threshold: E-value threshold required for any alignment to be considered
         blast_db_path: path to the BLAST database to use if running BLAST locally
         blastp_path: path to the BLASTP executable if running BLAST locally
+        start_codons: list of start codons to use when translating DNA to protein
         '''
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@# 
@@ -156,6 +157,10 @@ class Lverage:
             # Checking if BLASTP executable is available
             if not os.path.exists(blastp_path):
                 raise lvexceptions.BlastPError()
+            
+        # Checking if at least one start codon is provided
+        if len(start_codons) == 0:
+            raise lvexceptions.StartCodonError()
         
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Assigning arguments to class variables
@@ -170,6 +175,7 @@ class Lverage:
         self.escore_threshold = escore_threshold
         self.blast_db_path = blast_db_path
         self.blastp_path = blastp_path
+        self.start_codons = start_codons
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -291,7 +297,11 @@ class Lverage:
 
         # Get longest protein sequence
         for gene_sequence in gene_sequence_list:
-            ps_list = orffinder.getORFProteins()
+
+            # Padding sequence with Ns if it's not a multiple of 3
+            gene_sequence = 'N' * (3 - len(gene_sequence) % 3) + gene_sequence if len(gene_sequence) % 3 != 0 else gene_sequence
+
+            ps_list = orffinder.getORFProteins(SeqRecord(Seq(gene_sequence)), start_codons=self.start_codons)
             if ps_list:
                 ps = str(max(ps_list, key=len)).rstrip('*')
                 protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
@@ -596,10 +606,15 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--fasta', help='Path to folder of fasta files. Each fasta file should be for a singular gene. A fasta file may contain multiple scaffolds of this gene in multi-FASTA format.')
 
     parser.add_argument('-mdb', '--motif_database', help='Name of motif database to use. Default is JASPAR. Use -lmdb to see list of available motif databases.', default='JASPAR')
-    parser.add_argument('-or', '--orthologs', nargs='*', help='Ortholog species to search for motif in. Each species should be enclosed in quotes and separated by spaces. Default is only Homo Sapiens') 
+    parser.add_argument('-or', '--orthologs', nargs='*', help='Ortholog species to search for motif in. Each species should be enclosed in quotes and separated by spaces. Default is only Homo Sapiens',
+                        default=['Homo Sapiens']) 
     parser.add_argument('-o', '--output', help='Output file path; provide a path to a file or a directory where output.tsv will be made.', default='output.tsv')
 
-    # Pipeline TOOL Arguments
+    # Protein translation arguments
+    parser.add_argument('-sc', '--start_codons', nargs='*', help='When translating a gene DNA sequence to Amino Acids, which start codons should be used? Provide a space separated list of codons, e.g., "ATG" "TTG" "GTG". Default is ATG only.',
+                        default=['ATG'])
+
+    # NCBI Arguments
     parser.add_argument('-e', '--email', help='Email address for EBML tools')
     parser.add_argument('-b', '--blast', help='Path to the BLAST tools. If not provided, assumed to be on PATH.', default='')
     parser.add_argument('-bdb', '--blastdb', help='Path to the protein database to use with BLAST if being done locally. Ensure this database has the ortholog species of interest. If this argument is provided, BLAST WILL be run locally!', default = None)
@@ -665,10 +680,6 @@ if __name__ == "__main__":
     if not email:
         parser.print_help()
         raise RuntimeError("Please provide an email address using -e or --email")
-
-    # Check if ortholog species passed; if not, use homo sapiens
-    if not ortholog_name_list:
-        ortholog_name_list = ['Homo Sapiens']
 
     # Checking if using local BLAST and if so, if the blastp executable is available and if the database is avaialble
     blastp_path = None

@@ -47,6 +47,7 @@ class LverageErrorCode(Enum):
     INVALID_ESCORE_THRESHOLD = "Invalid e-score threshold. Must be greater than 0."
     BLAST_DB_NOT_FOUND = "Blast database not found"
     BLASTP_NOT_FOUND = "BlastP not found"
+    NO_START_CODONS = "No start codons found"
 
 class LverageError(Exception):
     '''
@@ -138,3 +139,11 @@ class BlastPError(LverageError):
 
     def __init__(self, message=LverageErrorCode.BLASTP_NOT_FOUND.value):
         super().__init__(message, LverageErrorCode.BLASTP_NOT_FOUND)
+
+class StartCodonError(LverageError):
+    '''
+    Exception raised for errors in the start codon.
+    '''
+
+    def __init__(self, message=LverageErrorCode.NO_START_CODONS.value):
+        super().__init__(message, LverageErrorCode.NO_START_CODONS)
