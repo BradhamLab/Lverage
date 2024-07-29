@@ -14,7 +14,15 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
+Correspondence: Correspondence: 
+    Cynthia A. Bradham - cbradham@bu.edu - *
+    Anthony B. Garza   - abgarza@bu.edu  - **
+    Stephanie P. Hao   - sphao@bu.edu    - **
+    Yeting Li          - yetingli@bu.edu - **
+    Nofal Ouardaoui    - naouarda@bu.edu - **
+
+    *  - Principle Investigator
+    ** - Software Developers
 '''
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
@@ -23,6 +31,9 @@ Correspondence: anthonygarza124@gmail.com OR ...cyndi's email here...
 from Bio.Blast import NCBIXML
 from Bio import Entrez, SeqIO
 import io
+
+import subprocess
+import os
 
 import requests
 import time
@@ -143,17 +154,20 @@ class OrthologSearcher:
     url = "https://blast.ncbi.nlm.nih.gov/Blast.cgi"
 
     def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], 
-                 hitlist_size = 100, email = None, escore_threshold = 10**-6, verbose = False):
+                 hitlist_size = 100, email = None, escore_threshold = 10**-6, verbose = False,
+                 blastp_path = None, database_path = None):
         '''
         Arguments:
         species_list: list of orthologous species to look through
         hitlist_size: how many hits should we look through
         email: email to use for Entrez
         verbose: should we print out the current status and results?
+        blastp_path: path to the blastp executable if being run locally
+        database_path: if BLAST is being ran locally, where is the database to query?
         '''
 
         assert hitlist_size > 0, "hitlist_size must be greater than 0"
-        assert email is not None, "Email must be provided!"
+        assert (database_path and blastp_path) or email, "Email must be provided if running remotely OR both the BLAST database and blastp executable paths must be provided!" 
         assert escore_threshold > 0, "E-score threshold must be greater than 0!"
 
 
@@ -164,25 +178,84 @@ class OrthologSearcher:
         self.escore_threshold = escore_threshold
         self.verbose = verbose
 
+        self.blastp_path = blastp_path
+        self.database_path = database_path
+        self.is_local = database_path and blastp_path
+
         Entrez.email = self.email
 
-
-    def search(self, sequence):
+    def search_local(self, sequence):
         '''
-        This function searches for orthologous sequences of a given sequence using blastp.
+        This function searches for orthologous sequences of a given sequence using blastp locally.
 
         Arguments:
         sequence: a string representing a protein sequence
 
         Returns:
-        hit_list : a list of AlignmentRecord objects
+        blast_record : a Bio.Blast.Record object
         '''
 
-        assert len(sequence) > 0, "Sequence must be non-empty"
+        #@#@#@@
+        # Step one: run blastp
+        if self.verbose:
+            print("\tRunning local blastp.", flush=True)
 
-        hit_list = []
+        # Write sequence to a file
+        query_file = "query.fasta"
+        with open(query_file, "w") as f:
+            f.write(">query\n")
+            f.write(sequence)
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+        # Run blastp
+        output_file = "blastp_output.xml"
+        blastp_cmd = [self.blastp_path, 
+                  "-query", query_file, 
+                  "-db", self.database_path,
+                  "-out", output_file,
+                  "-outfmt", "5", # XML format
+                  "-evalue", str(self.escore_threshold), 
+                  "-max_target_seqs", str(self.hitlist_size)]
+
+        try:
+            subprocess.run(blastp_cmd, check=True)
+
+            #@#@#@@
+            # Step two: read blastp output
+            if self.verbose:
+                print("\tParsing local blastp output", flush=True)
+
+            with open(output_file, "r") as f:
+                blast_record = NCBIXML.read(f)
+
+        except Exception as e:
+            print(f"Unable to run or parse blastp: {e}")
+            raise e
+                
+        finally:
+            # Delete query_file and output_file
+            if os.path.exists(query_file):
+                os.remove(query_file)
+            if os.path.exists(output_file):
+                os.remove(output_file)
+
+        # We have to adjust for the accession. If a custom database is used, the accession gets replaced with the local sequence ID.
+        for alignment in blast_record.alignments:
+            alignment.accession = alignment.hit_def.split()[0]
+
+        return blast_record
+
+    def search_remote(self, sequence):
+        '''
+        This function searches for orthologous sequences of a given sequence using blastp remotely.
+
+        Arguments:
+        sequence: a string representing a protein sequence
+
+        Returns:
+        blast_record : a Bio.Blast.Record object
+        '''
+        
+        #@#@#@@
         # Step one: run blastp
         if self.verbose:
             print("\tRunning NCBI blastp.", flush=True)
@@ -200,7 +273,7 @@ class OrthologSearcher:
             "FORMAT_TYPE": "XML",
         }
 
-        # posting query to ncbi
+        # posting query to NCBI
         response = requests.post(self.url, data=params)
 
         if response.status_code != 200:
@@ -233,8 +306,8 @@ class OrthologSearcher:
 
             else:
                 raise Exception("Unknown status")
-
-        # REST API parameters for getting the results of the job  
+            
+        # REST API parameters for getting the results of the job
         result_params = {
             "CMD": "Get",
             "FORMAT_TYPE": "XML",
@@ -247,12 +320,37 @@ class OrthologSearcher:
         if result_handle.status_code != 200:
             raise Exception(f"Error: {result_handle.status_code}")
         
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+        #@#@#@@
         # Step two: read blastp output
         if self.verbose:
             print("\tParsing NCBI blastp output", flush=True)
 
         blast_record = NCBIXML.read(io.StringIO(result_handle.text))
+
+        return blast_record
+
+
+    def search(self, sequence):
+        '''
+        This function searches for orthologous sequences of a given sequence using blastp.
+
+        Arguments:
+        sequence: a string representing a protein sequence
+
+        Returns:
+        hit_list : a list of AlignmentRecord objects
+        '''
+
+        assert len(sequence) > 0, "Sequence must be non-empty"
+
+        hit_list = []
+
+        if self.is_local:
+            blast_record = self.search_local(sequence)
+        
+        else:
+            blast_record = self.search_remote(sequence)
+
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Step three: filter blastp output
@@ -260,13 +358,17 @@ class OrthologSearcher:
         if self.verbose:
             print("\tFiltering hits.")
             
-        hit_list = []
-
         # default sorted by e-score
         for alignment in blast_record.alignments:
- 
+
             # get the sequence of the ortholog
-            handle = Entrez.efetch(db="protein", id=alignment.accession, rettype="fasta", retmode="text")
+            try:
+                handle = Entrez.efetch(db="protein", id=alignment.accession, rettype="fasta", retmode="text")
+            except Exception as e:
+                if self.verbose:
+                    print(f"\tUnable to fetch sequence with accession {alignment.accession}: {e}")
+                continue
+            
             record = SeqIO.read(handle, "fasta")
             handle.close()
             time.sleep(1) # no more than 3 requests per second, so we need to sleep
