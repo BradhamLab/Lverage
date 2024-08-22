@@ -39,21 +39,23 @@ class DBD:
     DNA-Binding domain (DBD) record that contains the name, start (in originating sequence), and size of the DBD.
     '''
 
-    def __init__(self, name, start, size):
+    def __init__(self, name : str, start : int, end : int, accession: str):
         '''
         Arguments:
         name: name of the DBD
         start: start of the DBD in its originating sequence
-        size: size of the DBD in its originating sequence
+        size: end of the DBD in its originating sequence
         '''
 
         assert len(name) > 0, 'Invalid name for DBD!'
         assert start >= 0, f'Invalid start {start}'
-        assert size >= 1, f'Invalid size {size}'
+        assert end >= 1, f'Invalid end {end}'
+        assert len(accession) > 0, 'Invalid accession for DBD!'
 
         self.name = name
         self.start = start
-        self.size = size
+        self.end = end
+        self.accession = accession
 
     def get_name(self):
         return self.name
@@ -61,14 +63,47 @@ class DBD:
     def get_start(self):
         return self.start
     
-    def get_size(self):
-        return self.size
-    
     def get_end(self):
-        return self.start + self.size
+        return self.end
+    
+    def get_size(self):
+        return self.end - self.start
+    
+    def get_accession(self):
+        return self.accession
     
     def __str__(self):
-        return f"DBD {self.name} {self.start} {self.size}"
+        return f"DBD {self.name} {self.start} {self.size} {self.accession}"
+    
+def build_DBD_from_dict(d : dict) -> DBD:
+    '''
+    Builds a DBD object from a dictionary returned by the pfamscan service.
+
+    Arguments:
+    d: dictionary containing the DBD information
+
+    Returns:
+    DBD object
+    '''
+
+    assert 'name' in d, 'Invalid dictionary, missing name key!'
+    assert 'type' in d, 'Invalid dictionary, missing type key!'
+    assert 'env' in d, 'Invalid dictionary, missing env key!'
+
+    dbd = None # DBD object to return
+
+    if d['type'] == 'Domain':
+        name = dbd['name']
+
+        location_dict = dbd['env']
+        start = int(location_dict['from']) - 1
+        end = int(location_dict['to'])
+
+        accession = d['accession']
+
+        dbd = DBD(name, start, end, accession)
+
+    return dbd
 
 
 
@@ -160,21 +195,21 @@ class DBDScanner:
                 result = requests.get(self.result_url + job_id + "/out")
                 if result.ok:
 
-                    dbd_list = result.json()
+                    dbd_dict_list = result.json()
 
                     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
                     # Step four: parse the results, create the DBD objects with the name, start, and size for each DBD.
-                    if len(dbd_list) > 0:
-                        for dbd in dbd_list:
-                            location_dict = dbd['env']
-                            start = int(location_dict['from']) - 1
-                            size = int(location_dict['to']) - start
-                            name = dbd['name']
+                    if len(dbd_dict_list) > 0:
+                        for dbd_dict in dbd_dict_list:
 
-                            if self.verbose:
-                                print(f"\tDBD with name {name} found at {start} with size {size}.", flush=True)
+                            dbd = build_DBD_from_dict(dbd_dict)
 
-                            r.append(DBD(name, start, size))
+                            if dbd is not None:
+                                r.append(dbd)
+
+                                if self.verbose:
+                                    print(f"\tDBD with name {dbd.get_name()} and accesion {dbd.get_accession} was found at {dbd.get_start()} with size {dbd.get_size()}.", flush=True)
+
 
         else:
             print(f"\tPfamscan failed to run. Perhaps check the status of the tool online?")
