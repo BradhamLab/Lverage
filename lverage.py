@@ -64,6 +64,7 @@ class DiagnosticRecord:
 
     Attributes:
     dbd_name: name of DNA-binding domain
+    dbd_accession: accession number of DNA-binding domain
     ortholog_description: BLAST description of ortholog species
     ortholog_species: BLAST's name for ortholog species
     ortholog_escore: BLAST E-value
@@ -73,6 +74,7 @@ class DiagnosticRecord:
     '''
 
     dbd_name: str
+    dbd_accession: str
     ortholog_description: str
     ortholog_species: str
     ortholog_escore: float
@@ -83,11 +85,11 @@ class DiagnosticRecord:
     header_list = ['Gene DBD Name', 'Ortholog BLAST Description', 'Ortholog BLAST Species', 'Ortholog BLAST E-value', 'Ortholog BLAST Percent Identity', 'Ortholog BLAST Query Coverage', 'Gene_DBD-Ortholog_DBD Percent Identity']
 
     def get_values(self):
-        return [self.dbd_name, self.ortholog_description, self.ortholog_species, self.ortholog_escore, self.ortholog_percent_identity, self.ortholog_query_coverage, self.ortholog_dbd_percent_identity]
+        return [self.dbd_name, self.dbd_accession, self.ortholog_description, self.ortholog_species, self.ortholog_escore, self.ortholog_percent_identity, self.ortholog_query_coverage, self.ortholog_dbd_percent_identity]
 
     @staticmethod
     def get_test_record():
-        return DiagnosticRecord('Sample DBD', 'Sample Ortholog Description', 'Sample Ortholog Species', 0.0, 0.0, 0.0, 0.0)
+        return DiagnosticRecord('Sample DBD', 'PF00000.00', 'Sample Ortholog Description', 'Sample Ortholog Species', 0.0, 0.0, 0.0, 0.0)
 
 class Lverage:
     '''
@@ -100,7 +102,8 @@ class Lverage:
 
     def __init__(self, motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float = 0.7, verbose : bool = False,
                         blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6, blast_db_path : str = None,
-                        blastp_path : str = None, start_codons : list = ['ATG']):
+                        blastp_path : str = None, start_codons : list = ['ATG'], 
+                        valid_dbd_list = None):
         '''
         Arguments:
         motif_database: name of motif database to use
@@ -114,6 +117,7 @@ class Lverage:
         blast_db_path: path to the BLAST database to use if running BLAST locally
         blastp_path: path to the BLASTP executable if running BLAST locally
         start_codons: list of start codons to use when translating DNA to protein
+        valid_dbd_list: list of valid DNA-binding domain Accessions to use; if None, searches for all DNA-binding domains
         '''
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@# 
@@ -176,6 +180,7 @@ class Lverage:
         self.blast_db_path = blast_db_path
         self.blastp_path = blastp_path
         self.start_codons = start_codons
+        self.valid_dbd_list = valid_dbd_list
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -276,43 +281,73 @@ class Lverage:
         
         return exceptions
 
-    def find_protein(self, gene_sequence_list : list):
+    def find_protein(self, dna_sequence_list : list):
         '''
-        Step 1 in the pipeline:
-        Get the protein sequence of the DNA sequence (or scaffolds of a gene)
-
+        Obtain the Open Reading Frames (ORF) of all sequences provided;
+        Keep in mind that the ORFs are not separated by which sequence was provided
+        Thus, this method assumes that every sequence corresponds to a singular gene
+        Then with these ORFs, find the largest one that has a DNA-binding domain
+        If a list of valid DNA-binding domains is provided, also use that to filter out the ORFs
+        
         Arguments:
-        gene_sequence_list: list of gene DNA sequences
+        dna_sequence_list: list of DNA sequences
 
         Returns:
-        protein: the protein sequence of the DNA sequence
+        protein_seq: the largest ORF with a valid DNA-binding domain to use as the protein sequence of a gene
         '''
 
         if self.verbose:
-            print(f">Obtaining protein sequence.", flush=True)
+            print(f">Obtaining Open Reading Frames.", flush=True)
 
 
-        # translate DNA to protein
-        protein_sequence = ""
+        protein_sequence = None # protein sequence to return
 
-        # Get longest protein sequence
-        for gene_sequence in gene_sequence_list:
+        orf_list = []
+        for dna_sequence in dna_sequence_list:
 
             # Padding sequence with Ns if it's not a multiple of 3
-            gene_sequence = 'N' * (3 - len(gene_sequence) % 3) + gene_sequence if len(gene_sequence) % 3 != 0 else gene_sequence
+            sequence = 'N' * (3 - len(dna_sequence) % 3) + dna_sequence if len(dna_sequence) % 3 != 0 else dna_sequence
 
-            ps_list = orffinder.getORFProteins(SeqRecord(Seq(gene_sequence)), start_codons=self.start_codons)
+            # list of protein sequences
+            ps_list = orffinder.getORFProteins(SeqRecord(Seq(sequence)), start_codons=self.start_codons)
             if ps_list:
-                ps = str(max(ps_list, key=len)).rstrip('*')
-                protein_sequence = ps if len(ps) > len(protein_sequence) else protein_sequence
+                orf_list.extend([ps.rstrip('*') for ps in ps_list])
 
-        # Only print protein sequence if found
-        if protein_sequence and self.verbose:
-            print("\t" + protein_sequence, flush=True)
 
-        elif self.verbose:
-            print(f"\tWARNING: Unable to find protein sequence.", flush=True)
+        if self.verbose and not orf_list:
+            print(f"\tWARNING: Unable to find any Open Reading Frames.", flush=True)
 
+        elif orf_list:
+
+            # For each ORF in descending order of length, get the first one that has a DNA-binding domain; this will be our protein sequence
+            orf_list.sort(key = lambda x: len(x), reverse = True)
+            for orf in orf_list:
+
+                # getting DNA binding domains
+                orf_dbd_list = self.ds.find_dbds([orf])[0]
+
+                # if no DNA-binding domains found, skip
+                if not orf_dbd_list:
+                    continue
+
+                # if no list of valid DNA binding domains is provided, use the first ORF with a DNA-binding domain
+                elif self.valid_dbd_list is None and len(orf_dbd_list) > 0:
+                    protein_sequence = orf
+                    break
+
+                # If a list was provided, use the first ORF with a DNA-binding domain that is in the list
+                elif self.valid_dbd_list is not None:
+
+                    has_valid = False # flag to check if a valid DNA-binding domain is found; no need to check other ORFs if True
+                    for dbd in orf_dbd_list:
+
+                        if dbd.get_accession() in self.valid_dbd_list:
+                            protein_sequence = orf
+                            break
+
+                    if has_valid:
+                        break
+        
 
         return protein_sequence
     
@@ -354,7 +389,7 @@ class Lverage:
         '''
 
         if self.verbose:
-            print(f">Searching for DBD.", flush=True)
+            print(f">Searching for DBDs.", flush=True)
 
         # search for DBDs
         dbd_list = []
@@ -515,7 +550,27 @@ class Lverage:
                         print(f'\tWARNING: {dbd.get_name()} is not conserved enough with the DBD in {ortholog_description}! {sim_array[i]} similarity! Skipping...', flush=True)
 
         return result_motif_list
+    
+    def test(self, gene_sequences = None, gene_file = None):
+        '''
+        This function predicts DNA-binding domain motifs of a species using orthologous species.
 
+        Arguments:
+        gene_sequences: gene DNA sequence
+        gene_file: path to FASTA file containing gene sequence (scaffolds allowed); if gene_sequence is provided, this is ignored
+
+        Returns:
+        List of MotifDB.Motif objects
+        '''
+
+        self.diagnostic_list.clear()
+
+        # Getting gene sequence
+        gene_sequence_list = []
+        if gene_sequence:
+            gene_sequence_list.append(gene_sequence)
+        elif gene_file:
+            gene_sequence_list = [str(x.seq) for x in SeqIO.parse(gene_file, "fasta")]
 
     def call(self, gene_sequence = None, gene_file = None):
         '''
@@ -562,6 +617,7 @@ class Lverage:
         protein_sequence = self.find_protein(gene_sequence_list)
 
         if not protein_sequence:
+                
             return motif_list
 
             
@@ -575,7 +631,7 @@ class Lverage:
             return motif_list # BAD PRACTICE; find some way to not need multiple return statements
         
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step three: get start and size of DBD within protein
+        # Step three: get the DNA binding domains of the gene and orthologous sequences
 
         dbd_list = self.find_dbds([protein_sequence] + [ortholog_hit.get_seq() for ortholog_hit in ortholog_hit_list])
 

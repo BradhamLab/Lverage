@@ -75,7 +75,7 @@ class DBD:
     def __str__(self):
         return f"DBD {self.name} {self.start} {self.size} {self.accession}"
     
-def build_DBD_from_dict(d : dict) -> DBD:
+def build_dbd_from_dict(d : dict) -> DBD:
     '''
     Builds a DBD object from a dictionary returned by the pfamscan service.
 
@@ -202,7 +202,7 @@ class DBDScanner:
                     if len(dbd_dict_list) > 0:
                         for dbd_dict in dbd_dict_list:
 
-                            dbd = build_DBD_from_dict(dbd_dict)
+                            dbd = build_dbd_from_dict(dbd_dict)
 
                             if dbd is not None:
                                 r.append(dbd)
