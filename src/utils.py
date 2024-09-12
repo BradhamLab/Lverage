@@ -1,5 +1,4 @@
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-'''
+"""
 This file contains functions for general use throughout the LvERAGE pipeline.
 
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
@@ -23,8 +22,7 @@ Correspondence: Correspondence:
 
     * - Principle Investigator
     ** - Software Developers
-'''
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+"""
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
@@ -39,21 +37,27 @@ from Bio.Align import PairwiseAligner
 # Functions
 
 def align_dbds(sequence_one : str, dbd_one : DBD, sequence_two : str, dbd_scanner : DBDScanner, aligner : PairwiseAligner):
-    '''
-    This function aligns the DBDs of two sequences globally.
-    The DBD of the first sequence is already provided.
-    The second DBD is found using a DBDScanner object.
+    """This function aligns two DBDs from two different sequences.
 
-    Arguments:
-    sequence_one: first sequence
-    dbd_one: DBD object (DBDScanner.DBD) of first sequence
-    sequence_two: second sequence
-    dbd_scanner: DBDScanner object for second sequence
-    aligner: PairwiseAligner object for alignment
+    Parameters
+    ----------
+    sequence_one : str
+        The first sequence.
+    dbd_one : DBD
+        The first DBD.
+    sequence_two : str
+        The second sequence.
+    dbd_scanner : DBDScanner
+        The DBD scanner.
+    aligner : PairwiseAligner
+        For aligning DBDs.
 
-    Returns:
-    Alignments of the two DBDs or None if the second DBD is not found.
-    '''
+    Returns
+    -------
+    list
+        List of alignments.
+
+    """
 
     # Get the second DBD
     dbd_two_list = dbd_scanner.find_dbds(sequence_two)
@@ -75,19 +79,29 @@ def align_dbds(sequence_one : str, dbd_one : DBD, sequence_two : str, dbd_scanne
 
 
 def calculate_alignment_similarity(align1, align2):
-    '''
-    This function calculates the similarity between two alignments.
+    """This function calculates the similarity between two alignments.
 
-    Arguments:
-    align1: first alignment
-    align2: second alignment, of same length as align1
+    Parameters
+    ----------
+    align1 : str
+        The first alignment.
+    align2 : str
+        The second alignment.
 
-    Returns:
-    float value of similarity percentage
-    '''
+    Returns
+    -------
+    float
+        The similarity between the two alignments.
+
+    Raises
+    ------
+    ValueError
+        If the alignments are not the same length.
+    """
 
     # Alignments MUST be of same length
-    assert len(align1) == len(align2), "Alignments are not the same length."
+    if len(align1) != len(align2):
+        raise ValueError("Alignments are not the same length.")
 
     similarity = 0 # counter for matching characters
 
@@ -103,24 +117,38 @@ def calculate_alignment_similarity(align1, align2):
 
 
 def get_species_name(tax_id):
-    '''
-    This function returns the species name of a given taxonomic ID.
+    """NCBI Taxonomy Database is queried using the taxonomic ID to get the species name.
+
+    Parameters
+    ----------
+    tax_id : int
+        The taxonomic ID.
+
+    Returns
+    -------
+    str
+        The species name.
+
+    Raises
+    ------
+    ValueError
+        1. If the tax ID is a string but is not numeric.
+        2.If the tax ID is not a positive number.
+    TypeError
+        If the tax ID is not a number
+    """
     
-    Arguments:
-    tax_id: taxonomic ID of species
-    
-    Returns:
-    species name of taxonomic ID
-    '''
 
     if type(tax_id) == str:
-        assert tax_id.isdigit(), "Tax ID must be a number."
+        if not tax_id.isdigit():
+            raise ValueError("Tax ID must be a number.")
         tax_id = int(tax_id)
     
     elif type(tax_id) != int:
-        assert False, "Tax ID must be a number."
+        raise TypeError("Tax ID must be a number.")
     
-    assert tax_id > 0, "Tax ID must be a positive number."
+    if tax_id <= 0:
+        raise ValueError("Tax ID must be a positive number.")
 
     ncbi = NCBITaxa()
     lineage = ncbi.get_lineage(tax_id)
@@ -130,17 +158,29 @@ def get_species_name(tax_id):
 
 
 def get_tax_id(species_name):
-    '''
-    This function returns the taxonomic ID of a given species name.
-    
-    Arguments:
-    species_name: name of species
-    
-    Returns:
-    taxonomic ID of species
-    '''
+    """NCBI Taxonomy Database is queried using the species name to get the taxonomic ID.
 
-    assert type(species_name) == str, "Species name must be a string."
+    Parameters
+    ----------
+    species_name : str
+        The species name.
+
+    Returns
+    -------
+    int
+        The taxonomic ID.
+    None
+        If the species name is not found in the database.
+
+    Raises
+    ------
+    TypeError
+        If the species name is not a string.
+    """
+
+
+    if type(species_name) != str:
+        raise TypeError("Species name must be a string.")
 
     ncbi = NCBITaxa()
     name_dict = ncbi.get_name_translator([species_name])
@@ -150,15 +190,19 @@ def get_tax_id(species_name):
 
 
 def check_valid_species(species_name):
-    '''
-    This function checks if a species name is valid.
-    
-    Arguments:
-    species_name: name of species or taxonomic ID
-    
-    Returns:
-    boolean value of whether species name is valid
-    '''
+    """NCBI Taxonomy Database is queried to check if the species name is valid.
+
+    Parameters
+    ----------
+    species_name : str
+        The species name.
+
+    Returns
+    -------
+    bool
+        True if the species name is valid.
+        False if the species name is invalid.
+    """
 
     ncbi = NCBITaxa()
 

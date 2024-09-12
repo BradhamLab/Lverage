@@ -59,19 +59,30 @@ is_testing = False
 
 @dataclass
 class DiagnosticRecord:
-    '''
+    """
     This class contains the intermediate results of the Lverage pipeline
 
-    Attributes:
-    dbd_name: name of DNA-binding domain
-    dbd_accession: accession number of DNA-binding domain
-    ortholog_description: BLAST description of ortholog species
-    ortholog_species: BLAST's name for ortholog species
-    ortholog_escore: BLAST E-value
-    ortholog_percent_identity: BLAST percent identity
-    ortholog_query_coverage: BLAST query coverage
-    ortholog_dbd_percent_identity: percent identity of ortholog's DNA-binding domain with the main species' DNA-binding domain
-    '''
+    Attributes
+    ----------
+    dbd_name: str
+        name of DNA-binding domain
+    dbd_accession: str 
+        accession number of DNA-binding domain
+    ortholog_description: str 
+        BLAST description of ortholog species
+    ortholog_species: str
+        BLAST's name for ortholog species
+    ortholog_escore: float
+        BLAST E-value 
+    ortholog_percent_identity: float
+        BLAST percent identity
+    ortholog_query_coverage: float 
+        BLAST query coverage
+    ortholog_dbd_percent_identity: float 
+        percent identity of ortholog's DNA-binding domain with the main species' DNA-binding domain
+    header_list: list
+        list of strings representing parameters of the class
+    """
 
     dbd_name: str
     dbd_accession: str
@@ -85,16 +96,77 @@ class DiagnosticRecord:
     header_list = ['Gene DBD Name', 'Ortholog BLAST Description', 'Ortholog BLAST Species', 'Ortholog BLAST E-value', 'Ortholog BLAST Percent Identity', 'Ortholog BLAST Query Coverage', 'Gene_DBD-Ortholog_DBD Percent Identity']
 
     def get_values(self):
+        """
+        Returns a list of the attributes of the class
+
+        Returns
+        -------
+        list
+            list of attributes of the class
+        """
         return [self.dbd_name, self.dbd_accession, self.ortholog_description, self.ortholog_species, self.ortholog_escore, self.ortholog_percent_identity, self.ortholog_query_coverage, self.ortholog_dbd_percent_identity]
 
     @staticmethod
     def get_test_record():
+        """
+        Returns a DiagnosticRecord object with placeholder values
+
+        Returns
+        -------
+        DiagnosticRecord
+        """
         return DiagnosticRecord('Sample DBD', 'PF00000.00', 'Sample Ortholog Description', 'Sample Ortholog Species', 0.0, 0.0, 0.0, 0.0)
 
 class Lverage:
-    '''
-    This class contains a pipeline that predicts DNA-binding domain motifs of a species using orthologous species.
-    '''
+    """
+    Predicts DNA-binding domain motifs of a species using orthologous species.
+
+    Attributes
+    ----------
+    motif_database: str
+        name of motif database to use
+    ortholog_name_list: list
+        list of ortholog species names to search for motif in
+    email: str
+        email address for EBML tools
+    identity_threshold: float
+        identity threshold for similarity between sequences (0 to 1). Default is 0.7
+    verbose: bool
+        if True, prints messages to the console. Default is False
+    blast_hit_count: int
+        number of hits to use from BlastP. Default is 20
+    motif_hit_count: int
+        number of hits to use from motif database. Default is 10
+    escore_threshold: float
+        E-value threshold required for any alignment to be considered. Default is 10^-6
+    blast_db_path: str
+        path to the BLAST database to use if running BLAST locally. Default is None.
+    blastp_path: str
+        path to the BLASTP executable if running BLAST locally. Default is None.
+    start_codons: list
+        list of start codons to use when translating DNA to protein. Default is ['ATG']
+    valid_dbd_list: list
+        list of valid DNA-binding domain Accessions to use; if None, searches for all DNA-binding domains. Default is None
+
+    Methods
+    -------
+    to_dict()
+        Returns a dictionary representation of the object
+    from_dict(dict_obj)
+        Returns a Lverage object from a dictionary
+    find_protein(dna_sequence_list)
+        Obtain the Open Reading Frames (ORF) of all sequences provided
+    find_orthologs(protein_sequence)
+        Get ortholog sequences
+    find_dbds(protein_sequence_list)
+        Get the start and size of DNA-binding domain within protein sequences
+    find_alignments(protein_sequence, main_dbd, ortholog_hit_list, ortholog_dbd_list)
+        Align main species' protein dbd with orthologs' protein dbd
+    find_motifs(dbd_list, ortholog_hit_list, protein_sequence)
+        Find motifs from orthologous sequences that meet the identity threshold with the DBD in the provided
+    call(gene_sequence, gene_file)
+        Predict DNA-binding domain motifs of a species using orthologous species
+    """
 
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Class variables
@@ -104,23 +176,32 @@ class Lverage:
                         blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6, blast_db_path : str = None,
                         blastp_path : str = None, start_codons : list = ['ATG'], 
                         valid_dbd_list = None):
-        '''
-        Arguments:
-        motif_database: name of motif database to use
-        ortholog_name_list: list of ortholog species names to search for motif in
-        email: email address for EBML tools
-        identity_threshold: identity threshold for similarity between sequences (0 to 1)
-        verbose: if True, prints messages to the console
-        blast_hit_count: number of hits to use from BlastP
-        motif_hit_count: number of hits to use from motif database
-        escore_threshold: E-value threshold required for any alignment to be considered
-        blast_db_path: path to the BLAST database to use if running BLAST locally
-        blastp_path: path to the BLASTP executable if running BLAST locally
-        start_codons: list of start codons to use when translating DNA to protein
-        valid_dbd_list: list of valid DNA-binding domain Accessions to use; if None, searches for all DNA-binding domains
+        '''Constructor
+
+        Raises
+        ------
+        MotifDatabaseError
+            If motif database is not available
+        OrthologSpeciesError
+            If ortholog species are not found in NCBI database
+        EmailError
+            If email is not valid
+        IdentityThresholdError
+            If identity threshold is not between 0 and 1
+        BlastHitCountError
+            If number of blast hits to search for is less than or equal to 0
+        MotifHitCountError
+            If number of motif hits to search for is less than or equal to 0
+        EScoreThresholdError
+            If e-score threshold is less than or equal to 0
+        BlastDatabaseError
+            If BLAST database is not available
+        BlastPError
+            If BLASTP executable is not available
+        StartCodonError
+            If no start codons are provided
         '''
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@# 
         # Validating arguments
 
         # Checking if motif database is available
@@ -211,9 +292,14 @@ class Lverage:
         self.diagnostic_list = []
 
     def to_dict(self):
-        '''
-        Returns a dictionary representation of the object
-        '''
+        """
+        Returns a dictionary representation of the parameters used to create the object
+
+        Returns
+        -------
+        dict
+            dictionary representation of the object
+        """
 
         return {
             'motif_database': self.motif_database,
@@ -228,6 +314,18 @@ class Lverage:
     
     @classmethod
     def from_dict(cls, dict_obj):
+        """
+        Returns a Lverage object from a dictionary
+
+        Parameters
+        ----------
+        dict_obj: dict
+            dictionary representation of the object
+
+        Returns
+        -------
+        Lverage
+        """
         return cls(
             motif_database = dict_obj['motif_database'],
             ortholog_name_list = dict_obj['ortholog_name_list'],
@@ -239,47 +337,6 @@ class Lverage:
             escore_threshold = dict_obj['escore_threshold']
         )
 
-    @staticmethod
-    def check_valid(motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float = 0.7, verbose : bool = False,
-                        blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6):
-        '''
-        Uses the same arguments as __init__ to check if the arguments are valid
-        Returns a list of exceptions if any are raised, otherwise returns an empty list
-        '''
-
-        exceptions = []
-
-        # Checking if motif database is available
-        if not MotifDBFactory.has_db(motif_database):
-            exceptions.append(lvexceptions.MotifDatabaseError())
-        
-        # Checking if ortholog species are in NCBI database;
-        for i, ortholog_species in enumerate(ortholog_name_list):
-            if not lvutils.check_valid_species(ortholog_species):
-                exceptions.append(lvexceptions.OrthologSpeciesError(f"Ortholog species ({ortholog_species}) not found in NCBI database"))
-
-        # Checking if email is valid
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(pattern, email):
-            exceptions.append(lvexceptions.EmailError())
-        
-        # Checking if identity threshold is between 0 and 1
-        if not 0 <= identity_threshold <= 1:
-            exceptions.append(lvexceptions.IdentityThresholdError())
-        
-        # Checking if number of blast hits to search for is greater than 0
-        if blast_hit_count <= 0:
-            exceptions.append(lvexceptions.BlastHitCountError())
-        
-        # Checking if number of motif hits to search for is greater than 0
-        if motif_hit_count <= 0:
-            exceptions.append(lvexceptions.MotifHitCountError())
-        
-        # Checking if e-score threshold is greater than 0
-        if escore_threshold <= 0:
-            raise exceptions.append(lvexceptions.EScoreThresholdError())
-        
-        return exceptions
 
     def find_protein(self, dna_sequence_list : list):
         '''

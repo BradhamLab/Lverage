@@ -1,6 +1,4 @@
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-'''
-This file contains a class that is used to scan a protein sequence for its dna binding domain (DBD) 
+"""This module contains functionality for scanning protein sequences for their dna binding domain (DBD) 
 
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
 
@@ -23,8 +21,7 @@ Correspondence: Correspondence:
 
     *  - Principle Investigator
     ** - Software Developers
-'''
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+"""
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
@@ -35,82 +32,191 @@ import time
 # Classes
 
 class DBD:
-    '''
-    DNA-Binding domain (DBD) record that contains the name, start (in originating sequence), and size of the DBD.
-    '''
+    """DNA-Binding domain (DBD) record that contains the name, start (in originating sequence), end of the DBD, and accession identifier.
+
+    The purpose of this class is to store the information of a DBD in a protein sequence.
+
+    Attributes
+    -----------
+    name : str
+        name of the DBD
+    start : int
+        start of the DBD in its originating sequence
+    end : int
+        end of the DBD in its originating sequence
+    accession : str
+        accession identifier of the DBD
+    """
 
     def __init__(self, name : str, start : int, end : int, accession: str):
-        '''
-        Arguments:
-        name: name of the DBD
-        start: start of the DBD in its originating sequence
-        size: end of the DBD in its originating sequence
-        '''
+        """Constructor
 
-        assert len(name) > 0, 'Invalid name for DBD!'
-        assert start >= 0, f'Invalid start {start}'
-        assert end >= 1, f'Invalid end {end}'
-        assert len(accession) > 0, 'Invalid accession for DBD!'
+        Raises
+        ------
+        ValueError
+            1. If the name is empty, start is negative, end is less than 1, or accession is empty.
+            2. If the start is negative.
+            3. If the end is less than 1.
+            4. If the accession is empty.
+        """
+
+        if len(name) == 0:
+            raise ValueError('Invalid name for DBD!')
+        if start < 0:
+            raise ValueError(f'Invalid start {start}')
+        if end < 1:
+            raise ValueError(f'Invalid end {end}')
+        if len(accession) == 0:
+            raise ValueError('Invalid accession for DBD!')
 
         self.name = name
         self.start = start
         self.end = end
         self.accession = accession
 
+
     def get_name(self):
+        """
+        Returns the name of the DBD.
+
+        Returns
+        -------
+        str
+            Name of the DBD.
+        """
         return self.name
-    
+
     def get_start(self):
+        """
+        Returns the start position of the DBD in its originating sequence.
+
+        Returns
+        -------
+        int
+            Start position of the DBD.
+        """
         return self.start
-    
+
     def get_end(self):
+        """
+        Returns the end position of the DBD in its originating sequence.
+
+        Returns
+        -------
+        int
+            End position of the DBD.
+        """
         return self.end
-    
+
     def get_size(self):
+        """
+        Returns the size of the DBD.
+
+        Returns
+        -------
+        int
+            Size of the DBD.
+        """
         return self.end - self.start
-    
+
     def get_accession(self):
+        """
+        Returns the accession identifier of the DBD.
+
+        Returns
+        -------
+        str
+            Accession identifier of the DBD.
+        """
         return self.accession
     
     def __str__(self):
         return f"DBD {self.name} {self.start} {self.size} {self.accession}"
     
-def build_dbd_from_dict(d : dict) -> DBD:
-    '''
+def build_dbd_from_dict(d: dict) -> DBD:
+    """
     Builds a DBD object from a dictionary returned by the pfamscan service.
 
-    Arguments:
-    d: dictionary containing the DBD information
+    Parameters
+    ----------
+    d : dict
+        Dictionary containing the DBD information with keys 'name', 'type', 'env', and 'accession'.
 
-    Returns:
-    DBD object
-    '''
+    Returns
+    -------
+    DBD
+        A DBD object initialized with the dictionary values.
 
-    assert 'name' in d, 'Invalid dictionary, missing name key!'
-    assert 'type' in d, 'Invalid dictionary, missing type key!'
-    assert 'env' in d, 'Invalid dictionary, missing env key!'
+    Raises
+    ------
+    ValueError
+        1. If the dictionary is missing required fields: 'name', 'type', 'env', or 'accession'.
+        2. If the 'type' of the DBD is not 'Domain'.
+        3. If the 'env' sub-dictionary is missing 'from' or 'to' keys.
+        4. If the 'from' or 'to' fields from the 'env' sub-dictionary are not integers.
+    """
 
-    dbd = None # DBD object to return
+    # Validate the required keys exist and their types are correct
+    required_keys = ['name', 'type', 'env', 'accession']
+    for key in required_keys:
+        if key not in d:
+            raise ValueError(f"Invalid dictionary, missing '{key}' key!")
 
-    if d['type'] == 'Domain':
-        name = dbd['name']
+    # Validate the 'type' is correct for processing
+    if d['type'] != 'Domain':
+        raise ValueError(f"Expected 'type' to be 'Domain', got {d['type']}")
 
-        location_dict = dbd['env']
-        start = int(location_dict['from']) - 1
-        end = int(location_dict['to'])
+    # Validate the structure of the 'env' sub-dictionary
+    if 'from' not in d['env'] or 'to' not in d['env']:
+        raise ValueError("Invalid dictionary, 'env' must contain 'from' and 'to' keys!")
 
-        accession = d['accession']
+    # Extract values from the dictionary and cast appropriately
+    name = d['name']
+    accession = d['accession']
 
-        dbd = DBD(name, start, end, accession)
+    try:
+        start = int(d['env']['from']) - 1  # Convert to 0-based index
+        end = int(d['env']['to'])
+    except (ValueError, TypeError):
+        raise ValueError("The 'from' and 'to' fields in 'env' must be integers.")
 
-    return dbd
+    # Create and return the DBD object
+    return DBD(name, start, end, accession)
 
 
 
 class DBDScanner:
-    '''
-    Runs pfamscan online to locate the DNA-Binding Domains (DBD) of a protein sequence
-    '''
+    """
+    DBDScanner is a class that runs pfamscan online to locate the DNA-Binding Domains (DBD) of a protein sequence.
+
+    Attributes
+    ----------
+    url : str
+        Base URL for the pfamscan service.
+    run_url : str
+        URL to submit a pfamscan job.
+    status_url : str
+        URL to check the status of a pfamscan job.
+    result_url : str
+        URL to retrieve the results of a pfamscan job.
+    email : str
+        User email required by ebi services.
+    verbose : bool
+        Flag to print out status and results. Default is False.
+    try_count : int
+        Number of times to request the online tool before giving up. Default is 10.
+    time_interval : int
+        Number of seconds to wait between requests. Default is 5.
+
+    Methods
+    -------
+    __init__(email, verbose=False, try_count=10, time_interval=5)
+        Initializes the DBDScanner with the provided email, verbosity, try count, and time interval.
+    find_dbds(protein_seq)
+        Finds the DNA binding domains of a protein sequence.
+
+    """
+
 
     # URLs for the pfamscan service
     url = "https://www.ebi.ac.uk/Tools/services/rest/pfamscan/"
@@ -119,17 +225,22 @@ class DBDScanner:
     result_url = url + "result/"   
 
     def __init__(self, email, verbose = False, try_count = 10, time_interval = 5):
-        '''
-        Arguments:
-        email: User email. This is required by ebi services
-        verbose: Should it print out status and results?
-        try_count: how many times should we request the online tool before giving up?
-        time_interval: how many seconds should we wait between requests?
-        '''
+        """Constructor
 
-        assert len(email) > 0, 'Invalid email!'
-        assert try_count > 0, f'Invalid try_count of {try_count}!'
-        assert time_interval >= 0, f'Invalid time_interval of {time_interval}!'
+        Raises
+        ------
+        ValueError
+            1. If the email is empty.
+            2. If the try_count is less than or equal to 0.
+            3. If the time_interval is less than 0.
+        """
+
+        if not email:
+            raise ValueError('Invalid email!')
+        if try_count <= 0:
+            raise ValueError(f'Invalid try_count of {try_count}!')
+        if time_interval < 0:
+            raise ValueError(f'Invalid time_interval of {time_interval}!')
 
         if time_interval < 1:
             print("\tWARNING: time_interval is less than 1 second. This may cause issues with the online tool.")
@@ -140,15 +251,22 @@ class DBDScanner:
         self.time_interval = time_interval
 
     def find_dbds(self, protein_seq):
-        '''
-        This function finds the DNA binding domains of a protein sequence.
+        """
+        Finds the DNA binding domains of a protein sequence.
 
-        Arguments:
-        protein_sequence: a string representing a protein sequence
+        Interfaces with the pfamscan online tool to locate the DBDs in a provided protein sequence.
+        If the tool fails to run, retrieve the results, or find any DBDs, an empty list is returned.
 
-        Returns:
-        dbd objects in a list
-        '''
+        Parameters
+        ----------
+        protein_seq : str
+            Protein sequence to scan for DNA binding domains.
+        
+        Returns
+        -------
+        list
+            List of DBD objects found in the protein sequence.
+        """
 
 
         r = [] # list of DBD objects to return in the end
