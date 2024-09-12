@@ -1,5 +1,5 @@
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-'''
+"""DEPECRATED
+
 This script scrapes the LvEDGE website at https://lvedge.bu.edu/.
 A specific SPU ID is used to search for every corresponding gene.
 The pfam domain of each gene is then printed to the console, preceded by the gene name.
@@ -29,8 +29,8 @@ Correspondence: Correspondence:
 
     *  - Principle Investigator
     ** - Software Developers
-'''
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+"""
+
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
@@ -43,22 +43,36 @@ import time
 
 
 class LvEdgeScraper:
-    '''
+    """
     Object with functionality for scraping LvEDgE website at https://lvedge.bu.edu/cgi-bin/lvedge/main.py
-    '''
 
-    def __init__(self, url = 'https://lvedge.bu.edu/cgi-bin/lvedge/main.py', is_headless = True, try_count = 10):
-        '''
-        Initializes LvEDGEScraper object.
+    Attributes
+    ----------
+        url: str
+            URL of LvEDGE website.
+        is_headless: bool
+            Run chrome in headless mode? Default is True.
+        try_count: int
+            Number of times to try to retrieve an spu ID from the website before giving up. Default is 10.
 
-        Arguments:
-        url: URL of LvEDGE website
-        is_headless: run chrome in headless mode?
-        try_count: number of times to try to retrieve an spu ID from the website before giving up
-        '''
+    Methods
+    -------
+        open_search: None
+            Opens LvEDGE website to the search tab
+        search: List[List[str]]
+            Search for a specific SPU ID and return the gene table
+        __del__: None
+            Close the chrome window when the object is deleted
+        close: None
+            Easier name to use for user to close the chrome window than __del__ :)
+    """
 
-        # URL to LvEdge website
-        self.url = url
+    url = 'https://lvedge.bu.edu/cgi-bin/lvedge/main.py'
+    def __init__(self, is_headless = True, try_count = 10):
+        """Constructor
+        
+        When built, the search tab is opened in the LvEDGE website automatically.
+        """
 
         # Options for the chrome window
         self.chrome_options = webdriver.ChromeOptions()
@@ -72,15 +86,12 @@ class LvEdgeScraper:
         
         # Open the search tab
         self.open_search()
-            
-
-
-
         
+
     def open_search(self):
-        ''' 
+        """
         Opens LvEDGE website to the search tab
-        '''
+        """
         
         # Open chrome and add options
         self.driver = webdriver.Chrome(options=self.chrome_options)
@@ -95,14 +106,24 @@ class LvEdgeScraper:
 
 
     def search(self, spu_id):
-        '''
+        """
         Search for a specific SPU ID and return the gene table.
 
-        Arguments:
-        spu_id: SPU ID to search for.
+        Given that the search tab is open, the SPU ID is typed in and the search button is clicked.
+        A list of genes would typically appear in the browser.
+        This list of scraped and returned as a table (list of lists).
+
+        Parameters
+        ---------
+            spu_id: str
+                SPU ID to search for.
         
-        Returns: List of lists, each list is a row in the gene table. First list is header row.
-        '''
+        Returns
+        -------
+            List[List[str]]
+                Table of genes returned by search.
+                First row is the header row.
+        """
 
         r = [] # List to return
   
@@ -177,19 +198,10 @@ class LvEdgeScraper:
 
 
     def __del__(self):
-        '''
+        """
         Close the chrome window when the object is deleted.
-        '''
+        """
         self.driver.quit()
-
-    def close(self):
-        '''
-        Easier name to use for user to close the chrome window than __del__ :)
-        '''
-        self.__del__()
-        
-
-
 
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#

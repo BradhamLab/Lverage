@@ -1,6 +1,4 @@
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-'''
-This file contains a class that is used to search for orthologous sequences of a given sequence using blastp
+"""This file contains a class that is used to search for orthologous sequences of a given sequence using blastp
 
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
 
@@ -23,8 +21,7 @@ Correspondence: Correspondence:
 
     *  - Principle Investigator
     ** - Software Developers
-'''
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+"""
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
@@ -42,21 +39,55 @@ import time
 # Classes
 
 class AlignmentRecord:
-    '''
+    """
     BLAST alignment record, contains useful information about a BLAST hit
-    '''
+
+    Attributes
+    ----------
+    title : str
+        Title of the alignment
+    species : str
+        Name of the species
+    name : str
+        Name of the sequence
+    seq : str
+        Sequence of the alignment
+    accession : str
+        Accession number of the sequence
+    expect : float
+        E-score of the alignment
+    percent_identity : float
+        Percent identity of the alignment
+    query_coverage : float
+        Query coverage of the alignment
+
+    Methods
+    -------
+    get_title()
+        Get the title of the alignment
+    get_name()
+        Get the name of the sequence
+    get_species()
+        Get the name of the species
+    get_seq()
+        Get the sequence of the alignment
+    get_accession()
+        Get the accession number of the sequence
+    get_escore()
+        Get the E-score of the alignment
+    get_percent_identity()
+        Get the percent identity of the alignment
+    get_query_coverage()
+        Get the query coverage of the alignment
+    """
 
     # List of words that are uneeded in the name of the BLAST description; we can remove them
     uneeded_words_list = ['transcription factor']
 
 
-    def __init__(self, alignment, query_coverage, sequence):        
-        '''
-        Arguments:
-        alignment: a Bio.Blast.Record.Alignment object
-        query_coverage: the percentage of the query sequence that is covered by the alignment
-        sequence: the sequence of the query
-        '''                        
+    def __init__(self, alignment, query_coverage, seq):        
+        """Constructor
+        """
         
 
 
@@ -82,7 +113,7 @@ class AlignmentRecord:
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Get the first alignment sequence without gaps
-        self.seq = sequence
+        self.seq = seq
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Getting other information
@@ -96,79 +127,141 @@ class AlignmentRecord:
 
         self.query_coverage = query_coverage
 
-        
-        
 
     def __str__(self):
         return f"{self.title} {self.name} {self.species} {self.seq}"
     
     def get_title(self):
+        """Get the title of the alignment
+
+        Returns
+        -------
+        str
+            Title of the alignment
+        """
         return self.title
     
     def get_name(self):
+        """Get the name of the sequence
+
+        Returns
+        -------
+        str
+            Name of the sequence
+        """
         return self.name
     
-    def get_usable_name(self):
-        '''
-        This function returns the name of the sequence without any unneeded words
-        Also removes parentheses if they are at the beginning and end of the name
-        '''
-
-        usable_name = self.name
-        for uneeded in self.uneeded_words_list:
-            usable_name = usable_name.replace(uneeded, '')
-            
-        usable_name = ' '.join(usable_name.split()) # Removing extra spaces
-
-        # remove parentheses if they are at the beginning and end of the name
-        if usable_name.startswith('(') and usable_name.endswith(')'):
-            usable_name = usable_name[1:-1]
-
-        return usable_name
-    
-    
     def get_species(self):
+        """Get the name of the species
+
+        Returns
+        -------
+        str
+            Name of the species
+        """
         return self.species
     
     def get_seq(self):
+        """Get the sequence of the alignment
+
+        Returns
+        -------
+        str
+            Sequence of the alignment
+        """
         return self.seq
 
     def get_accession(self):
+        """Get the accession number of the sequence
+
+        Returns
+        -------
+        str
+            Accession number of the sequence
+        """
         return self.accession
     
     def get_escore(self):
+        """Get the E-score of the alignment
+
+        Returns
+        -------
+        float
+            E-score of the alignment
+        """
         return self.expect
     
     def get_percent_identity(self):
+        """Get the percent identity of the alignment
+
+        Returns
+        -------
+        float
+            Percent identity of the alignment
+        """
         return self.percent_identity
     
     def get_query_coverage(self):
+        """Get the query coverage of the alignment
+
+        Returns
+        -------
+        float
+            Query coverage of the alignment
+        """
         return self.query_coverage
     
 
 class OrthologSearcher:
-    '''
-    Searches for orthologous sequences of a given sequence using blastp
-    '''
-    bad_words = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform'] # Words that we don't want in the name of the sequence; discard the alignment if it contains any of these words
+    """Class to search for orthologous sequences of a given sequence using blastp
+
+    Attributes
+    ----------
+    excluded_terms : list
+        Words that we don't want in the name of the sequence. Discards an alignment from BLAST if it contains any of these words
+    url : str
+        URL for the BLAST API search
+    species_list : list
+        List of orthologous species to look through. Default contains human, frog, fly, and mouse
+    hitlist_size : int
+        How many hits should we look through from BLAST. Default is 100
+    email : str
+        Email to use for Entrez.
+    escore_threshold : float
+        E-score threshold for BLAST. Default is 10^-6
+    verbose : bool
+        Should we print out the current status and results? Default is False
+    blastp_path : str
+        Path to the blastp executable if being run locally
+    database_path : str
+        If BLAST is being ran locally, where is the database to query?
+    """
+    excluded_terms = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform'] # Words that we don't want in the name of the sequence; discard the alignment if it contains any of these words
     url = "https://blast.ncbi.nlm.nih.gov/Blast.cgi"
 
     def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], 
                  hitlist_size = 100, email = None, escore_threshold = 10**-6, verbose = False,
                  blastp_path = None, database_path = None):
-        '''
-        Arguments:
-        species_list: list of orthologous species to look through
-        hitlist_size: how many hits should we look through
-        email: email to use for Entrez
-        verbose: should we print out the current status and results?
-        blastp_path: path to the blastp executable if being run locally
-        database_path: if BLAST is being ran locally, where is the database to query?
-        '''
+        """Constructor
 
-        assert hitlist_size > 0, "hitlist_size must be greater than 0"
-        assert (database_path and blastp_path) or email, "Email must be provided if running remotely OR both the BLAST database and blastp executable paths must be provided!" 
-        assert escore_threshold > 0, "E-score threshold must be greater than 0!"
+        Raises
+        ------
+        TypeError
+            The parameter 'hitlist_size' must receive an integer
+        ValueError
+            1. The parameter 'hitlist_size' must receive a value greater than 0
+            2. Email must be provided if running remotely OR both the BLAST database and blastp executable paths must be provided
+            3. E-score threshold must be greater than 0
+        """
+
+        if not isinstance(hitlist_size, int):
+            raise TypeError("hitlist_size must be an integer!")
+        if hitlist_size <= 0:
+            raise ValueError("hitlist_size must be greater than 0")
+        if not ((database_path and blastp_path) or email):
+            raise ValueError("Email must be provided if running remotely OR both the BLAST database and blastp executable paths must be provided!")
+        if escore_threshold <= 0:
+            raise ValueError("E-score threshold must be greater than 0!")
 
 
         self.species_list = [x.lower() for x in species_list]
@@ -185,15 +278,22 @@ class OrthologSearcher:
         Entrez.email = self.email
 
     def search_local(self, sequence):
-        '''
-        This function searches for orthologous sequences of a given sequence using blastp locally.
+        """This function searches for orthologous sequences of a given sequence using blastp locally.
 
-        Arguments:
-        sequence: a string representing a protein sequence
+        Parameters
+        ----------
+        sequence : str
+            A string representing a protein sequence
 
-        Returns:
-        blast_record : a Bio.Blast.Record object
-        '''
+        Returns
+        -------
+        blast_record : Bio.Blast.Record object
+
+        Raises
+        ------
+        subprocess.CalledProcessError
+            If the subprocess call to blastp fails
+        """
 
         #@#@#@@
         # Step one: run blastp
@@ -218,25 +318,24 @@ class OrthologSearcher:
 
         try:
             subprocess.run(blastp_cmd, check=True)
+        
+        except subprocess.CalledProcessError as e:
+            print(f"Unable to run blastp: {e}")
 
-            #@#@#@@
-            # Step two: read blastp output
-            if self.verbose:
-                print("\tParsing local blastp output", flush=True)
-
-            with open(output_file, "r") as f:
-                blast_record = NCBIXML.read(f)
-
-        except Exception as e:
-            print(f"Unable to run or parse blastp: {e}")
-            raise e
-                
         finally:
             # Delete query_file and output_file
             if os.path.exists(query_file):
                 os.remove(query_file)
             if os.path.exists(output_file):
                 os.remove(output_file)
+
+        #@#@#@@
+        # Step two: read blastp output
+        if self.verbose:
+            print("\tParsing local blastp output", flush=True)
+
+        with open(output_file, "r") as f:
+            blast_record = NCBIXML.read(f)
 
         # We have to adjust for the accession. If a custom database is used, the accession gets replaced with the local sequence ID.
         for alignment in blast_record.alignments:
@@ -245,15 +344,27 @@ class OrthologSearcher:
         return blast_record
 
     def search_remote(self, sequence):
-        '''
-        This function searches for orthologous sequences of a given sequence using blastp remotely.
+        """This function searches for orthologous sequences of a given sequence using blastp remotely.
 
-        Arguments:
-        sequence: a string representing a protein sequence
+        Parameters
+        ----------
+        sequence : str
+            A string representing a protein sequence
 
-        Returns:
-        blast_record : a Bio.Blast.Record object
-        '''
+        Returns
+        -------
+        blast_record : Bio.Blast.Record object
+
+        Raises
+        ------
+        requests.exceptions.HTTPError
+            1. If the request to the NCBI server fails
+            2. If the result of the BLAST job cannot be retrieved
+        ValueError
+            1. If the RID cannot be found in the response
+            2. If the search fails
+            3. If the status is unknown
+        """
         
         #@#@#@@
         # Step one: run blastp
@@ -275,12 +386,15 @@ class OrthologSearcher:
 
         # posting query to NCBI
         response = requests.post(self.url, data=params)
+        response.raise_for_status()
 
-        if response.status_code != 200:
-            raise Exception(f"Error: {response.status_code}")
-        
+
         # rid is the request ID; lets us track the job and status
-        rid = response.text.split("RID = ")[1].split("\n")[0]
+        try:
+            rid = response.text.split("RID = ")[1].split("\n")[0]
+        except IndexError:
+            raise ValueError("Failed to retrieve RID from BLAST response")
+        
         if self.verbose:
             print(f"\tUse the following link to check the status of the search: {self.url}?CMD=Get&RID={rid}", flush=True)
 
@@ -299,13 +413,13 @@ class OrthologSearcher:
                 time.sleep(30)
 
             elif "Status=FAILED" in check_response.text:
-                raise Exception("Search failed")
+                raise ValueError("Search failed")
             
             elif "Status=READY" in check_response.text:
                 break
 
             else:
-                raise Exception("Unknown status")
+                raise ValueError("Unknown status")
             
         # REST API parameters for getting the results of the job
         result_params = {
@@ -316,9 +430,7 @@ class OrthologSearcher:
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
         result_handle = requests.get(self.url, params=result_params, headers=headers)
-
-        if result_handle.status_code != 200:
-            raise Exception(f"Error: {result_handle.status_code}")
+        result_handle.raise_for_status()
         
         #@#@#@@
         # Step two: read blastp output
@@ -331,17 +443,26 @@ class OrthologSearcher:
 
 
     def search(self, sequence):
-        '''
-        This function searches for orthologous sequences of a given sequence using blastp.
+        """This function searches for orthologous sequences of a given sequence using blastp.
+        
+        Parameters
+        ----------
+        sequence : str
+            A string representing a protein sequence
+            
+        Returns
+        -------
+        hit_list : list
+            List of AlignmentRecord objects representing the orthologous sequences found
 
-        Arguments:
-        sequence: a string representing a protein sequence
+        Raises
+        ------
+        ValueError
+            Sequence must be non-empty
+        """
 
-        Returns:
-        hit_list : a list of AlignmentRecord objects
-        '''
-
-        assert len(sequence) > 0, "Sequence must be non-empty"
+        if len(sequence) == 0:
+            raise ValueError("Sequence must be non-empty")
 
         hit_list = []
 
@@ -380,8 +501,8 @@ class OrthologSearcher:
 
             record = AlignmentRecord(alignment, query_coverage, ortholog_sequence)
 
-            # If the title contains any of the bad words, we skip this alignment
-            if not all(sub not in record.name for sub in self.bad_words):
+            # If the title contains any of the excluded terms, we skip this alignment
+            if not all(sub not in record.name for sub in self.excluded_terms):
                 continue
         
             # Check if species is in species list

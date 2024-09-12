@@ -1,6 +1,4 @@
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-'''
-This file contains an interface to Motif databases.
+"""This file contains an interface to Motif databases.
 
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
 
@@ -23,8 +21,7 @@ Correspondence: Correspondence:
 
     *  - Principle Investigator
     ** - Software Developers
-'''
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
+"""
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
@@ -37,50 +34,104 @@ from src.DBDScanner import DBDScanner, DBD
 # Classes
 
 class MotifRecord:
-    '''
-    This abstract class represents a motif record
-    This should not be instantiated
-    '''
+    """Abstract class representing a motif record
+
+    Attributes
+    ----------
+    header_list: List[str]
+        List of headers for the motif record
+    matrix_id: str
+        Matrix ID of the motif
+    
+    Methods
+    -------
+    get_matrix_id: str
+        Returns the matrix ID of the motif
+    get_values: List[str]
+        Returns the values of the motif record
+    get_test_motif: MotifRecord
+        Returns a template test motif record
+    """
 
     header_list = ["Matrix ID"]
 
     def __init__(self, matrix_id):
-        '''
-        Arguments:
-        matrix_id: a string representing the matrix ID of the motif
-        '''
+        """Constructor
+        """
 
         self.matrix_id = matrix_id
 
     def get_matrix_id(self):
+        """Returns the matrix ID of the motif
+
+        Returns
+        -------
+        str
+            Matrix ID of the motif
+        """
         return self.matrix_id
     
     def get_values(self):
-        raise [self.matrix_id]
+        """Returns the values of the motif record
+
+        Returns
+        -------
+        List[str]
+            List of values of the motif record
+        """
+        return [self.matrix_id]
     
     @staticmethod
     def get_test_motif():
+        """Returns a template test motif record
+
+        Returns
+        -------
+        MotifRecord
+            A template test motif record
+        """
         return MotifRecord("test")
 
 class JasparRecord(MotifRecord):
-    '''
-    This class represents a JASPAR motif record
-    '''
+    """This class represents a JASPAR motif record
+
+    JASPAR is a database of transcription factor binding profiles across multiple species.
+    This class stores relevant information about a motif in the JASPAR database specifically.
+
+    Attributes
+    ----------
+    header_list: List[str]
+        List of headers for the motif record
+    matrix_id: str
+        Matrix ID of the motif
+    name: str
+        Name of the motif
+    pfm: List[List[int]]
+        Position frequency matrix of the motif
+    logo_link: str
+        Link to the motif's logo
+    motif_class: str
+        Class of the motif
+    uniprot_id: str
+        UniProt ID of the motif
+    sequence_perc_id: float
+        Global sequence percent identity of the gene of interest and the validation sequence from UniProt
+    dbd_perc_id: float
+        DNA-binding domain percent identity between the gene of interest and the validation sequence from UniProt
+
+    Methods
+    -------
+    get_values: List[str]
+        Returns the values of the motif record
+    get_test_motif: JasparRecord
+        Returns a template test motif record
+    """
 
     header_list = MotifRecord.header_list + ["Motif Name", "Motif PFM", "Motif Logo Link", "Motif Class", "UniProt Validation ID", "Gene-UniProt Percent Identity", "Gene_DBD-UniProt_DBD Percent Identity"]
 
     def __init__(self, matrix_id, name, pfm, logo_link, motif_class, uniprot_id, sequence_perc_id, dbd_perc_id):
-        '''
-        Arguments:
-        matrix_id: a string representing the matrix ID of the motif
-        name: a string representing the name of the motif
-        pfm: a list of lists representing the position frequency matrix of the motif
-        logo_link: a string representing the link to the motif's logo
-        motif_class: a string representing the class of the motif
-        uniprot_id: a string representing the UniProt ID of the motif
-        sequence_perc_id: a float representing the global sequence percent identity of the gene of interest and the validation sequence from uiprot
-        dbd_perc_id: a float representing the DNA-binding domain percent identity between the gene of interest and the validation sequence from uniprot
-        '''
+        """Constructor
+        """
         
         super().__init__(matrix_id)
         self.name = name
@@ -92,12 +143,15 @@ class JasparRecord(MotifRecord):
         self.dbd_perc_id = dbd_perc_id
 
     def get_values(self):
+        """Returns the values of the motif record (specific to JASPAR)
+        """
         r = [self.matrix_id, self.name, self.pfm, self.logo_link, self.motif_class, self.uniprot_id, self.sequence_perc_id, self.dbd_perc_id]
-        assert len(r) == len(JasparRecord.header_list), "Length of values does not match length of header"
         return r
     
     @staticmethod
     def get_test_motif():
+        """Returns a template test motif record (specific to JASPAR headers)
+        """
         import random
         l = range(1, 400)
         matrix_id = random.choice(l)
@@ -108,29 +162,81 @@ class JasparRecord(MotifRecord):
         return JasparRecord("Sample Matrix ID", "Sample Motif Name", [[1, 1, 1, 1], [1, 1, 1, 1]], f"https://jaspar2020.genereg.net/static/logos/all/MA{matrix_id}.1.png", "Sample Motif Class", "Sample UniPort Validation ID", 0.9, 0.9)
 
 class MotifDBInterface:
-    '''
-    This class serves as an interface for motif databases.
-    '''
+    """Abstract class representing a motif database interface
+
+    Attributes
+    ----------
+    name: str
+        Name of the motif database
+    help_message: str
+        Help message for the motif database
+
+    Methods
+    -------
+    search: List[MotifRecord]
+        Searches the database for a given description and returns the corresponding motif
+        As this is an abstract class, this method must be implemented in the child class.
+        If not implemented, a NotImplementedError is raised.
+    """
 
     name = ""
-
     help_message = ""
 
     def __init__(self):
+        """Constructor
+        """
         pass
 
     def search(self, description, tax_id):
-        '''
-        This function searches the database for a given description and returns the corresponding motif
+        """This method searches the database for a given description and returns the corresponding motif
 
-        Arguments:
-        description: a string representing a description of a gene
-        tax_id: a string representing the taxonomy ID of the species
-        '''
+        Parameters
+        ---------
+        description: str
+            A string representing a description of a gene
+        tax_id: str
+            A string representing the taxonomy ID of the species
+
+        Raises
+        ----------
+        NotImplementedError
+        """
+
         raise NotImplementedError
     
 
 class JasparDB(MotifDBInterface):
+    """This class represents the JASPAR motif database interface
+    
+    JASPAR is a database of transcription factor binding profiles across multiple species.
+    This class provides an interface to the JASPAR database to search for motifs given an ortholog's protein sequence.
+    Further, it queries the UniProt database to validate the motifs found.
+
+
+    Attributes
+    ----------
+    name: str
+        Name of the motif database
+    jaspar_rest_url: str
+        URL for the JASPAR REST API
+    jaspar_logo_url: str
+        URL for the JASPAR motif logos
+    uniprot_rest_url: str
+        URL for the UniProt REST API
+    help_message: str
+        Help message for the motif database
+        This message describes the database and how it is used.
+    n_hits: int
+        Number of hits to return. Default is 10.
+    dbd_threshold: float
+        DNA-binding domain percent identity threshold. Default is 0.85.
+    escore_threshold: float
+        E-score threshold. Default is 10^-6.
+    dbd_scanner: DBDScanner
+        DBDScanner object to use for finding DNA-binding domains for validation. If not provided, a new DBDScanner object will be created.
+    email: str
+        Email to use for the DBDScanner object if one needs to be created. If neither dbd_scanner nor email is provided, an error is raised.
+    """
 
     name = "JASPAR"
 
@@ -141,31 +247,34 @@ class JasparDB(MotifDBInterface):
 
     help_message =  """
                     JASPAR is a database of transcription factor binding profiles.
+                    The database is searched using an ortholog's protein sequence with the built-in profile inference tool.
+                    WARNING:
                     The profile inference tool requires a protein sequence to be less than 2000 amino acids.
                     As such, if any protein sequence is longer, we create a window of 2000 amino acids including the DNA-binding domain.
                     """
 
     def __init__(self, n_hits = 10, dbd_threshold = 0.85, escore_threshold = 10**-6, dbd_scanner = None, email = None):
-        '''
-        Arguments:
-        n_hits: an integer representing the number of hits to return
-        dbd_threshold: a float representing the DNA-binding domain percent identity threshold
-        escore_threshold: a float representing the e-score threshold
-        dbd_scanner: a DBDScanner object to use for finding DNA-binding domains for validation. If not provided, a new DBDScanner object will be created.
-        email: a string representing the email to use for the DBDScanner object if one needs to be created; if neither dbd_scanner nor email is provided, and error is raised.
-        '''
+        """Constructor
+
+        Raises
+        -------
+        ValueError
+            1. If the number of hits is less than or equal to 0, a ValueError is raised.
+            2. If the DNA-binding domain percent identity threshold is not between 0 and 1, a ValueError is raised.
+            3. If neither a DBDScanner object nor an email is provided, a ValueError is raised.
+        """
         super().__init__()
 
-        assert n_hits > 0, f"n_hits must be greater than 0, currently {n_hits} is given."
-        assert 0 <= dbd_threshold <= 1, f"dbd_threshold must be between 0 and 1, currently {dbd_threshold} is given."
-
-        self.n_hits = n_hits
-        self.dbd_threshold = dbd_threshold
-        self.escore_threshold = escore_threshold
-        
+        if n_hits <= 0:
+            raise ValueError(f"n_hits must be greater than 0, currently {n_hits} is given.")
+        if not (0 <= dbd_threshold <= 1):
+            raise ValueError(f"dbd_threshold must be between 0 and 1, currently {dbd_threshold} is given.")
         if dbd_scanner is None and email is None:
             raise ValueError("Either a DBDScanner object or an email must be provided.")
         
+        self.n_hits = n_hits
+        self.dbd_threshold = dbd_threshold
+        self.escore_threshold = escore_threshold
         self.dbd_scanner = dbd_scanner if dbd_scanner is not None else DBDScanner(email = email)
 
         self.global_aligner = PairwiseAligner()
@@ -173,23 +282,44 @@ class JasparDB(MotifDBInterface):
         self.global_aligner.match_score = 2
         self.global_aligner.mismatch_score = -1
 
-        
 
     def search(self, ortholog_seq, ortholog_tax_id, protein_seq, dbd):
-        '''
-        This method searches the JASPAR database using its protein inference tool to find motifs given an ortholog's protein sequence.
+        """This method searches the JASPAR database using its protein inference tool to find motifs given an ortholog's protein sequence.
 
-        Arguments:
-        ortholog_seq: the protein sequence of an ortholog
-        ortholog_tax_id: the taxonomy ID of the species the ortholog belongs to
-        protein_seq: the protein sequence of the gene the user is trying to find motifs for
-        dbd: DNA-binding domain (DBD) object corresponding to protein_seq;
-        '''
+        Parameters
+        ---------
+        ortholog_seq: str
+            A string representing the ortholog's protein sequence
+        ortholog_tax_id: str
+            A string representing the taxonomy ID of the species
+        protein_seq: str
+            A string representing the gene of interest's protein sequence
+        dbd: DBD
+            A DBD object representing the DNA-binding domain of the gene of interest
 
-        assert len(ortholog_seq) > 0, "Ortholog sequence must be non-empty"
-        assert ortholog_tax_id.isdigit(), "Taxonomy ID must be a number"
-        assert len(protein_seq) > 0, "Protein sequence must be non-empty"
-        assert isinstance(dbd, DBD), "DBD must be a DBD object"
+        Returns
+        -------
+        List[JasparRecord]
+            A list of JasparRecord objects representing the motifs found
+
+        Raises
+        -------
+        ValueError
+            1. If the ortholog sequence is empty, a ValueError is raised.
+            2. If the taxonomy ID is not a number, a ValueError is raised.
+            3. If the protein sequence is empty, a ValueError is raised.
+        TypeError
+            If the DBD object is not a DBD object, a TypeError is raised.
+        """
+
+        if len(ortholog_seq) == 0:
+            raise ValueError("Ortholog sequence must be non-empty")
+        if not ortholog_tax_id.isdigit():
+            raise ValueError("Taxonomy ID must be a number")
+        if len(protein_seq) == 0:
+            raise ValueError("Protein sequence must be non-empty")
+        if not isinstance(dbd, DBD):
+            raise TypeError("DBD must be a DBD object")
 
         r = [] # list of motifs to return
 
@@ -306,9 +436,30 @@ class JasparDB(MotifDBInterface):
         
 
 class MotifDBFactory:
-    '''
-    This class is a factory that returns a motif database based on the database name
-    '''
+    """ Factory class for creating MotifDB objects
+
+    Given a database name, this class returns the corresponding MotifDB object and MotifRecord class.
+
+    Attributes
+    ----------
+    motif_db_dict: Dict[str, MotifDB]
+        Dictionary mapping database names to MotifDB classes
+    motif_record_dict: Dict[str, MotifRecord]
+        Dictionary mapping database names to MotifRecord classes
+
+    Methods
+    -------
+    get_motif_db: MotifDB
+        Returns a motif database object based on the database name
+    get_motif_db_names: List[str]
+        Returns the names of all motif databases
+    get_dbs: List[MotifDB]
+        Returns a list of all motif databases
+    has_db: bool
+        Returns whether the database name is in the motif database dictionary
+    get_db_record: MotifRecord
+        Returns the MotifRecord class for a given database name
+    """
 
     # Database name -> MotifDB class
     motif_db_dict = {
@@ -322,45 +473,91 @@ class MotifDBFactory:
 
     @staticmethod
     def get_motif_db(db_name, **kwargs):
-        '''
-        This function returns a motif database object based on the database name
+        """Given a database name and arguments specific to the database, this function returns the corresponding MotifDB object
 
-        Arguments:
-        db_name: a string representing the name of the database
-        **kwargs: keyword arguments to pass to the motif database
-        '''
+        Parameters
+        ---------
+        db_name: str
+            A string representing the name of the database
+        **kwargs: Dict
+            Keyword arguments to pass to the motif database
 
-        assert db_name in MotifDBFactory.motif_db_dict, "Database name not found"
+        Returns
+        -------
+        MotifDB
+            A MotifDB object based on the database name and arguments
+
+        Raises
+        -------
+        ValueError
+            If the database name is not found in the motif database dictionary, a ValueError is raised.
+        """
+
+        if db_name not in MotifDBFactory.motif_db_dict:
+            raise ValueError(f"Database name '{db_name}' not found")
 
         return MotifDBFactory.motif_db_dict[db_name](**kwargs)
     
     @staticmethod
     def get_motif_db_names():
-        '''
-        This function returns the names of all motif databases
-        '''
+        """Returns the names of all motif databases
+
+        Returns
+        -------
+        List[str]
+            A list of all motif database
+        """
         return list(MotifDBFactory.motif_db_dict.keys())
     
     @staticmethod
     def get_dbs():
+        """Returns a list of all motif databases
+
+        Returns
+        -------
+        List[MotifDB]
+            A list of all motif databases
+        """
         return list(MotifDBFactory.motif_db_dict.values())
 
     @staticmethod
     def has_db(db_name):
+        """Returns whether the database name is in the motif database dictionary
+
+        Parameters
+        ---------
+        db_name: str
+            A string representing the name of the database
+
+        Returns
+        -------
+        bool
+            True if the database name is in the motif database dictionary, False otherwise
+        """
         return db_name in MotifDBFactory.motif_db_dict
     
     @staticmethod
     def get_db_record(db_name):
-        '''
-        This function returns the MotifRecord class for a given database name.
-        Note that this is the CLASS and not an instance of the class.
+        """Returns the MotifRecord class for a given database name
         
-        Arguments:
-        db_name: a string representing the name of the database
-        '''
+        Parameters
+        ---------
+        db_name: str
+            A string representing the name of the database
+            
+        Returns
+        -------
+        MotifRecord
+            The MotifRecord class for the given database name
+            
+        Raises
+        -------
+        ValueError
+            If the database name is not found in the motif record dictionary, a ValueError is raised.
+        """
 
-
-        assert db_name in MotifDBFactory.motif_record_dict, "Database name not found"
+        if db_name not in MotifDBFactory.motif_record_dict:
+            raise ValueError(f"Database name '{db_name}' not found")
 
 
         return MotifDBFactory.motif_record_dict[db_name]
