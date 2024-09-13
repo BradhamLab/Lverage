@@ -45,7 +45,7 @@ import shutil
 from src.DBDScanner import DBDScanner, DBD
 from src.OrthologSearcher import OrthologSearcher
 from src.MotifDB import MotifDBFactory
-import src.utils as lvutils
+import lvutils
 import src.exceptions as lvexceptions
 
 warnings.simplefilter('ignore', BiopythonDeprecationWarning)
@@ -624,10 +624,10 @@ class Lverage:
 
         # Getting gene sequence
         gene_sequence_list = []
-        if gene_sequence:
-            gene_sequence_list.append(gene_sequence)
-        elif gene_file:
-            gene_sequence_list = [str(x.seq) for x in SeqIO.parse(gene_file, "fasta")]
+        # if gene_sequence:
+        #     gene_sequence_list.append(gene_sequence)
+        # elif gene_file:
+        #     gene_sequence_list = [str(x.seq) for x in SeqIO.parse(gene_file, "fasta")]
 
     def call(self, gene_sequence = None, gene_file = None):
         '''
