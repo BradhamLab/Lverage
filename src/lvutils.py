@@ -28,7 +28,7 @@ Correspondence: Correspondence:
 # Imports
 import numpy as np
 from ete3 import NCBITaxa
-from src.DBDScanner import DBDScanner, DBD
+from DBDScanner import DBDScanner, DBD
 from Bio.Align import PairwiseAligner
 
 

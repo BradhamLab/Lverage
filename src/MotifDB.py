@@ -28,7 +28,7 @@ Correspondence: Correspondence:
 import requests
 import lvutils
 from Bio.Align import PairwiseAligner
-from src.DBDScanner import DBDScanner, DBD
+from DBDScanner import DBDScanner, DBD
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes

@@ -1,4 +1,4 @@
-"""The purpose of this file is to provide a list of exceptions that can be raised in the program.
+"""The purpose of this file is to provide a list of exceptions that can be raised in Lverage.
 
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
 
