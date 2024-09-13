@@ -42,11 +42,11 @@ import time
 import shutil
 
 
-from src.DBDScanner import DBDScanner, DBD
-from src.OrthologSearcher import OrthologSearcher
-from src.MotifDB import MotifDBFactory
+from DBDScanner import DBDScanner, DBD
+from OrthologSearcher import OrthologSearcher
+from MotifDB import MotifDBFactory
 import lvutils
-import src.exceptions as lvexceptions
+import lvexceptions
 
 warnings.simplefilter('ignore', BiopythonDeprecationWarning)
 
