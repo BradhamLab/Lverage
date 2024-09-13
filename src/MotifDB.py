@@ -26,7 +26,7 @@ Correspondence: Correspondence:
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Imports
 import requests
-import src.utils as lvutils
+import lvutils
 from Bio.Align import PairwiseAligner
 from src.DBDScanner import DBDScanner, DBD
 
