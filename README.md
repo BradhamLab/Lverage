@@ -3,7 +3,7 @@
 # Lverage (WIP)
 Motif Finder pipeline - searching for motifs through orthologous species.
 
-![Workflow of Lverage. Obtaining and comparing DBDs between transcription factors to obtain motifs.](static/LVerage_v4.png "Lverage Workflow")
+![Workflow of Lverage. Obtaining and comparing DBDs between transcription factors to obtain motifs.](static/LVerage_v5.png "Lverage Workflow")
 
 ## Install Requirements
 
