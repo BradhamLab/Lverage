@@ -12,15 +12,14 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: Correspondence: 
-    Cynthia A. Bradham - cbradham@bu.edu - *
-    Anthony B. Garza   - abgarza@bu.edu  - **
-    Stephanie P. Hao   - sphao@bu.edu    - **
-    Yeting Li          - yetingli@bu.edu - **
-    Nofal Ouardaoui    - naouarda@bu.edu - **
+Correspondence: 
+    - Cynthia A. Bradham - cbradham@bu.edu - *
+    - Anthony B. Garza   - abgarza@bu.edu  - **
+    - Stephanie P. Hao   - sphao@bu.edu    - **
+    - Yeting Li          - yetingli@bu.edu - **
+    - Nofal Ouardaoui    - naouarda@bu.edu - **
 
-    *  - Principle Investigator
-    ** - Software Developers
+    \* Principle Investigator, ** Software Developers
 """
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -60,6 +59,8 @@ class AlignmentRecord:
         Percent identity of the alignment
     query_coverage : float
         Query coverage of the alignment
+    uneeded_words_list : list
+        List of words that are uneeded in the name of the BLAST description; we can remove them
 
     Methods
     -------
@@ -81,12 +82,19 @@ class AlignmentRecord:
         Get the query coverage of the alignment
     """
 
-    # List of words that are uneeded in the name of the BLAST description; we can remove them
     uneeded_words_list = ['transcription factor']
-
 
     def __init__(self, alignment, query_coverage, seq):        
         """Constructor
+
+        Parameters
+        ----------
+        alignment : Bio.Blast.Record.Alignment object
+            The alignment object from BLAST
+        query_coverage : float
+            The query coverage of the alignment
+        seq : str
+            The sequence of the alignment
         """
         
 
@@ -217,32 +225,54 @@ class OrthologSearcher:
 
     Attributes
     ----------
-    excluded_terms : list
-        Words that we don't want in the name of the sequence. Discards an alignment from BLAST if it contains any of these words
-    url : str
-        URL for the BLAST API search
     species_list : list
-        List of orthologous species to look through. Default contains human, frog, fly, and mouse
+        List of species to search for orthologs
+    entrez_query : str
+        Entrez query for the species list
     hitlist_size : int
-        How many hits should we look through from BLAST. Default is 100
+        Maximum number of hits to return
     email : str
-        Email to use for Entrez.
+        Email address for NCBI Entrez
     escore_threshold : float
-        E-score threshold for BLAST. Default is 10^-6
+        E-score threshold for filtering hits
     verbose : bool
-        Should we print out the current status and results? Default is False
+        If True, print verbose output
     blastp_path : str
-        Path to the blastp executable if being run locally
+        Path to the blastp executable
     database_path : str
-        If BLAST is being ran locally, where is the database to query?
+        Path to the BLAST database
+    is_local : bool
+        If True, use local blastp and database
+    excluded_terms : list
+        List of terms to exclude from the alignment name
+    url : str
+        URL for the NCBI BLAST service
     """
-    excluded_terms = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform'] # Words that we don't want in the name of the sequence; discard the alignment if it contains any of these words
+
+    excluded_terms = ['hypothetical', 'unnamed', 'uncharacterized', 'unknown', 'partial', 'isoform'] 
     url = "https://blast.ncbi.nlm.nih.gov/Blast.cgi"
 
     def __init__(self, species_list=['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'], 
                  hitlist_size = 100, email = None, escore_threshold = 10**-6, verbose = False,
                  blastp_path = None, database_path = None):
         """Constructor
+
+        Parameters
+        ----------
+        species_list : list, optional
+            List of species to search for orthologs (default is ['homo sapiens', 'xenopus laevis', 'drosophila melanogaster', 'mus musculus'])
+        hitlist_size : int, optional
+            Maximum number of hits to return (default is 100)
+        email : str, optional
+            Email address for NCBI Entrez (default is None)
+        escore_threshold : float, optional
+            E-score threshold for filtering hits (default is 10**-6)
+        verbose : bool, optional
+            If True, print verbose output (default is False)
+        blastp_path : str, optional
+            Path to the blastp executable (default is None)
+        database_path : str, optional
+            Path to the BLAST database (default is None)
 
         Raises
         ------
@@ -298,44 +328,59 @@ class OrthologSearcher:
         #@#@#@@
         # Step one: run blastp
         if self.verbose:
-            print("\tRunning local blastp.", flush=True)
+            print("Running local blastp.", flush=True)
 
         # Write sequence to a file
-        query_file = "query.fasta"
-        with open(query_file, "w") as f:
-            f.write(">query\n")
-            f.write(sequence)
+        query_stream = io.StringIO()
+        query_stream.write(">query\n")
+        query_stream.write(sequence)
+        query_stream.seek(0)
 
         # Run blastp
-        output_file = "blastp_output.xml"
+        output_stream = io.BytesIO()
         blastp_cmd = [self.blastp_path, 
-                  "-query", query_file, 
+                  "-query", "-", 
                   "-db", self.database_path,
-                  "-out", output_file,
                   "-outfmt", "5", # XML format
                   "-evalue", str(self.escore_threshold), 
                   "-max_target_seqs", str(self.hitlist_size)]
 
+ 
         try:
-            subprocess.run(blastp_cmd, check=True)
-        
+            # Run the BLAST command
+            process = subprocess.Popen(
+                blastp_cmd, 
+                stdin=subprocess.PIPE, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE
+            )
+            
+            # Send the query to the BLAST process and capture the output
+            stdout_data, stderr_data = process.communicate(input=query_stream.getvalue().encode())
+            
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, blastp_cmd, output=stderr_data)
+
+            # Write stdout data to the output stream (emulating the output file)
+            output_stream.write(stdout_data)
+            output_stream.seek(0)
+
         except subprocess.CalledProcessError as e:
             print(f"Unable to run blastp: {e}")
+            output_stream.close()
+            return None
 
         finally:
-            # Delete query_file and output_file
-            if os.path.exists(query_file):
-                os.remove(query_file)
-            if os.path.exists(output_file):
-                os.remove(output_file)
+            # Close the streams
+            query_stream.close()
 
-        #@#@#@@
-        # Step two: read blastp output
+        # Step two: parse blastp output from the in-memory stream
         if self.verbose:
-            print("\tParsing local blastp output", flush=True)
+            print("Parsing local blastp output", flush=True)
 
-        with open(output_file, "r") as f:
-            blast_record = NCBIXML.read(f)
+        # Parsing the BLAST result from the in-memory output stream
+        blast_record = NCBIXML.read(output_stream)
+        output_stream.close()
 
         # We have to adjust for the accession. If a custom database is used, the accession gets replaced with the local sequence ID.
         for alignment in blast_record.alignments:
@@ -369,7 +414,7 @@ class OrthologSearcher:
         #@#@#@@
         # Step one: run blastp
         if self.verbose:
-            print("\tRunning NCBI blastp.", flush=True)
+            print("Running NCBI blastp.", flush=True)
 
         # REST API parameters for blastp query
         params = {
@@ -396,7 +441,7 @@ class OrthologSearcher:
             raise ValueError("Failed to retrieve RID from BLAST response")
         
         if self.verbose:
-            print(f"\tUse the following link to check the status of the search: {self.url}?CMD=Get&RID={rid}", flush=True)
+            print(f"Use the following link to check the status of the search: {self.url}?CMD=Get&RID={rid}", flush=True)
 
         # REST API parameters for checking status of job
         check_params = {
@@ -435,7 +480,7 @@ class OrthologSearcher:
         #@#@#@@
         # Step two: read blastp output
         if self.verbose:
-            print("\tParsing NCBI blastp output", flush=True)
+            print("Parsing NCBI blastp output", flush=True)
 
         blast_record = NCBIXML.read(io.StringIO(result_handle.text))
 
@@ -477,7 +522,7 @@ class OrthologSearcher:
         # Step three: filter blastp output
 
         if self.verbose:
-            print("\tFiltering hits.")
+            print("Filtering hits.")
             
         # default sorted by e-score
         for alignment in blast_record.alignments:
@@ -487,7 +532,7 @@ class OrthologSearcher:
                 handle = Entrez.efetch(db="protein", id=alignment.accession, rettype="fasta", retmode="text")
             except Exception as e:
                 if self.verbose:
-                    print(f"\tUnable to fetch sequence with accession {alignment.accession}: {e}")
+                    print(f"Unable to fetch sequence with accession {alignment.accession}: {e}")
                 continue
             
             record = SeqIO.read(handle, "fasta")

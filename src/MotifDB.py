@@ -12,15 +12,14 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: Correspondence: 
-    Cynthia A. Bradham - cbradham@bu.edu - *
-    Anthony B. Garza   - abgarza@bu.edu  - **
-    Stephanie P. Hao   - sphao@bu.edu    - **
-    Yeting Li          - yetingli@bu.edu - **
-    Nofal Ouardaoui    - naouarda@bu.edu - **
+Correspondence: 
+    - Cynthia A. Bradham - cbradham@bu.edu - *
+    - Anthony B. Garza   - abgarza@bu.edu  - **
+    - Stephanie P. Hao   - sphao@bu.edu    - **
+    - Yeting Li          - yetingli@bu.edu - **
+    - Nofal Ouardaoui    - naouarda@bu.edu - **
 
-    *  - Principle Investigator
-    ** - Software Developers
+    \* Principle Investigator, ** Software Developers
 """
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -38,28 +37,33 @@ class MotifRecord:
 
     Attributes
     ----------
-    header_list: List[str]
-        List of headers for the motif record
     matrix_id: str
         Matrix ID of the motif
+    header_list: list
+        List of headers for the motif record
     
     Methods
     -------
     get_matrix_id: str
         Returns the matrix ID of the motif
-    get_values: List[str]
+    get_values: list[str]
         Returns the values of the motif record
-    get_test_motif: MotifRecord
-        Returns a template test motif record
     """
 
     header_list = ["Matrix ID"]
 
     def __init__(self, matrix_id):
         """Constructor
+
+        Parameters
+        ----------
+        matrix_id: str
+            Matrix ID of the motif
         """
 
         self.matrix_id = matrix_id
+        # self.header_list = ["Matrix ID"]
+
 
     def get_matrix_id(self):
         """Returns the matrix ID of the motif
@@ -81,16 +85,6 @@ class MotifRecord:
         """
         return [self.matrix_id]
     
-    @staticmethod
-    def get_test_motif():
-        """Returns a template test motif record
-
-        Returns
-        -------
-        MotifRecord
-            A template test motif record
-        """
-        return MotifRecord("test")
 
 class JasparRecord(MotifRecord):
     """This class represents a JASPAR motif record
@@ -100,8 +94,6 @@ class JasparRecord(MotifRecord):
 
     Attributes
     ----------
-    header_list: List[str]
-        List of headers for the motif record
     matrix_id: str
         Matrix ID of the motif
     name: str
@@ -112,25 +104,34 @@ class JasparRecord(MotifRecord):
         Link to the motif's logo
     motif_class: str
         Class of the motif
-    uniprot_id: str
-        UniProt ID of the motif
-    sequence_perc_id: float
-        Global sequence percent identity of the gene of interest and the validation sequence from UniProt
-    dbd_perc_id: float
-        DNA-binding domain percent identity between the gene of interest and the validation sequence from UniProt
-
-    Methods
-    -------
-    get_values: List[str]
-        Returns the values of the motif record
-    get_test_motif: JasparRecord
-        Returns a template test motif record
+    header_list: list
+        List of headers for the JASPAR motif record
     """
 
-    header_list = MotifRecord.header_list + ["Motif Name", "Motif PFM", "Motif Logo Link", "Motif Class", "UniProt Validation ID", "Gene-UniProt Percent Identity", "Gene_DBD-UniProt_DBD Percent Identity"]
+    header_list = MotifRecord.header_list + ["Motif Name", 
+                                             "Motif PFM", 
+                                             "Motif Logo Link", 
+                                             "Motif Class", 
+                                            #  "UniProt Validation ID", 
+                                            #  "Gene vs. UniProt Percent Identity", 
+                                            #  "Gene DBD vs. UniProt DBD Percent Identity"
+                                             ]
 
-    def __init__(self, matrix_id, name, pfm, logo_link, motif_class, uniprot_id, sequence_perc_id, dbd_perc_id):
+    def __init__(self, matrix_id, name, pfm, logo_link, motif_class):
         """Constructor
+
+        Parameters
+        ----------
+        matrix_id: str
+            Matrix ID of the motif
+        name: str
+            Name of the motif
+        pfm: List[List[int]]
+            Position frequency matrix of the motif
+        logo_link: str
+            Link to the motif's logo
+        motif_class: str
+            Class of the motif
         """
         
         super().__init__(matrix_id)
@@ -138,28 +139,13 @@ class JasparRecord(MotifRecord):
         self.pfm = pfm
         self.logo_link = logo_link
         self.motif_class = motif_class
-        self.uniprot_id = uniprot_id
-        self.sequence_perc_id = sequence_perc_id
-        self.dbd_perc_id = dbd_perc_id
 
     def get_values(self):
         """Returns the values of the motif record (specific to JASPAR)
         """
-        r = [self.matrix_id, self.name, self.pfm, self.logo_link, self.motif_class, self.uniprot_id, self.sequence_perc_id, self.dbd_perc_id]
+        r = [self.matrix_id, self.name, self.pfm, self.logo_link, self.motif_class]
         return r
     
-    @staticmethod
-    def get_test_motif():
-        """Returns a template test motif record (specific to JASPAR headers)
-        """
-        import random
-        l = range(1, 400)
-        matrix_id = random.choice(l)
-
-        # pad the matrix_id with 0 up to 4 digits
-        matrix_id = str(matrix_id).zfill(4)
-
-        return JasparRecord("Sample Matrix ID", "Sample Motif Name", [[1, 1, 1, 1], [1, 1, 1, 1]], f"https://jaspar2020.genereg.net/static/logos/all/MA{matrix_id}.1.png", "Sample Motif Class", "Sample UniPort Validation ID", 0.9, 0.9)
 
 class MotifDBInterface:
     """Abstract class representing a motif database interface
@@ -167,20 +153,10 @@ class MotifDBInterface:
     Attributes
     ----------
     name: str
-        Name of the motif database
-    help_message: str
-        Help message for the motif database
-
-    Methods
-    -------
-    search: List[MotifRecord]
-        Searches the database for a given description and returns the corresponding motif
-        As this is an abstract class, this method must be implemented in the child class.
-        If not implemented, a NotImplementedError is raised.
+        Name of the motif database. Empty as this is an abstract class.
     """
 
     name = ""
-    help_message = ""
 
     def __init__(self):
         """Constructor
@@ -190,15 +166,17 @@ class MotifDBInterface:
     def search(self, description, tax_id):
         """This method searches the database for a given description and returns the corresponding motif
 
+        Note: This method is abstract and must be implemented by subclasses.
+
         Parameters
-        ---------
+        ----------
         description: str
             A string representing a description of a gene
         tax_id: str
             A string representing the taxonomy ID of the species
 
         Raises
-        ----------
+        ------
         NotImplementedError
         """
 
@@ -215,17 +193,6 @@ class JasparDB(MotifDBInterface):
 
     Attributes
     ----------
-    name: str
-        Name of the motif database
-    jaspar_rest_url: str
-        URL for the JASPAR REST API
-    jaspar_logo_url: str
-        URL for the JASPAR motif logos
-    uniprot_rest_url: str
-        URL for the UniProt REST API
-    help_message: str
-        Help message for the motif database
-        This message describes the database and how it is used.
     n_hits: int
         Number of hits to return. Default is 10.
     dbd_threshold: float
@@ -234,34 +201,48 @@ class JasparDB(MotifDBInterface):
         E-score threshold. Default is 10^-6.
     dbd_scanner: DBDScanner
         DBDScanner object to use for finding DNA-binding domains for validation. If not provided, a new DBDScanner object will be created.
-    email: str
-        Email to use for the DBDScanner object if one needs to be created. If neither dbd_scanner nor email is provided, an error is raised.
+    name: str
+        Name of the motif database
+    jaspar_rest_url: str
+        URL for the JASPAR REST API
+    jaspar_logo_url: str
+        URL for the JASPAR motif logos
+    uniprot_rest_url: str
+        URL for the UniProt REST API
+    
+        
+    Raises
+    ------
+    ValueError
+        1. If the number of hits is less than or equal to 0, a ValueError is raised.
+        2. If the DNA-binding domain percent identity threshold is not between 0 and 1, a ValueError is raised.
+        3. If neither a DBDScanner object nor an email is provided, a ValueError is raised.
     """
 
     name = "JASPAR"
 
     jaspar_rest_url = "https://jaspar.elixir.no/api/v1"
+
     jaspar_logo_url = "https://jaspar2020.genereg.net/static/logos/all/"
 
     uniprot_rest_url = "https://rest.uniprot.org/uniprotkb/"
 
-    help_message =  """
-                    JASPAR is a database of transcription factor binding profiles.
-                    The database is searched using an ortholog's protein sequence with the built-in profile inference tool.
-                    WARNING:
-                    The profile inference tool requires a protein sequence to be less than 2000 amino acids.
-                    As such, if any protein sequence is longer, we create a window of 2000 amino acids including the DNA-binding domain.
-                    """
 
     def __init__(self, n_hits = 10, dbd_threshold = 0.85, escore_threshold = 10**-6, dbd_scanner = None, email = None):
         """Constructor
 
-        Raises
-        -------
-        ValueError
-            1. If the number of hits is less than or equal to 0, a ValueError is raised.
-            2. If the DNA-binding domain percent identity threshold is not between 0 and 1, a ValueError is raised.
-            3. If neither a DBDScanner object nor an email is provided, a ValueError is raised.
+        Parameters
+        ----------
+        n_hits: int
+            Number of hits to return. Default is 10.
+        dbd_threshold: float
+            DNA-binding domain percent identity threshold. Default is 0.85.
+        escore_threshold: float
+            E-score threshold. Default is 10^-6.
+        dbd_scanner: DBDScanner
+            DBDScanner object to use for finding DNA-binding domains for validation. If not provided, a new DBDScanner object will be created.
+        email: str  
+            Email to use for the DBDScanner object if one needs to be created. If neither dbd_scanner nor email is provided, an error is raised.
         """
         super().__init__()
 
@@ -287,7 +268,7 @@ class JasparDB(MotifDBInterface):
         """This method searches the JASPAR database using its protein inference tool to find motifs given an ortholog's protein sequence.
 
         Parameters
-        ---------
+        ----------
         ortholog_seq: str
             A string representing the ortholog's protein sequence
         ortholog_tax_id: str
@@ -303,7 +284,7 @@ class JasparDB(MotifDBInterface):
             A list of JasparRecord objects representing the motifs found
 
         Raises
-        -------
+        ------
         ValueError
             1. If the ortholog sequence is empty, a ValueError is raised.
             2. If the taxonomy ID is not a number, a ValueError is raised.
@@ -390,45 +371,11 @@ class JasparDB(MotifDBInterface):
                 matrix_id = motif['matrix_id']
                 pfm = motif['pfm']
                 motif_class = motif['class'][0]
-                uniprot_ids = motif['uniprot_ids'] 
                 motif_name = motif['name']
                 logo = self.jaspar_logo_url + matrix_id + ".png"
 
 
-                #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-                # For each uniprot id, VALIDATE THE MOTIF with a percent identity threshold
-                best_validation = None
-                for uniprot_id in uniprot_ids:
-
-                    # obtain the uniprot sequence
-                    uniprot_download = requests.get(self.uniprot_rest_url + uniprot_id + ".fasta")
-
-                    if not uniprot_download.ok:
-                        continue
-
-                    uniprot_fasta = uniprot_download.text.split('>')[1] # get the first fasta entry
-                    uniprot_seq = ''.join(uniprot_fasta.split('\n')[1:]) # remove the header and join the sequence
-
-                    # globally align the uniprot sequence with the protein sequence
-                    alignments = self.global_aligner.align(protein_seq, uniprot_seq)[0]
-                    sequence_perc_id = lvutils.calculate_alignment_similarity(*alignments)
-
-                    # globally align the DBDs of the two sequences.
-                    alignments = lvutils.align_dbds(protein_seq, dbd, uniprot_seq, self.dbd_scanner, self.global_aligner)
-                    dbd_perc_id = lvutils.calculate_alignment_similarity(*alignments[0]) if alignments is not None else 0.0 
-
-                    # If the dbd percent identity is below the threshold, skip this uniprot id
-                    if dbd_perc_id < self.dbd_threshold:
-                        # continue
-                        pass
-
-                    # If the validation is the best so far, update the best validation
-                    if best_validation is None or dbd_perc_id > best_validation[2]:
-                        best_validation = (uniprot_id, sequence_perc_id, dbd_perc_id)
-
-                if best_validation:
-                    uniprot_id, sequence_perc_id, dbd_perc_id = best_validation
-                    r.append(JasparRecord(matrix_id, motif_name, pfm, logo, motif_class, uniprot_id, sequence_perc_id, dbd_perc_id))
+                r.append(JasparRecord(matrix_id, motif_name, pfm, logo, motif_class))
 
         return r
 
@@ -442,23 +389,10 @@ class MotifDBFactory:
 
     Attributes
     ----------
-    motif_db_dict: Dict[str, MotifDB]
-        Dictionary mapping database names to MotifDB classes
-    motif_record_dict: Dict[str, MotifRecord]
-        Dictionary mapping database names to MotifRecord classes
-
-    Methods
-    -------
-    get_motif_db: MotifDB
-        Returns a motif database object based on the database name
-    get_motif_db_names: List[str]
-        Returns the names of all motif databases
-    get_dbs: List[MotifDB]
-        Returns a list of all motif databases
-    has_db: bool
-        Returns whether the database name is in the motif database dictionary
-    get_db_record: MotifRecord
-        Returns the MotifRecord class for a given database name
+    motif_db_dict: dict
+        Dictionary mapping database names to their corresponding MotifDB classes
+    motif_record_dict: dict
+        Dictionary mapping database names to their corresponding MotifRecord classes
     """
 
     # Database name -> MotifDB class
@@ -476,10 +410,10 @@ class MotifDBFactory:
         """Given a database name and arguments specific to the database, this function returns the corresponding MotifDB object
 
         Parameters
-        ---------
+        ----------
         db_name: str
             A string representing the name of the database
-        **kwargs: Dict
+        **kwargs: dict
             Keyword arguments to pass to the motif database
 
         Returns
@@ -488,7 +422,7 @@ class MotifDBFactory:
             A MotifDB object based on the database name and arguments
 
         Raises
-        -------
+        ------
         ValueError
             If the database name is not found in the motif database dictionary, a ValueError is raised.
         """
@@ -525,7 +459,7 @@ class MotifDBFactory:
         """Returns whether the database name is in the motif database dictionary
 
         Parameters
-        ---------
+        ----------
         db_name: str
             A string representing the name of the database
 
@@ -541,7 +475,7 @@ class MotifDBFactory:
         """Returns the MotifRecord class for a given database name
         
         Parameters
-        ---------
+        ----------
         db_name: str
             A string representing the name of the database
             
@@ -551,7 +485,7 @@ class MotifDBFactory:
             The MotifRecord class for the given database name
             
         Raises
-        -------
+        ------
         ValueError
             If the database name is not found in the motif record dictionary, a ValueError is raised.
         """

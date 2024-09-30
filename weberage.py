@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from multiprocessing import Process, Manager, Queue
-from lverage import Lverage, DiagnosticRecord
+from lverage import Lverage, LverageRecord
 from src.MotifDB import MotifDBFactory
 import os
 import src.exceptions as lvexceptions
@@ -77,7 +77,7 @@ def run():
     lverage_dict['cancel'] = False
 
     f = open(output_file, 'w')
-    headers = ["Gene ID"] + DiagnosticRecord.header_list + MotifDBFactory.get_db_record(motif_db).header_list
+    headers = ["Gene ID"] + LverageRecord.header_list + MotifDBFactory.get_db_record(motif_db).header_list
     f.write('\t'.join(headers) + '\n')
     f.close()
 

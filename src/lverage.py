@@ -1,5 +1,5 @@
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-'''
+"""
 The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.
 
 Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
@@ -14,16 +14,15 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: Correspondence: 
-    Cynthia A. Bradham - cbradham@bu.edu - *
-    Anthony B. Garza   - abgarza@bu.edu  - **
-    Stephanie P. Hao   - sphao@bu.edu    - **
-    Yeting Li          - yetingli@bu.edu - **
-    Nofal Ouardaoui    - naouarda@bu.edu - **
+Correspondence: 
+    - Cynthia A. Bradham - cbradham@bu.edu - *
+    - Anthony B. Garza   - abgarza@bu.edu  - **
+    - Stephanie P. Hao   - sphao@bu.edu    - **
+    - Yeting Li          - yetingli@bu.edu - **
+    - Nofal Ouardaoui    - naouarda@bu.edu - **
 
-    * - Principle Investigator
-    ** - Software Developers
-'''
+    \* Principle Investigator, ** Software Developers
+"""
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -31,7 +30,7 @@ Correspondence: Correspondence:
 
 import warnings
 import os
-import re
+import sys
 from Bio import BiopythonDeprecationWarning, SeqIO
 from Bio.Align import PairwiseAligner
 from Bio.SeqRecord import SeqRecord
@@ -40,50 +39,28 @@ from orffinder import orffinder
 from dataclasses import dataclass
 import time
 import shutil
+from validate_email import validate_email
 
 
 from DBDScanner import DBDScanner, DBD
 from OrthologSearcher import OrthologSearcher
+from MotifDB import MotifRecord
 from MotifDB import MotifDBFactory
 import lvutils
 import lvexceptions
 
 warnings.simplefilter('ignore', BiopythonDeprecationWarning)
 
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-# global variables
-is_testing = False
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
 # Classes
 
 @dataclass
-class DiagnosticRecord:
+class LverageRecord:
     """
-    This class contains the intermediate results of the Lverage pipeline
-
-    Attributes
-    ----------
-    dbd_name: str
-        name of DNA-binding domain
-    dbd_accession: str 
-        accession number of DNA-binding domain
-    ortholog_description: str 
-        BLAST description of ortholog species
-    ortholog_species: str
-        BLAST's name for ortholog species
-    ortholog_escore: float
-        BLAST E-value 
-    ortholog_percent_identity: float
-        BLAST percent identity
-    ortholog_query_coverage: float 
-        BLAST query coverage
-    ortholog_dbd_percent_identity: float 
-        percent identity of ortholog's DNA-binding domain with the main species' DNA-binding domain
-    header_list: list
-        list of strings representing parameters of the class
     """
 
+    motif : MotifRecord # pass in a concrete class that inherits from abstract class MotifRecord
     dbd_name: str
     dbd_accession: str
     ortholog_description: str
@@ -93,114 +70,28 @@ class DiagnosticRecord:
     ortholog_query_coverage: float
     ortholog_dbd_percent_identity: float
 
-    header_list = ['Gene DBD Name', 'Ortholog BLAST Description', 'Ortholog BLAST Species', 'Ortholog BLAST E-value', 'Ortholog BLAST Percent Identity', 'Ortholog BLAST Query Coverage', 'Gene_DBD-Ortholog_DBD Percent Identity']
+    header_list = ["Gene DBD Name", "Gene DBD Accession", "Ortholog BLAST Description", "Ortholog BLAST Species", "Ortholog BLAST E-value", "Ortholog BLAST Percent Identity", "Ortholog BLAST Query Coverage", "Gene DBD vs. Ortholog DBD Percent Identity"]
 
     def get_values(self):
         """
-        Returns a list of the attributes of the class
 
-        Returns
-        -------
-        list
-            list of attributes of the class
         """
-        return [self.dbd_name, self.dbd_accession, self.ortholog_description, self.ortholog_species, self.ortholog_escore, self.ortholog_percent_identity, self.ortholog_query_coverage, self.ortholog_dbd_percent_identity]
 
-    @staticmethod
-    def get_test_record():
-        """
-        Returns a DiagnosticRecord object with placeholder values
-
-        Returns
-        -------
-        DiagnosticRecord
-        """
-        return DiagnosticRecord('Sample DBD', 'PF00000.00', 'Sample Ortholog Description', 'Sample Ortholog Species', 0.0, 0.0, 0.0, 0.0)
+        return [self.dbd_name, self.dbd_accession, self.ortholog_description, self.ortholog_species, 
+                self.ortholog_escore, self.ortholog_percent_identity, self.ortholog_query_coverage, 
+                self.ortholog_dbd_percent_identity] + self.motif.get_values()
 
 class Lverage:
     """
-    Predicts DNA-binding domain motifs of a species using orthologous species.
-
-    Attributes
-    ----------
-    motif_database: str
-        name of motif database to use
-    ortholog_name_list: list
-        list of ortholog species names to search for motif in
-    email: str
-        email address for EBML tools
-    identity_threshold: float
-        identity threshold for similarity between sequences (0 to 1). Default is 0.7
-    verbose: bool
-        if True, prints messages to the console. Default is False
-    blast_hit_count: int
-        number of hits to use from BlastP. Default is 20
-    motif_hit_count: int
-        number of hits to use from motif database. Default is 10
-    escore_threshold: float
-        E-value threshold required for any alignment to be considered. Default is 10^-6
-    blast_db_path: str
-        path to the BLAST database to use if running BLAST locally. Default is None.
-    blastp_path: str
-        path to the BLASTP executable if running BLAST locally. Default is None.
-    start_codons: list
-        list of start codons to use when translating DNA to protein. Default is ['ATG']
-    valid_dbd_list: list
-        list of valid DNA-binding domain Accessions to use; if None, searches for all DNA-binding domains. Default is None
-
-    Methods
-    -------
-    to_dict()
-        Returns a dictionary representation of the object
-    from_dict(dict_obj)
-        Returns a Lverage object from a dictionary
-    find_protein(dna_sequence_list)
-        Obtain the Open Reading Frames (ORF) of all sequences provided
-    find_orthologs(protein_sequence)
-        Get ortholog sequences
-    find_dbds(protein_sequence_list)
-        Get the start and size of DNA-binding domain within protein sequences
-    find_alignments(protein_sequence, main_dbd, ortholog_hit_list, ortholog_dbd_list)
-        Align main species' protein dbd with orthologs' protein dbd
-    find_motifs(dbd_list, ortholog_hit_list, protein_sequence)
-        Find motifs from orthologous sequences that meet the identity threshold with the DBD in the provided
-    call(gene_sequence, gene_file)
-        Predict DNA-binding domain motifs of a species using orthologous species
     """
 
-    #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-    # Class variables
 
-
-    def __init__(self, motif_database : str, ortholog_name_list : list, email : str, identity_threshold : float = 0.7, verbose : bool = False,
-                        blast_hit_count : int = 20, motif_hit_count : int = 10, escore_threshold : float = 10**-6, blast_db_path : str = None,
-                        blastp_path : str = None, start_codons : list = ['ATG'], 
-                        valid_dbd_list = None):
-        '''Constructor
-
-        Raises
-        ------
-        MotifDatabaseError
-            If motif database is not available
-        OrthologSpeciesError
-            If ortholog species are not found in NCBI database
-        EmailError
-            If email is not valid
-        IdentityThresholdError
-            If identity threshold is not between 0 and 1
-        BlastHitCountError
-            If number of blast hits to search for is less than or equal to 0
-        MotifHitCountError
-            If number of motif hits to search for is less than or equal to 0
-        EScoreThresholdError
-            If e-score threshold is less than or equal to 0
-        BlastDatabaseError
-            If BLAST database is not available
-        BlastPError
-            If BLASTP executable is not available
-        StartCodonError
-            If no start codons are provided
-        '''
+    def __init__(self, motif_database : str, ortholog_name_list : list, email : str, valid_dbd_list : list, 
+                    identity_threshold : float = 0.7, verbose : bool = False, blast_hit_count : int = 20, 
+                    motif_hit_count : int = 10, escore_threshold : float = 10**-6, blast_db_path : str = None,
+                    blastp_path : str = None, start_codons : list = ['ATG']):
+        """Constructor
+        """
 
         # Validating arguments
 
@@ -215,7 +106,7 @@ class Lverage:
 
         # Checking if email is valid
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(pattern, email):
+        if not validate_email(email):
             raise lvexceptions.EmailError()
         
         # Checking if identity threshold is between 0 and 1
@@ -285,12 +176,234 @@ class Lverage:
         # Setting up motif database
         self.mdb = MotifDBFactory.get_motif_db(db_name = self.motif_database, n_hits = self.motif_hit_count, dbd_scanner = self.ds)
 
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # setting up call variables
 
-        # For each call, this list will contain a DiagnosticRecord object for each hit. This list is overwritten on each call
-        self.diagnostic_list = []
+    
+    @classmethod
+    def from_dict(cls, dict_obj):
+        """
+        """
+        return cls(
+            motif_database = dict_obj['motif_database'],
+            ortholog_name_list = dict_obj['ortholog_name_list'],
+            email = dict_obj['email'],
+            identity_threshold = dict_obj['identity_threshold'],
+            verbose = dict_obj['verbose'],
+            blast_hit_count = dict_obj['blast_hit_count'],
+            motif_hit_count = dict_obj['motif_hit_count'],
+            escore_threshold = dict_obj['escore_threshold']
+        )
 
+    def call(self, gene_sequences = None, gene_file = None):
+        """
+        """
+
+        # Getting gene sequence
+        gene_sequence_list = []
+        if gene_sequences:
+            gene_sequence_list.extend(gene_sequences)
+        elif gene_file:
+            gene_sequence_list = [str(x.seq) for x in SeqIO.parse(gene_file, "fasta")]
+
+
+        # Getting protein sequence of gene
+        protein_sequence = None
+        gene_dbd_list = [] # list of valid DNA-binding domains of the gene
+
+        if self.verbose:
+            print(f"Searching for best Open Reading Frame for gene sequence", flush=True)
+
+        orf_list = []
+        for gene_sequence in gene_sequence_list:
+            # Padding sequence with Ns if it's not a multiple of 3
+            sequence = 'N' * (3 - len(gene_sequence) % 3) + gene_sequence if len(gene_sequence) % 3 != 0 else gene_sequence
+
+            ps_list = orffinder.getORFProteins(SeqRecord(Seq(sequence)), start_codons=self.start_codons)
+            if ps_list:
+                orf_list.extend([str(ps.rstrip('*')) for ps in ps_list])
+
+        orf_list = list(set(orf_list))
+        orf_list.sort(key = lambda x: len(x), reverse = True)
+        for orf in orf_list[:10]:
+
+            if self.verbose:
+                print(f"\tSearching for DNA-binding domains in ORF", flush=True)
+
+            sys.stdout = lvutils.PrependedOutput(sys.stdout, "\t\t")
+            dbd_list = self.ds.find_dbds(orf)
+            sys.stdout = sys.stdout.original_stdout
+
+            if not dbd_list:
+                if self.verbose:
+                    print(f"\t\tCould not find any DNA-binding domains, trying next ORF", flush=True)
+                time.sleep(5)
+                continue
+
+            # Find all valid DBDs
+            for dbd in dbd_list:
+                accession = dbd.get_accession()
+                base_accession = accession.split('.')[0]
+                
+                for valid_dbd in self.valid_dbd_list:
+
+                    # If version number is in the valid DBD list, match accession and version. Otherwise, match just the accession
+                    if ('.' in valid_dbd and accession == valid_dbd) or base_accession == valid_dbd:
+                        protein_sequence = orf
+                        gene_dbd_list.append(dbd)
+                        break
+
+            if gene_dbd_list:
+                break
+
+            if self.verbose:
+                print(f"\t\tCould not find valid DNA-binding domains, trying next ORF", flush=True)
+
+            time.sleep(5)
+
+        if not protein_sequence:
+            if self.verbose:
+                print(f"\tCould not find any valid DNA-binding domains in any ORF", flush=True)
+            return
+        
+        if self.verbose:
+            print(f"Found protein sequence", flush=True)
+            print(protein_sequence, flush=True)
+
+        # Getting orthologs
+        if self.verbose:
+            print(f"Searching for orthologs of gene sequence", flush=True)
+
+        sys.stdout = lvutils.PrependedOutput(sys.stdout, "\t")
+        ortholog_hit_list = self.ors.search(protein_sequence)
+        sys.stdout = sys.stdout.original_stdout
+
+        if self.verbose:
+            print(f"Removing invalid orthologs", flush=True)
+
+        _ortholog_hit_list = []
+        for ortholog_hit in ortholog_hit_list:
+            if str(lvutils.get_tax_id(ortholog_hit.get_species())) is not None:
+                _ortholog_hit_list.append(ortholog_hit)
+
+            else:
+                if self.verbose:
+                    print(f"\t{ortholog_hit.get_title()} has a species ({ortholog_hit.get_species()}) not found in NCBI database", flush=True)
+        ortholog_hit_list = _ortholog_hit_list
+
+        if not ortholog_hit_list:
+            if self.verbose:
+                print(f"Could not find any valid orthologs", flush=True)
+            return
+        
+        # Getting DNA-binding domains from orthologs that are shared with the gene's DNA-binding domains
+        ortholog_dbd_list = []
+        valid_ortholog_hits = []
+        accession_order = [dbd.get_accession() for dbd in gene_dbd_list]
+
+        if self.verbose:
+            print(f"Searching for DNA-binding domains in orthologs and mapping to gene's DBDs", flush=True)
+
+        for ortholog_hit in ortholog_hit_list:
+
+            sys.stdout = lvutils.PrependedOutput(sys.stdout, "\t")
+            dbd_list = self.ds.find_dbds(ortholog_hit.get_seq()) 
+            sys.stdout = sys.stdout.original_stdout
+
+            dbd_dict = {dbd.get_accession(): dbd for dbd in dbd_list} 
+
+            ordered_dbd_list = []
+            for accession in accession_order:
+                if accession in dbd_dict:
+                    ordered_dbd_list.append(dbd_dict[accession])
+                # If the gene of interest has a DBD that the ortholog doesn't have
+                else:
+                    ordered_dbd_list.append(None) 
+
+            # Only append if there's at least one valid DBD match
+            if ordered_dbd_list:
+                ortholog_dbd_list.append(ordered_dbd_list)
+                valid_ortholog_hits.append(ortholog_hit)
+            elif self.verbose:
+                print(f"\t{ortholog_hit.get_accession()} does not have any DNA-binding domains that match the gene's DNA-binding domains. Removing ortholog", flush=True)
+
+        ortholog_hit_list = valid_ortholog_hits
+
+        if not ortholog_dbd_list:
+            return
+        
+        # Aligning DBDs for similarity threshold check
+        alignment_matrix = [] # [gene_dbd][ortholog]
+        for i, dbd in enumerate(gene_dbd_list):
+            gene_dbd_seq = protein_sequence[dbd.get_start():dbd.get_end()]
+            across_ortholog_dbds = [dbd_list[i] for dbd_list in ortholog_dbd_list]
+            alignment_list = []
+
+            # for each ortholog
+            for ortholog_hit, ortholog_dbd in zip(ortholog_hit_list, across_ortholog_dbds):
+
+                # if a corresponding DBD from the gene exists for the ortholog, if not assume 0 similarity
+                if ortholog_dbd:
+                    ortholog_seq = ortholog_hit.get_seq()
+                    ortholog_dbd_seq = ortholog_seq[ortholog_dbd.get_start():ortholog_dbd.get_end()]
+                    alignment = self.aligner.align(gene_dbd_seq, ortholog_dbd_seq)[0]
+                    similarity = lvutils.calculate_alignment_similarity(*alignment)
+                    alignment_list.append(similarity)
+                else:
+                    alignment_list.append(0.0)
+
+            alignment_matrix.append(alignment_list)
+
+        # Finding motifs
+        if self.verbose:
+            print(f"Searching for motifs in gene sequence", flush=True)
+
+        for i, dbd in enumerate(gene_dbd_list):
+
+            if self.verbose:
+                print(f"\tSearching with DBD {dbd.get_name()} {dbd.get_accession()}", flush=True)
+                
+            for j, ortholog_hit in enumerate(ortholog_hit_list):
+                similarity = alignment_matrix[i][j]
+                if similarity >= self.identity_threshold:
+
+                    if self.verbose:
+                        print(f"\t\tOrtholog {ortholog_hit.get_accession()} passed with a similarity of {similarity}", flush=True)
+
+                    ortholog_description = ortholog_hit.get_name()
+                    ortholog_species = ortholog_hit.get_species()
+                    ortholog_taxon_id = str(lvutils.get_tax_id(ortholog_species))
+                    ortholog_escore = ortholog_hit.get_escore()
+                    ortholog_percent_identity = ortholog_hit.get_percent_identity()
+                    ortholog_query_coverage = ortholog_hit.get_query_coverage()
+                    ortholog_seq = ortholog_hit.get_seq()
+
+                    sys.stdout = lvutils.PrependedOutput(sys.stdout, "\t\t\t")
+                    try:
+                        motif_list = self.mdb.search(protein_sequence, ortholog_taxon_id, ortholog_seq, dbd)
+
+                    
+                    except Exception as e:
+                        if self.verbose:
+                            print(f"\t\t\tAn error occurred while searching for motifs and the ortholog will be skipped. Error: {e}", flush=True)
+                        continue
+
+                    finally:
+                        sys.stdout = sys.stdout.original_stdout
+
+                    for motif in motif_list:
+                        if self.verbose:
+                            print(f"\t\t\tFound motif {motif.name} {motif.matrix_id}", flush=True)
+                        yield LverageRecord(motif, dbd.get_name(), dbd.get_accession(), ortholog_description, ortholog_species, ortholog_escore, ortholog_percent_identity, ortholog_query_coverage, similarity)
+                    
+                    if not motif_list and self.verbose:
+                        print(f"\t\t\tNo motifs found with the ortholog's DBD.", flush=True)
+
+                else:
+                    if self.verbose:
+                        print(f"\t\tOrtholog {ortholog_hit.get_accession()} failed with a similarity of {similarity}", flush=True)
+
+
+    
+    
     def to_dict(self):
         """
         Returns a dictionary representation of the parameters used to create the object
@@ -310,399 +423,7 @@ class Lverage:
             'blast_hit_count': self.blast_hit_count,
             'motif_hit_count': self.motif_hit_count,
             'escore_threshold': self.escore_threshold
-        }   
-    
-    @classmethod
-    def from_dict(cls, dict_obj):
-        """
-        Returns a Lverage object from a dictionary
-
-        Parameters
-        ----------
-        dict_obj: dict
-            dictionary representation of the object
-
-        Returns
-        -------
-        Lverage
-        """
-        return cls(
-            motif_database = dict_obj['motif_database'],
-            ortholog_name_list = dict_obj['ortholog_name_list'],
-            email = dict_obj['email'],
-            identity_threshold = dict_obj['identity_threshold'],
-            verbose = dict_obj['verbose'],
-            blast_hit_count = dict_obj['blast_hit_count'],
-            motif_hit_count = dict_obj['motif_hit_count'],
-            escore_threshold = dict_obj['escore_threshold']
-        )
-
-
-    def find_protein(self, dna_sequence_list : list):
-        '''
-        Obtain the Open Reading Frames (ORF) of all sequences provided;
-        Keep in mind that the ORFs are not separated by which sequence was provided
-        Thus, this method assumes that every sequence corresponds to a singular gene
-        Then with these ORFs, find the largest one that has a DNA-binding domain
-        If a list of valid DNA-binding domains is provided, also use that to filter out the ORFs
-        
-        Arguments:
-        dna_sequence_list: list of DNA sequences
-
-        Returns:
-        protein_seq: the largest ORF with a valid DNA-binding domain to use as the protein sequence of a gene
-        '''
-
-        if self.verbose:
-            print(f">Obtaining Open Reading Frames.", flush=True)
-
-
-        protein_sequence = None # protein sequence to return
-
-        orf_list = []
-        for dna_sequence in dna_sequence_list:
-
-            # Padding sequence with Ns if it's not a multiple of 3
-            sequence = 'N' * (3 - len(dna_sequence) % 3) + dna_sequence if len(dna_sequence) % 3 != 0 else dna_sequence
-
-            # list of protein sequences
-            ps_list = orffinder.getORFProteins(SeqRecord(Seq(sequence)), start_codons=self.start_codons)
-            if ps_list:
-                orf_list.extend([ps.rstrip('*') for ps in ps_list])
-
-
-        if self.verbose and not orf_list:
-            print(f"\tWARNING: Unable to find any Open Reading Frames.", flush=True)
-
-        elif orf_list:
-
-            # For each ORF in descending order of length, get the first one that has a DNA-binding domain; this will be our protein sequence
-            orf_list.sort(key = lambda x: len(x), reverse = True)
-            for orf in orf_list:
-
-                # getting DNA binding domains
-                orf_dbd_list = self.ds.find_dbds([orf])[0]
-
-                # if no DNA-binding domains found, skip
-                if not orf_dbd_list:
-                    continue
-
-                # if no list of valid DNA binding domains is provided, use the first ORF with a DNA-binding domain
-                elif self.valid_dbd_list is None and len(orf_dbd_list) > 0:
-                    protein_sequence = orf
-                    break
-
-                # If a list was provided, use the first ORF with a DNA-binding domain that is in the list
-                elif self.valid_dbd_list is not None:
-
-                    has_valid = False # flag to check if a valid DNA-binding domain is found; no need to check other ORFs if True
-                    for dbd in orf_dbd_list:
-
-                        if dbd.get_accession() in self.valid_dbd_list:
-                            protein_sequence = orf
-                            break
-
-                    if has_valid:
-                        break
-        
-
-        return protein_sequence
-    
-    
-    def find_orthologs(self, protein_sequence : str):
-        '''
-        Step 2 in the pipeline:
-        Get ortholog sequences
-        
-        Arguments:
-        protein_sequence: protein sequence
-        
-        Returns:
-        List of Ortholog objects
-        '''
-
-        if self.verbose:
-            print(f">Searching for orthologs.", flush=True)
-
-        # search for orthologs
-        ortholog_hit_list = self.ors.search(protein_sequence)
-
-        if not ortholog_hit_list and self.verbose:
-            print(f"\tWARNING: Unable to find orthologs.", flush=True)
-
-        return ortholog_hit_list
-    
-
-    def find_dbds(self, protein_sequence_list : list):
-        '''
-        Step 3 in the pipeline:
-        Get the start and size of DNA-binding domain within protein sequences
-        
-        Arguments:
-        protein_sequence_list: list of protein sequences
-        
-        Returns:
-        List of list of DBD objects (an inner list for each protein sequence)
-        '''
-
-        if self.verbose:
-            print(f">Searching for DBDs.", flush=True)
-
-        # search for DBDs
-        dbd_list = []
-        for protein_sequence in protein_sequence_list:
-            dbd_list.append(self.ds.find_dbds(protein_sequence))
-            time.sleep(5) # to prevent overloading the server
-
-        if not dbd_list and self.verbose:
-            print(f"\tWARNING: Unable to find DBDs.", flush=True)
-
-        return dbd_list
-    
-    def find_alignments(self, protein_sequence : str, main_dbd : DBD, ortholog_hit_list : list, ortholog_dbd_list : list):
-        '''
-        Step 4a in the pipeline:
-        Align main species' protein dbd with orthologs' protein dbd
-        
-        Arguments:
-        protein_sequence: protein sequence
-        main_dbd: DBD object of the main species' protein
-        ortholog_hit_list: list of Ortholog objects
-        ortholog_dbd_list: list of list of DBD objects (an inner list for each ortholog sequence)
-        
-        
-        Returns:
-        List of alignments (may contain None if alignment is not found)
-        '''
-
-        assert len(ortholog_hit_list) == len(ortholog_dbd_list), "Ortholog hit list and ortholog DBD list are not the same length"
-
-        if self.verbose:
-            print(f"\tAligning sequences...", flush=True)
-
-        # for each ortholog sequence
-        alignment_list = []
-        main_dbd_seq = protein_sequence[main_dbd.get_start():main_dbd.get_end()] # Getting just the main DBD sequence
-        for ortholog_hit, ortholog_dbd_list in zip(ortholog_hit_list, ortholog_dbd_list):
-            
-            # get the correct DBD
-            ortholog_dbd = None
-            for dbd in ortholog_dbd_list:
-                if main_dbd.get_name() == dbd.get_name():
-                    ortholog_dbd = dbd
-                    break
-
-            # If corresponding DBD is not found in ortholog, skip
-            if ortholog_dbd is None:
-                alignment_list.append(None)
-                if self.verbose:
-                    print(f"\t\tWARNING: Unable to find matching DBD for {ortholog_hit.get_name()} for main DBD {main_dbd.get_name()}.", flush=True)
-                continue
-
-            # Getting just the ortholog DBD sequence
-            ortholog_dbd_seq = ortholog_hit.get_seq()[ortholog_dbd.get_start():ortholog_dbd.get_end()]
-
-            # Aligning DBDs
-            alignments = self.aligner.align(main_dbd_seq, ortholog_dbd_seq)
-
-            # getting best alignment
-            alignment_list.append(alignments[0])
-
-        return alignment_list
-    
-    def find_motifs(self, dbd_list : list, ortholog_hit_list : list, protein_sequence : str):
-        '''
-        Step 4 in the pipeline:
-        Find motifs from orthologous sequences that meet the identity threshold with the DBD in the provided
-        
-        Arguments:
-        dbd_list: list of list of DBD objects
-        ortholog_hit_list: list of Ortholog objects
-        protein_sequence: protein sequence of the gene
-
-        Returns:
-        List of Motif objects
-        '''
-
-        assert len(dbd_list) - 1 == len(ortholog_hit_list), "DBD list should have one more element than ortholog list (including the main gene of interest)"
-
-        # return value
-        result_motif_list = []
-
-        main_dbd_list = dbd_list[0]
-        ortholog_dbd_list = dbd_list[1:]
-
-        for dbd in main_dbd_list:
-
-            if self.verbose:
-                print(f">Finding conserved motifs of {gene_id} with dbd {dbd.get_name()}.", flush=True)
-
-            # Step 4a: aligning DBD for similarity threshold check
-            alignment_list = self.find_alignments(protein_sequence, dbd, ortholog_hit_list, ortholog_dbd_list)
-            if not alignment_list:
-                continue
-
-            sim_array = []
-            for alignment in alignment_list:
-                if alignment:
-                    sim_array.append(lvutils.calculate_alignment_similarity(*alignment))
-                else:
-                    sim_array.append(None)
-
-            # for each ortholog sequence
-            for i in range(len(sim_array)):
-
-                ortholog_hit = ortholog_hit_list[i]
-                ortholog_description = ortholog_hit.get_name()
-
-                # If the DBD similarity is greater than or equal to the identity threshold, get the motif
-                dbd_similarity = sim_array[i]
-
-                if dbd_similarity is None:
-                    if self.verbose:
-                        print(f'\tWARNING: No similarity for {ortholog_description}! Skipping...', flush=True)
-                    continue
-
-                if dbd_similarity >= self.identity_threshold:
-
-                    ortholog_species = ortholog_hit.get_species()
-                    ortholog_taxon_id = str(lvutils.get_tax_id(ortholog_species))
-
-                    if ortholog_taxon_id is None:
-                        if self.verbose:
-                            print(f'\tWARNING: Unable to find taxon ID for {ortholog_species}! Skipping...', flush=True)
-                        continue
-
-                    ortholog_escore = ortholog_hit.get_escore()
-                    ortholog_percent_identity = ortholog_hit.get_percent_identity()
-                    ortholog_query_coverage = ortholog_hit.get_query_coverage()
-                    ortholog_sequence = ortholog_hit.get_seq()
-
-                    if self.verbose:
-                        print(f"\n\t-Looking for ({ortholog_description}) from {ortholog_hit.get_species()}", flush=True)
-                        # print("\t\t", end='', flush=True)
-
-                    found_motif = False
-
-                    try:
-                        for motif in self.mdb.search(ortholog_sequence, ortholog_taxon_id, protein_sequence, dbd):
-                            result_motif_list.append(motif)
-                            found_motif = True
-
-                            self.diagnostic_list.append(DiagnosticRecord(dbd.get_name(), ortholog_description, ortholog_species, ortholog_escore, 
-                                                                         ortholog_percent_identity, ortholog_query_coverage, dbd_similarity))
-                            
-                    except Exception as e:
-                        if self.verbose:
-                            print(f"\tERROR: SKIPPING {ortholog_description} from {ortholog_hit.get_species()} - {e}", flush=True)
-                        continue
-                    
-
-                    if not found_motif:
-                        if self.verbose:
-                            print(f'\t\tWARNING: Unable to find {ortholog_description} in the database', flush=True)
-
-                else:
-                    if self.verbose:
-                        print(f'\tWARNING: {dbd.get_name()} is not conserved enough with the DBD in {ortholog_description}! {sim_array[i]} similarity! Skipping...', flush=True)
-
-        return result_motif_list
-    
-    def test(self, gene_sequences = None, gene_file = None):
-        '''
-        This function predicts DNA-binding domain motifs of a species using orthologous species.
-
-        Arguments:
-        gene_sequences: gene DNA sequence
-        gene_file: path to FASTA file containing gene sequence (scaffolds allowed); if gene_sequence is provided, this is ignored
-
-        Returns:
-        List of MotifDB.Motif objects
-        '''
-
-        self.diagnostic_list.clear()
-
-        # Getting gene sequence
-        gene_sequence_list = []
-        # if gene_sequence:
-        #     gene_sequence_list.append(gene_sequence)
-        # elif gene_file:
-        #     gene_sequence_list = [str(x.seq) for x in SeqIO.parse(gene_file, "fasta")]
-
-    def call(self, gene_sequence = None, gene_file = None):
-        '''
-        This function predicts DNA-binding domain motifs of a species using orthologous species.
-
-        Arguments:
-        gene_sequence: gene DNA sequence
-        gene_file: path to FASTA file containing gene sequence (scaffolds allowed); if gene_sequence is provided, this is ignored
-
-        Returns:
-        List of MotifDB.Motif objects
-        '''
-
-        # Clearing diagnostic list
-        self.diagnostic_list.clear()
-
-        # Getting gene sequence
-        gene_sequence_list = []
-        if gene_sequence:
-            gene_sequence_list.append(gene_sequence)
-        elif gene_file:
-            gene_sequence_list = [str(x.seq) for x in SeqIO.parse(gene_file, "fasta")]
-
-        # return value
-        motif_list = []
-
-        if self.verbose:
-            print('---------------------------------', flush=True)
-            print(f"Processing {gene_file}...", flush=True)
-
-        
-        # only if testing, return test motif and diagnostic record
-        if is_testing:
-            for i in range(5):
-                motif_list.append(MotifDBFactory.get_db_record(self.motif_database).get_test_motif())
-                self.diagnostic_list.append(DiagnosticRecord.get_test_record())
-                time.sleep(2)
-            return motif_list
-
-
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step one: get the protein sequence of the gene
-        
-        protein_sequence = self.find_protein(gene_sequence_list)
-
-        if not protein_sequence:
-                
-            return motif_list
-
-            
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step two: get ortholog sequences
-
-        ortholog_hit_list = self.find_orthologs(protein_sequence)
-
-        # if failed to find orthologs, return
-        if not ortholog_hit_list:
-            return motif_list # BAD PRACTICE; find some way to not need multiple return statements
-        
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step three: get the DNA binding domains of the gene and orthologous sequences
-
-        dbd_list = self.find_dbds([protein_sequence] + [ortholog_hit.get_seq() for ortholog_hit in ortholog_hit_list])
-
-        # if failed to find DBD for gene of interest or any DBD for the orthologous sequences, return
-        if not dbd_list[0] or not dbd_list[1:]:
-            return motif_list # BAD PRACTICE; find some way to not need multiple return statements
-
-        #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-        # Step four: find conserved motifs from orthologous sequences that had 70% or more identity with the gene from given species
-        
-        motif_list = self.find_motifs(dbd_list, ortholog_hit_list, protein_sequence)
-
-
-        return motif_list
+        }
         
 
 
@@ -716,31 +437,32 @@ if __name__ == "__main__":
 '''The purpose of this script is to predict DNA-binding domain motifs of a species using orthologous species.''')
 
     # Pipeline arguments
-    parser.add_argument('-f', '--fasta', help='Path to folder of fasta files. Each fasta file should be for a singular gene. A fasta file may contain multiple scaffolds of this gene in multi-FASTA format.')
+    parser.add_argument("-f", "--fasta", help="REQUIRED. Path to folder of fasta files. Each fasta file should be for a singular gene. A fasta file may contain multiple scaffolds of this gene in multi-FASTA format.")
 
-    parser.add_argument('-mdb', '--motif_database', help='Name of motif database to use. Default is JASPAR. Use -lmdb to see list of available motif databases.', default='JASPAR')
-    parser.add_argument('-or', '--orthologs', nargs='*', help='Ortholog species to search for motif in. Each species should be enclosed in quotes and separated by spaces. Default is only Homo Sapiens',
-                        default=['Homo Sapiens']) 
-    parser.add_argument('-o', '--output', help='Output file path; provide a path to a file or a directory where output.tsv will be made.', default='output.tsv')
+    parser.add_argument("-mdb", "--motif_database", help="Name of motif database to use. Default is JASPAR. Use -lmdb to see list of available motif databases.", default="JASPAR")
+    parser.add_argument("-or", "--orthologs", nargs="*", help="Ortholog species to search for motif in. Each species should be enclosed in quotes and separated by spaces. Default is only Homo Sapiens",
+                        default=["Homo Sapiens"]) 
+    parser.add_argument("-o", "--output", help="REQUIRED. Output file path; provide a path to a file or a directory where the Comma-Separated-Values (CSV) output file will be made.")
+    parser.add_argument("-vd", "--valid_dbd", help="Valid DBDs file path; provide a path to a file containing valid DNA-Binding Domains. Each line except the first should contain a valid PFAM ID. The first row should contain the header 'PFAM ID'. If the user wishes to add extra columns detailing information about the domain, ensure the first column remains the PFAM ID and the other columns are separated by commas.")
 
     # Protein translation arguments
-    parser.add_argument('-sc', '--start_codons', nargs='*', help='When translating a gene DNA sequence to Amino Acids, which start codons should be used? Provide a space separated list of codons, e.g., "ATG" "TTG" "GTG". Default is ATG only.',
-                        default=['ATG'])
+    parser.add_argument("-sc", "--start_codons", nargs="*", help="When translating a gene DNA sequence to Amino Acids, which start codons should be used? Provide a space separated list of codons, e.g., \"ATG\" \"TTG\" \"GTG\". Default is ATG only.",
+                        default=["ATG"])
 
     # NCBI Arguments
-    parser.add_argument('-e', '--email', help='Email address for EBML tools')
-    parser.add_argument('-b', '--blast', help='Path to the BLAST tools. If not provided, assumed to be on PATH.', default='')
-    parser.add_argument('-bdb', '--blastdb', help='Path to the protein database to use with BLAST if being done locally. Ensure this database has the ortholog species of interest. If this argument is provided, BLAST WILL be run locally!', default = None)
+    parser.add_argument("-e", "--email", help="Email address for EBML tools")
+    parser.add_argument("-b", "--blast", help="Path to the BLAST tools. If not provided, assumed to be on PATH.", default="")
+    parser.add_argument("-bdb", "--blastdb", help="Path to the protein database to use with BLAST if being done locally. Ensure this database has the ortholog species of interest. If this argument is provided, BLAST WILL be run locally!", default = None)
 
 
     # Pipeline parameters
-    parser.add_argument('-it', '--identity_threshold', help='Identity threshold for similarity between sequences. Default is 0.7', default=0.7, type=float)
+    parser.add_argument("-it", "--identity_threshold", help="Identity threshold for similarity between sequences. Default is 0.7", default=0.7, type=float)
 
     # User info requests
-    parser.add_argument('-lmdb', '--list_motif_database', help='Prints list of motif databases available', action='store_true')
+    parser.add_argument("-lmdb", "--list_motif_database", help="Prints list of motif databases available", action="store_true")
 
     # options
-    parser.add_argument('-v', '--verbose', help='Prints out more information', action='store_true', default=False)
+    parser.add_argument("-v", "--verbose", help="Prints out more information", action="store_true", default=False)
 
 
     args = parser.parse_args()
@@ -749,6 +471,7 @@ if __name__ == "__main__":
     motif_database = args.motif_database
     ortholog_name_list = args.orthologs
     output_path = args.output
+    valid_dbd_path = args.valid_dbd
 
     email = args.email
     blast_path = args.blast
@@ -763,79 +486,81 @@ if __name__ == "__main__":
 
 
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-    # Printing list if asked for by user
-
-    should_exit = False
-
-    # Printing list of motif databases available
+    # Printing list of motif databases available if asked then exiting
     if list_motif_db:
         print("List of motif databases available:", flush=True)
         print(', '.join(MotifDBFactory.get_motif_db_names()), flush=True)
         print()
-        should_exit = True
-
-    if should_exit:
         exit(0)
 
 
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Validating arguments
 
-    # Checking if required arguments are provided
-    if not fasta_path:
-        parser.print_help()
-        raise RuntimeError("Please provide a path to a folder of fasta files using -f or --fasta")
+    def check_required(condition, error_message):
+        if not condition:
+            parser.print_help()
+            parser.error(error_message)
 
-    if not os.path.isdir(fasta_path):
-        parser.print_help()
-        raise RuntimeError("Fasta folder does not exist or is not a folder")
+    def validate_argument(condition, error_message, exception):
+        if not condition:
+            parser.print_help()
+            raise exception(error_message)
 
-    if not email:
-        parser.print_help()
-        raise RuntimeError("Please provide an email address using -e or --email")
+    check_required(fasta_path, "Please provide a path to a folder of fasta files using -f or --fasta",)
+    check_required(valid_dbd_path, "Please provide a path to a valid DBD file using -vd or --valid_dbd",)
+    check_required(email, "Please provide an email address using -e or --email")
+
+    validate_argument(os.path.isdir(fasta_path), "Fasta folder does not exist or is not a folder", FileNotFoundError)
+    validate_argument(os.path.exists(valid_dbd_path), "Valid DBD file does not exist", FileNotFoundError)
+    validate_argument(os.path.exists(fasta_path), "Fasta folder does not exist", FileNotFoundError)
+    validate_argument(validate_email(email), "Email address is not valid", ValueError)
+
+    if os.path.isdir(output_path):
+        output_path = os.path.join(output_path, "output.tsv")
+    else:
+        output_dir = os.path.dirname(output_path)
+        validate_argument(os.path.isdir(output_dir), f"Output directory {output_dir} does not exist", FileNotFoundError)
+
+    # Getting valid DBDs
+    with open(valid_dbd_path, 'r') as f:
+        lines = [line.strip() for line in f.readlines()]
+        if len(lines) <= 1:
+            raise ValueError("Valid DBDs file is empty")
+
+        if len(lines[0].split(',')) > 1:
+            valid_dbd_list = [line.split(',')[0] for line in lines[1:]]
+        else:
+            valid_dbd_list = lines[1:]
+
 
     # Checking if using local BLAST and if so, if the blastp executable is available and if the database is avaialble
     blastp_path = None
     if blast_db_path:
 
-        if not os.path.exists(blast_db_path + ".pot"):
-            parser.print_help()
-            raise RuntimeError(f"BLAST Database at {blast_db_path} doesn't exist!")
+        validate_argument(os.path.exists(blast_db_path + ".pot"), f"BLAST Database at {blast_db_path} doesn't exist!", FileNotFoundError)
 
         # checking if blastp executable is available
         if blast_path:
             blastp_path = os.path.join(blast_path, "blastp")
-            if not os.path.exists(blastp_path):
-                parser.print_help()
-                raise RuntimeError(f"blastp executable does not exist in {blast_path}")
+            validate_argument(os.path.exists(blastp_path), f"BLASTP executable does not exist in {blast_path}", FileNotFoundError)
         else:
             blastp_path = shutil.which("blastp")
-            if blastp_path is None:
-                parser.print_help()
-                raise RuntimeError("blastp executable is not in PATH")
+            validate_argument(blastp_path, "blastp executable is not in PATH", FileNotFoundError)
 
-    # Checking if output path exists
-    if os.path.isdir(output_path):
-        output_path = os.path.join(output_path, "output.tsv")  
-    else:
-        output_dir = os.path.dirname(output_path)
-        if not os.path.exists(output_dir):
-            parser.print_help()
-            raise RuntimeError("Output directory does not exist")
 
 
     # Getting all fasta files in the directory
-    gene_file_list = [os.path.join(fasta_path, x) for x in os.listdir(fasta_path) if x.endswith('.fasta') or x.endswith('.fa') or x.endswith('.fna')]
-    assert len(gene_file_list) > 0, "No fasta files found in the directory. Make sure the files end with .fasta, .fa, or .fna"
+    gene_file_list = [os.path.join(fasta_path, x) for x in os.listdir(fasta_path)]
     gene_file_list.sort(key=lambda x: os.path.basename(x))
-
+    validate_argument(len(gene_file_list) > 0, "No fasta files found in the directory. Make sure the files end with .fasta, .fa, or .fna", FileNotFoundError)
+    
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # Setting up Lverage
 
     lverage = Lverage(motif_database = motif_database, ortholog_name_list = ortholog_name_list, email = email, 
-                      identity_threshold = identity_threshold, verbose = verbose, blast_db_path = blast_db_path, blastp_path = blastp_path)
-
-
+                      identity_threshold = identity_threshold, verbose = verbose, blast_db_path = blast_db_path, blastp_path = blastp_path,
+                      valid_dbd_list = valid_dbd_list)
 
     #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
     # For every gene sequence in the fasta file directory, search for the motifs
@@ -846,7 +571,7 @@ if __name__ == "__main__":
 
     with open(output_path, 'w') as f:
 
-        headers = ["Gene ID"] + DiagnosticRecord.header_list + MotifDBFactory.get_db_record(motif_database).header_list
+        headers = ["Gene ID"] + LverageRecord.header_list + MotifDBFactory.get_db_record(motif_database).header_list
         f.write('\t'.join(headers) + '\n')
         f.flush()
 
@@ -855,32 +580,15 @@ if __name__ == "__main__":
             gene_id = os.path.basename(gene_file).split('.')[0]
 
             if verbose:
-                print(flush=True) # newline
+                print(flush=True)
+                print(f"Processing gene {gene_id}", flush=True)
 
-            # try:
-            #     motif_list = lverage.call(gene_file = gene_file)
-            # except Exception as e:
-            #     if verbose:
-            #         print(f"ERROR: {e}", flush=True)
-            #     continue
-            motif_list = lverage.call(gene_file = gene_file)
-            diagnostic_list = lverage.diagnostic_list
+            for record in lverage.call(gene_file = gene_file):
 
-            assert len(motif_list) == len(diagnostic_list), "Motif list and diagnostic list are not the same length"
+                record_values = [str(x) for x in record.get_values()]
 
-            for i in range(len(motif_list)):
-                diagnostic = diagnostic_list[i]
-                motif = motif_list[i]
-
-                diagnostic_values = diagnostic.get_values()
-                motif_values = motif.get_values()
-
-                # convert values to strings
-                diagnostic_values = [str(x) for x in diagnostic_values]
-                motif_values = [str(x) for x in motif_values]
-
-                # write to file as tab-separated values
-                s = '\t'.join([gene_id] + diagnostic_values + motif_values) + '\n'
+                # write to file as comma-separated values
+                s = '\t'.join([gene_id] + record_values) + '\n'
                 f.write(s)
                 f.flush()
 
