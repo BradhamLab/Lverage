@@ -12,15 +12,14 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: Correspondence: 
-    Cynthia A. Bradham - cbradham@bu.edu - *
-    Anthony B. Garza   - abgarza@bu.edu  - **
-    Stephanie P. Hao   - sphao@bu.edu    - **
-    Yeting Li          - yetingli@bu.edu - **
-    Nofal Ouardaoui    - naouarda@bu.edu - **
+Correspondence: 
+    - Cynthia A. Bradham - cbradham@bu.edu - *
+    - Anthony B. Garza   - abgarza@bu.edu  - **
+    - Stephanie P. Hao   - sphao@bu.edu    - **
+    - Yeting Li          - yetingli@bu.edu - **
+    - Nofal Ouardaoui    - naouarda@bu.edu - **
 
-    *  - Principle Investigator
-    ** - Software Developers
+    \* Principle Investigator, ** Software Developers
 """
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -37,7 +36,7 @@ class DBD:
     The purpose of this class is to store the information of a DBD in a protein sequence.
 
     Attributes
-    -----------
+    ----------
     name : str
         name of the DBD
     start : int
@@ -46,10 +45,22 @@ class DBD:
         end of the DBD in its originating sequence
     accession : str
         accession identifier of the DBD
+
     """
 
     def __init__(self, name : str, start : int, end : int, accession: str):
         """Constructor
+
+        Parameters
+        ----------
+        name : str
+            Name of the DBD.
+        start : int
+            Start position of the DBD in its originating sequence.
+        end : int
+            End position of the DBD in its originating sequence.
+        accession : str
+            Accession identifier of the DBD.
 
         Raises
         ------
@@ -133,6 +144,8 @@ class DBD:
     def __str__(self):
         return f"DBD {self.name} {self.start} {self.size} {self.accession}"
     
+
+    
 def build_dbd_from_dict(d: dict) -> DBD:
     """
     Builds a DBD object from a dictionary returned by the pfamscan service.
@@ -157,7 +170,7 @@ def build_dbd_from_dict(d: dict) -> DBD:
     """
 
     # Validate the required keys exist and their types are correct
-    required_keys = ['name', 'type', 'env', 'accession']
+    required_keys = ['name', 'type', 'env', 'acc']
     for key in required_keys:
         if key not in d:
             raise ValueError(f"Invalid dictionary, missing '{key}' key!")
@@ -172,7 +185,7 @@ def build_dbd_from_dict(d: dict) -> DBD:
 
     # Extract values from the dictionary and cast appropriately
     name = d['name']
-    accession = d['accession']
+    accession = d['acc']
 
     try:
         start = int(d['env']['from']) - 1  # Convert to 0-based index
@@ -191,14 +204,6 @@ class DBDScanner:
 
     Attributes
     ----------
-    url : str
-        Base URL for the pfamscan service.
-    run_url : str
-        URL to submit a pfamscan job.
-    status_url : str
-        URL to check the status of a pfamscan job.
-    result_url : str
-        URL to retrieve the results of a pfamscan job.
     email : str
         User email required by ebi services.
     verbose : bool
@@ -207,32 +212,50 @@ class DBDScanner:
         Number of times to request the online tool before giving up. Default is 10.
     time_interval : int
         Number of seconds to wait between requests. Default is 5.
+    url : str
+        Base URL for the pfamscan service.
+    run_url : str
+        URL to submit a pfamscan job.
+    status_url : str
+        URL to check the status of a pfamscan job.
+    result_url : str
+        URL to retrieve the results of a pfamscan job.
 
-    Methods
-    -------
-    __init__(email, verbose=False, try_count=10, time_interval=5)
-        Initializes the DBDScanner with the provided email, verbosity, try count, and time interval.
-    find_dbds(protein_seq)
-        Finds the DNA binding domains of a protein sequence.
-
+    Raises
+    ------
+    ValueError
+        1. If the email is empty
+        2. If try_count is less than or equal to 0
+        3. If time_interval is less than 0
     """
 
 
-    # URLs for the pfamscan service
     url = "https://www.ebi.ac.uk/Tools/services/rest/pfamscan/"
     run_url = url + "run/"
     status_url = url + "status/"
-    result_url = url + "result/"   
+    result_url = url + "result/"
 
-    def __init__(self, email, verbose = False, try_count = 10, time_interval = 5):
+
+    def __init__(self, email, verbose = False, try_count = 100, time_interval = 5):
         """Constructor
-
+        
+        Parameters
+        ----------
+        email : str
+            User email required by ebi services.
+        verbose : bool
+            Flag to print out status and results. Default is False.
+        try_count : int
+            Number of times to request the online tool before giving up. Default is 10.
+        time_interval : int
+            Number of seconds to wait between requests. Default is 5.
+            
         Raises
         ------
         ValueError
-            1. If the email is empty.
-            2. If the try_count is less than or equal to 0.
-            3. If the time_interval is less than 0.
+            1. If the email is empty
+            2. If try_count is less than or equal to 0
+            3. If time_interval is less than 0
         """
 
         if not email:
@@ -249,6 +272,11 @@ class DBDScanner:
         self.verbose = verbose
         self.try_count = try_count
         self.time_interval = time_interval
+
+        # self.url = "https://www.ebi.ac.uk/Tools/services/rest/pfamscan/"
+        # self.run_url = self.url + "run/"
+        # self.status_url = self.url + "status/"
+        # self.result_url = self.url + "result/"
 
     def find_dbds(self, protein_seq):
         """
@@ -279,7 +307,7 @@ class DBDScanner:
         }
 
         if self.verbose:
-            print("\tRunning pfamscan.", flush=True)
+            print("Running pfamscan.", flush=True)
 
         run = requests.post(self.run_url, data=data)
         for i in range(self.try_count):
@@ -296,7 +324,7 @@ class DBDScanner:
             job_id = run.text
 
             if self.verbose:
-                print("\tpfamscan Job ID:", job_id, flush=True)
+                print(f"\tpfamscan Job ID: {job_id}", flush=True)
 
             status = requests.get(self.status_url + job_id)
             if status.ok:
@@ -320,17 +348,16 @@ class DBDScanner:
                     if len(dbd_dict_list) > 0:
                         for dbd_dict in dbd_dict_list:
 
-                            dbd = build_dbd_from_dict(dbd_dict)
-
-                            if dbd is not None:
+                            if dbd_dict["type"] == "Domain":
+                                dbd = build_dbd_from_dict(dbd_dict)
                                 r.append(dbd)
 
                                 if self.verbose:
-                                    print(f"\tDBD with name {dbd.get_name()} and accesion {dbd.get_accession} was found at {dbd.get_start()} with size {dbd.get_size()}.", flush=True)
+                                    print(f"\t\tDBD with name {dbd.get_name()} and accession {dbd.get_accession()} was found at {dbd.get_start()} with size {dbd.get_size()}.", flush=True)
 
 
         else:
-            print(f"\tPfamscan failed to run. Perhaps check the status of the tool online?")
+            print(f"Pfamscan failed to run. Perhaps check the status of the tool online?")
 
                     
         return r

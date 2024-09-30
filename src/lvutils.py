@@ -13,15 +13,14 @@ Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-Correspondence: Correspondence: 
-    Cynthia A. Bradham - cbradham@bu.edu - *
-    Anthony B. Garza   - abgarza@bu.edu  - **
-    Stephanie P. Hao   - sphao@bu.edu    - **
-    Yeting Li          - yetingli@bu.edu - **
-    Nofal Ouardaoui    - naouarda@bu.edu - **
+Correspondence: 
+    - Cynthia A. Bradham - cbradham@bu.edu - *
+    - Anthony B. Garza   - abgarza@bu.edu  - **
+    - Stephanie P. Hao   - sphao@bu.edu    - **
+    - Yeting Li          - yetingli@bu.edu - **
+    - Nofal Ouardaoui    - naouarda@bu.edu - **
 
-    * - Principle Investigator
-    ** - Software Developers
+    \* Principle Investigator, ** Software Developers
 """
 
 #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -31,10 +30,20 @@ from ete3 import NCBITaxa
 from DBDScanner import DBDScanner, DBD
 from Bio.Align import PairwiseAligner
 
+class PrependedOutput:
 
+    def __init__(self, original_stdout, prepended_text):
+        self.original_stdout = original_stdout
+        self.prepended_text = prepended_text
 
-#@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
-# Functions
+    def write(self, s):
+        if s.strip():  # avoid prepending to empty lines
+            self.original_stdout.write(self.prepended_text + s)
+        else:
+            self.original_stdout.write(s)
+
+    def flush(self):
+        self.original_stdout.flush()
 
 def align_dbds(sequence_one : str, dbd_one : DBD, sequence_two : str, dbd_scanner : DBDScanner, aligner : PairwiseAligner):
     """This function aligns two DBDs from two different sequences.
