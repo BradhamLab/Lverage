@@ -47,7 +47,6 @@ from OrthologSearcher import OrthologSearcher
 from MotifDB import MotifRecord
 from MotifDB import MotifDBFactory
 import lvutils
-import lvexceptions
 
 warnings.simplefilter('ignore', BiopythonDeprecationWarning)
 
@@ -89,7 +88,7 @@ class Lverage:
     def __init__(self, motif_database : str, ortholog_name_list : list, email : str, valid_dbd_list : list, 
                     identity_threshold : float = 0.7, verbose : bool = False, blast_hit_count : int = 20, 
                     motif_hit_count : int = 10, escore_threshold : float = 10**-6, blast_db_path : str = None,
-                    blastp_path : str = None, start_codons : list = ['ATG']):
+                    blastp_path : str = None, start_codons : list = ['ATG'], orf_hit_count : int = 10):
         """Constructor
         """
 
@@ -97,46 +96,57 @@ class Lverage:
 
         # Checking if motif database is available
         if not MotifDBFactory.has_db(motif_database):
-            raise lvexceptions.MotifDatabaseError()
+            raise ValueError("Motif database not found")
         
         # Checking if ortholog species are in NCBI database;
         for i, ortholog_species in enumerate(ortholog_name_list):
             if not lvutils.check_valid_species(ortholog_species):
-                raise lvexceptions.OrthologSpeciesError(f"Ortholog species ({ortholog_species}) not found in NCBI database")
+                raise ValueError(f"Ortholog species ({ortholog_species}) not found in NCBI database")
+
+        # Checking for at least one ortholog species
+        if len(ortholog_name_list) == 0:
+            raise ValueError("No ortholog species provided")
 
         # Checking if email is valid
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not validate_email(email):
-            raise lvexceptions.EmailError()
+            raise ValueError("Email address is not valid")
         
         # Checking if identity threshold is between 0 and 1
         if not 0 <= identity_threshold <= 1:
-            raise lvexceptions.IdentityThresholdError()
+            raise ValueError("Identity threshold must be between 0 and 1")
         
         # Checking if number of blast hits to search for is greater than 0
         if blast_hit_count <= 0:
-            raise lvexceptions.BlastHitCountError()
+            raise ValueError("Blast hit count must be greater than 0")
         
         # Checking if number of motif hits to search for is greater than 0
         if motif_hit_count <= 0:
-            raise lvexceptions.MotifHitCountError()
+            raise ValueError("Motif hit count must be greater than 0")
         
         # Checking if e-score threshold is greater than 0
         if escore_threshold <= 0:
-            raise lvexceptions.EScoreThresholdError()
+            raise ValueError("E-score threshold must be greater than 0")
         
         # If using local BLAST
         if blast_db_path:
             if not os.path.exists(blast_db_path + ".pot"):
-                raise lvexceptions.BlastDatabaseError()
+                raise FileNotFoundError(f"BLAST Database at {blast_db_path} doesn't exist!")
             
             # Checking if BLASTP executable is available
             if not os.path.exists(blastp_path):
-                raise lvexceptions.BlastPError()
+                raise FileNotFoundError(f"BLASTP executable does not exist in {blastp_path}")
             
         # Checking if at least one start codon is provided
         if len(start_codons) == 0:
-            raise lvexceptions.StartCodonError()
+            raise ValueError("At least one start codon must be provided")
+        
+        # Checking if valid DBD list is not empty
+        if len(valid_dbd_list) == 0:
+            raise ValueError("Valid DBD list is empty")
+        
+        # Checking if ORF hit count is greater than 0
+        if orf_hit_count <= 0:
+            raise ValueError("ORF hit count must be greater than 0")
         
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # Assigning arguments to class variables
@@ -153,6 +163,7 @@ class Lverage:
         self.blastp_path = blastp_path
         self.start_codons = start_codons
         self.valid_dbd_list = valid_dbd_list
+        self.orf_hit_count = orf_hit_count
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -223,7 +234,7 @@ class Lverage:
 
         orf_list = list(set(orf_list))
         orf_list.sort(key = lambda x: len(x), reverse = True)
-        for orf in orf_list[:10]:
+        for orf in orf_list[:self.orf_hit_count]:
 
             if self.verbose:
                 print(f"\tSearching for DNA-binding domains in ORF", flush=True)
@@ -443,7 +454,7 @@ if __name__ == "__main__":
     parser.add_argument("-or", "--orthologs", nargs="*", help="Ortholog species to search for motif in. Each species should be enclosed in quotes and separated by spaces. Default is only Homo Sapiens",
                         default=["Homo Sapiens"]) 
     parser.add_argument("-o", "--output", help="REQUIRED. Output file path; provide a path to a file or a directory where the Comma-Separated-Values (CSV) output file will be made.")
-    parser.add_argument("-vd", "--valid_dbd", help="Valid DBDs file path; provide a path to a file containing valid DNA-Binding Domains. Each line except the first should contain a valid PFAM ID. The first row should contain the header 'PFAM ID'. If the user wishes to add extra columns detailing information about the domain, ensure the first column remains the PFAM ID and the other columns are separated by commas.")
+    parser.add_argument("-vd", "--valid_dbd", help="Valid DBDs file path; provide a path to a file containing valid DNA-Binding Domains. Each line except the first should contain a valid PFAM ID. The first row should contain the header 'PFAM ID'. If the user wishes to add extra columns detailing information about the domain, ensure the first column remains the PFAM ID and the other columns are separated by tabs.")
 
     # Protein translation arguments
     parser.add_argument("-sc", "--start_codons", nargs="*", help="When translating a gene DNA sequence to Amino Acids, which start codons should be used? Provide a space separated list of codons, e.g., \"ATG\" \"TTG\" \"GTG\". Default is ATG only.",
@@ -528,8 +539,8 @@ if __name__ == "__main__":
         if len(lines) <= 1:
             raise ValueError("Valid DBDs file is empty")
 
-        if len(lines[0].split(',')) > 1:
-            valid_dbd_list = [line.split(',')[0] for line in lines[1:]]
+        if len(lines[0].split('\t')) > 1:
+            valid_dbd_list = [line.split('\t')[0] for line in lines[1:]]
         else:
             valid_dbd_list = lines[1:]
 
