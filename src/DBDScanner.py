@@ -176,7 +176,8 @@ def build_dbd_from_dict(d: dict) -> DBD:
             raise ValueError(f"Invalid dictionary, missing '{key}' key!")
 
     # Validate the 'type' is correct for processing
-    if d['type'] != 'Domain':
+    if not (d['type'] == 'Domain' or d['type'] == 'Family'):
+    # if d['type'] != 'Domain':
         raise ValueError(f"Expected 'type' to be 'Domain', got {d['type']}")
 
     # Validate the structure of the 'env' sub-dictionary
@@ -348,7 +349,7 @@ class DBDScanner:
                     if len(dbd_dict_list) > 0:
                         for dbd_dict in dbd_dict_list:
 
-                            if dbd_dict["type"] == "Domain":
+                            if dbd_dict["type"] == "Domain" or dbd_dict["type"] == "Family":
                                 dbd = build_dbd_from_dict(dbd_dict)
                                 r.append(dbd)
 
