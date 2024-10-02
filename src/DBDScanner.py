@@ -164,9 +164,8 @@ def build_dbd_from_dict(d: dict) -> DBD:
     ------
     ValueError
         1. If the dictionary is missing required fields: 'name', 'type', 'env', or 'accession'.
-        2. If the 'type' of the DBD is not 'Domain'.
-        3. If the 'env' sub-dictionary is missing 'from' or 'to' keys.
-        4. If the 'from' or 'to' fields from the 'env' sub-dictionary are not integers.
+        2. If the 'env' sub-dictionary is missing 'from' or 'to' keys.
+        3. If the 'from' or 'to' fields from the 'env' sub-dictionary are not integers.
     """
 
     # Validate the required keys exist and their types are correct
@@ -174,11 +173,6 @@ def build_dbd_from_dict(d: dict) -> DBD:
     for key in required_keys:
         if key not in d:
             raise ValueError(f"Invalid dictionary, missing '{key}' key!")
-
-    # Validate the 'type' is correct for processing
-    if not (d['type'] == 'Domain' or d['type'] == 'Family'):
-    # if d['type'] != 'Domain':
-        raise ValueError(f"Expected 'type' to be 'Domain', got {d['type']}")
 
     # Validate the structure of the 'env' sub-dictionary
     if 'from' not in d['env'] or 'to' not in d['env']:
@@ -349,12 +343,11 @@ class DBDScanner:
                     if len(dbd_dict_list) > 0:
                         for dbd_dict in dbd_dict_list:
 
-                            if dbd_dict["type"] == "Domain" or dbd_dict["type"] == "Family":
-                                dbd = build_dbd_from_dict(dbd_dict)
-                                r.append(dbd)
+                            dbd = build_dbd_from_dict(dbd_dict)
+                            r.append(dbd)
 
-                                if self.verbose:
-                                    print(f"\t\tDBD with name {dbd.get_name()} and accession {dbd.get_accession()} was found at {dbd.get_start()} with size {dbd.get_size()}.", flush=True)
+                            if self.verbose:
+                                print(f"\t\tDBD with name {dbd.get_name()} and accession {dbd.get_accession()} was found at {dbd.get_start()} with size {dbd.get_size()}.", flush=True)
 
 
         else:
