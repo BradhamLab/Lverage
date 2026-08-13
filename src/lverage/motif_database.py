@@ -25,9 +25,10 @@ Correspondence:
 
 #@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@
 # IMPORTS
+from abc import ABC, abstractmethod
 
 
-class MotifDBTemplate:
+class MotifDBTemplate(ABC):
     """
     Abstract class for MotifDB classes, containing all necessary functionalities
     This should not be instantiated!
@@ -43,10 +44,7 @@ class MotifDBTemplate:
     name = ""
     metainfo = {}
 
-    def __init__(self):
-        """Constructor"""
-        pass
-
+    @abstractmethod
     def search(self, **kwargs):
         """
         Method for searching the database for a motif.
@@ -63,7 +61,8 @@ class MotifDBTemplate:
         """
 
         raise NotImplementedError
-    
+
+    @abstractmethod
     def check_species_validity(self, species_tax_id : int):
         """
         Method to check if a species appears in the database.
