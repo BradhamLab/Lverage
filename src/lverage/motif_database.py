@@ -80,7 +80,7 @@ class MotifDBTemplate(ABC):
 
         raise NotImplementedError
     
-class MotifDBRecordTemplate:
+class MotifDBRecordTemplate(ABC):
     """
     Abstract class for MotifDB records, containing all necessary functionalities. 
     All MotifDB classes should have a record class that inherits from this class.
@@ -89,10 +89,6 @@ class MotifDBRecordTemplate:
 
     headers = [] # List of headers in the record; should be overridden by subclasses
 
-    def __init__(self):
-        """Constructor"""
-        pass
-    
     @staticmethod
     def get_headers(self):
         """
@@ -105,7 +101,8 @@ class MotifDBRecordTemplate:
         """
 
         return self.headers
-    
+
+    @abstractmethod
     def get_values(self):
         """
         Method to get the values of the record.
