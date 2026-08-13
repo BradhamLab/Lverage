@@ -30,9 +30,9 @@ import os
 import shutil
 from enum import Enum
 
-from MotifDBTemplate import MotifDBTemplate
-from OrfSearcherTemplate import OrfSearcherTemplate
-from DomainScannerTemplate import DomainScannerTemplate
+from .motif_database import MotifDBTemplate
+from .orf_searcher import OrfSearcherTemplate
+from .domain_scanner import DomainScannerTemplate
 
 class LverageCode(Enum):
     """
