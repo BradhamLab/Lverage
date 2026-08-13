@@ -74,15 +74,20 @@ class MotifDBTemplate(ABC):
     metainfo = {}
 
     @abstractmethod
-    def search(self, **kwargs):
+    def search(self, request : MotifSearchRequest) -> list["MotifDBRecordTemplate"]:
         """
         Method for searching the database for a motif.
         This method should be overridden by a concrete class
 
+        Parameters
+        ----------
+        request : MotifSearchRequest
+            Query and ortholog evidence used for motif searching
+
         Returns
         -------
-        MotifDBRecordTemplate
-            A MotifDBRecordTemplate object representing the record in the database
+        list
+            List of MotifDBRecordTemplate objects representing records in the database
         
         Raises
         ------
