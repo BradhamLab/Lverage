@@ -1,7 +1,9 @@
 API reference
 =============
 
-This reference documents the public interfaces in the version 2 package.
+This reference documents the current version 2 core interfaces. Package-level
+exports and a command-line interface are intentionally deferred, so import
+classes from the modules shown below.
 
 .. toctree::
    :maxdepth: 1
