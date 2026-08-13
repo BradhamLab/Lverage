@@ -26,6 +26,35 @@ Correspondence:
 #@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@
 # IMPORTS
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+from .domain_scanner import DomainRecord
+
+
+@dataclass
+class MotifSearchRequest:
+    """
+    Record containing the evidence used to search for a motif.
+
+    Attributes
+    ----------
+    query_sequence : str
+        Protein sequence of the transcription factor being investigated
+    query_domain : DomainRecord
+        DNA-binding domain from the query protein sequence
+    ortholog_sequence : str
+        Protein sequence of the supporting ortholog
+    ortholog_domain : DomainRecord
+        Matching DNA-binding domain from the ortholog protein sequence
+    ortholog_species_tax_id : int
+        NCBI taxonomic identifier of the ortholog species
+    """
+
+    query_sequence : str
+    query_domain : DomainRecord
+    ortholog_sequence : str
+    ortholog_domain : DomainRecord
+    ortholog_species_tax_id : int
 
 
 class MotifDBTemplate(ABC):
