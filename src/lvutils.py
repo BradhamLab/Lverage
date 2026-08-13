@@ -118,7 +118,7 @@ def calculate_alignment_similarity(align1, align2):
     for i in range(len(align1)):
         
         # If the characters match across alignment and are not a gap, increase similarity counter
-        if align1[i] == align1[i] and align1[i] != '-':
+        if align1[i] == align2[i] and align1[i] != '-':
             similarity += 1
 
     # returning the similarity; ratio of similar characters over alignment length
