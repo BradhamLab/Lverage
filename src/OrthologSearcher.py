@@ -368,7 +368,7 @@ class OrthologSearcher:
         except subprocess.CalledProcessError as e:
             print(f"Unable to run blastp: {e}")
             output_stream.close()
-            return None
+            raise e
 
         finally:
             # Close the streams
