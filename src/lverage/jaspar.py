@@ -30,8 +30,68 @@ Correspondence:
 
 #@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@
 # Imports
-from .motif_database import MotifDBTemplate, MotifSearchRequest
+from dataclasses import dataclass
+
+from .motif_database import MotifDBRecordTemplate, MotifDBTemplate, MotifSearchRequest
 import requests
+
+
+@dataclass
+class JasparRecord(MotifDBRecordTemplate):
+    """
+    Motif record returned by the JASPAR adapter.
+
+    Parameters
+    ----------
+    matrix_id : str
+        JASPAR matrix identifier
+    motif_name : str
+        Name of the motif
+    pfm : dict
+        Position frequency matrix supplied by JASPAR
+    motif_url : str
+        URL for the motif page or logo
+    motif_class : str
+        JASPAR motif class
+    inference_evalue : float
+        E-value reported by sequence inference
+    """
+
+    matrix_id : str
+    motif_name : str
+    pfm : dict
+    motif_url : str
+    motif_class : str
+    inference_evalue : float
+
+    headers = (
+        "Matrix ID",
+        "Motif Name",
+        "PFM",
+        "Motif URL",
+        "Motif Class",
+        "Inference E-value",
+    )
+
+    def get_values(self) -> list:
+        """
+        Return values in the JASPAR record schema.
+
+        Returns
+        -------
+        list
+            Serialized JASPAR values
+        """
+
+        return [
+            self.matrix_id,
+            self.motif_name,
+            self.pfm,
+            self.motif_url,
+            self.motif_class,
+            self.inference_evalue,
+        ]
+
 
 class Jaspar2024MotifDB(MotifDBTemplate):
     """
