@@ -22,6 +22,31 @@ Correspondence:
     \* Principle Investigator, ** Software Developers
 """
 
+from dataclasses import dataclass
+
+
+@dataclass
+class DomainRecord:
+    """
+    Record describing a domain found in a protein sequence.
+
+    Attributes
+    ----------
+    name : str
+        Name of the domain
+    accession : str
+        Accession identifier of the domain
+    start : int
+        Zero-based, inclusive start position of the domain
+    end : int
+        Zero-based, exclusive end position of the domain
+    """
+
+    name : str
+    accession : str
+    start : int
+    end : int
+
 class DomainScannerTemplate:
 
     def __init__(self):
