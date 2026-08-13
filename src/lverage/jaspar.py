@@ -99,6 +99,15 @@ class Jaspar2024MotifDB(MotifDBTemplate):
         Search JASPAR for motif records.
 
         This method is not implemented yet.
+
+        Parameters
+        ----------
+        request : MotifSearchRequest
+            Query and ortholog evidence used for motif inference
+
+        Raises
+        ------
+        NotImplementedError
         """
 
         raise NotImplementedError
