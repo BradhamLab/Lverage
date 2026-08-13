@@ -11,3 +11,4 @@ This reference documents the public interfaces in the version 2 package.
    motif_database
    orf_searcher
    pipeline
+   records
