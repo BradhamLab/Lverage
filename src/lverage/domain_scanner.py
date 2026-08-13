@@ -31,6 +31,17 @@ class DomainRecord:
     """
     Record describing a domain found in a protein sequence.
 
+    Parameters
+    ----------
+    name : str
+        Name of the domain
+    accession : str
+        Accession identifier of the domain
+    start : int
+        Zero-based, inclusive start position of the domain
+    end : int
+        Zero-based, exclusive end position of the domain
+
     Attributes
     ----------
     name : str
@@ -49,6 +60,9 @@ class DomainRecord:
     end : int
 
 class DomainScannerTemplate(ABC):
+    """
+    Abstract class for scanning protein sequences for domains.
+    """
 
     @abstractmethod
     def get_domains(self, sequence : str) -> list[DomainRecord]:
