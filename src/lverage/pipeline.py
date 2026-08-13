@@ -2,6 +2,9 @@
 
 from enum import Enum
 
+from Bio.Align import PairwiseAligner
+
+from .domain_scanner import DomainRecord
 from .domain_scanner import DomainScannerTemplate
 from .motif_database import MotifDBTemplate
 from .orf_searcher import OrfSearcherTemplate
@@ -138,6 +141,72 @@ class Lverage:
             if domains:
                 return orf, domains
         return None, []
+
+    @staticmethod
+    def _calculate_domain_identity(query_sequence : str,
+                                   query_domain : DomainRecord,
+                                   ortholog_sequence : str,
+                                   ortholog_domain : DomainRecord) -> float:
+        """
+        Calculate exact identity across a global domain alignment.
+
+        Parameters
+        ----------
+        query_sequence : str
+            Complete query protein sequence
+        query_domain : DomainRecord
+            Zero-based, half-open query domain bounds
+        ortholog_sequence : str
+            Complete ortholog protein sequence
+        ortholog_domain : DomainRecord
+            Zero-based, half-open ortholog domain bounds
+
+        Returns
+        -------
+        float
+            Exact-match ratio over every alignment column, including gaps
+
+        Raises
+        ------
+        ValueError
+            A domain has invalid bounds or produces an empty slice
+        """
+
+        query_slice = Lverage._get_domain_slice(query_sequence, query_domain)
+        ortholog_slice = Lverage._get_domain_slice(ortholog_sequence, ortholog_domain)
+
+        aligner = PairwiseAligner()
+        aligner.mode = "global"
+        aligner.match_score = 2
+        aligner.mismatch_score = -1
+        aligner.open_gap_score = -2
+        aligner.extend_gap_score = -0.5
+        alignment = aligner.align(query_slice, ortholog_slice)[0]
+
+        exact_matches = 0
+        for query_index, ortholog_index in zip(alignment.indices[0], alignment.indices[1]):
+            if query_index != -1 and ortholog_index != -1:
+                if query_slice[query_index] == ortholog_slice[ortholog_index]:
+                    exact_matches += 1
+        return exact_matches / alignment.length
+
+    @staticmethod
+    def _get_domain_slice(sequence, domain):
+        try:
+            start = domain.start
+            end = domain.end
+        except AttributeError as error:
+            raise ValueError("domain records must provide start and end bounds") from error
+
+        if not isinstance(sequence, str):
+            raise ValueError("domain sequences must be strings")
+        if isinstance(start, bool) or isinstance(end, bool):
+            raise ValueError("domain bounds must be integers")
+        if not isinstance(start, int) or not isinstance(end, int):
+            raise ValueError("domain bounds must be integers")
+        if start < 0 or end > len(sequence) or start >= end:
+            raise ValueError("domain bounds must define a nonempty slice within the sequence")
+        return sequence[start:end]
 
     def run(self, tf_sequence : str | list[str]):
         """
