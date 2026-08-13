@@ -4,4 +4,5 @@ __pycache__/
 *.egg-info/
 .ipynb_checkpoints/
 docs/_build/
+AGENTS.md
 PIPELINE_OVERVIEW.md
