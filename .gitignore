@@ -1,5 +1,6 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+*.egg-info/
 .ipynb_checkpoints/
 PIPELINE_OVERVIEW.md
