@@ -21,3 +21,107 @@ Correspondence:
 
     \* Principle Investigator, ** Software Developers
 """
+
+from dataclasses import dataclass
+
+from .domain_scanner import DomainRecord
+from .motif_database import MotifDBRecordTemplate
+from .ortholog_searcher import OrthologRecord
+
+
+@dataclass
+class LverageRecord:
+    """
+    Record containing the evidence supporting one inferred motif.
+
+    Parameters
+    ----------
+    query_domain : DomainRecord
+        Accepted domain from the query protein
+    ortholog : OrthologRecord
+        Ortholog supporting the motif inference
+    ortholog_domain : DomainRecord
+        Domain from the ortholog matched to the query domain
+    domain_identity : float
+        Exact identity ratio between the aligned domains
+    motif_database_name : str
+        Name of the motif database that returned the motif
+    motif_record : MotifDBRecordTemplate
+        Database-specific motif record
+
+    Notes
+    -----
+    Tabular output must be grouped by motif database when databases provide
+    different motif-record schemas.
+    """
+
+    query_domain : DomainRecord
+    ortholog : OrthologRecord
+    ortholog_domain : DomainRecord
+    domain_identity : float
+    motif_database_name : str
+    motif_record : MotifDBRecordTemplate
+
+    headers = (
+        "Query Domain Name",
+        "Query Domain Accession",
+        "Query Domain Start",
+        "Query Domain End",
+        "Ortholog Accession",
+        "Ortholog Description",
+        "Ortholog Species Name",
+        "Ortholog Species Tax ID",
+        "Ortholog Sequence",
+        "Ortholog E-value",
+        "Ortholog Identity",
+        "Ortholog Query Coverage",
+        "Ortholog Domain Name",
+        "Ortholog Domain Accession",
+        "Ortholog Domain Start",
+        "Ortholog Domain End",
+        "Domain Identity",
+        "Motif Database",
+    )
+
+    def get_headers(self) -> list[str]:
+        """
+        Return flattened headers for this record's motif database.
+
+        Returns
+        -------
+        list
+            Core evidence headers followed by database-specific headers
+        """
+
+        return list(self.headers) + self.motif_record.get_headers()
+
+    def get_values(self) -> list:
+        """
+        Return flattened values for this motif result.
+
+        Returns
+        -------
+        list
+            Core evidence values followed by database-specific values
+        """
+
+        return [
+            self.query_domain.name,
+            self.query_domain.accession,
+            self.query_domain.start,
+            self.query_domain.end,
+            self.ortholog.accession,
+            self.ortholog.description,
+            self.ortholog.species_name,
+            self.ortholog.species_tax_id,
+            self.ortholog.sequence,
+            self.ortholog.evalue,
+            self.ortholog.identity,
+            self.ortholog.query_coverage,
+            self.ortholog_domain.name,
+            self.ortholog_domain.accession,
+            self.ortholog_domain.start,
+            self.ortholog_domain.end,
+            self.domain_identity,
+            self.motif_database_name,
+        ] + self.motif_record.get_values()

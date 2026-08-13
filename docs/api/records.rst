@@ -1,9 +1,10 @@
 Records
 ========
 
-The ``lverage.records`` module does not define any public records yet.
+.. autoclass:: lverage.records.LverageRecord
+   :members:
 
-The current version 2 interfaces define
+The other version 2 interfaces define
 :class:`lverage.domain_scanner.DomainRecord` and
 :class:`lverage.motif_database.MotifSearchRequest` in the modules where they
 are used.
