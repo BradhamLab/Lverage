@@ -9,6 +9,11 @@ description = "Infer transcription factor binding motifs using orthologous speci
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
+dependencies = [
+    "ete3>=3.1.3",
+    "py3-validate-email>=1.0.5.post2",
+    "requests>=2.32",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
