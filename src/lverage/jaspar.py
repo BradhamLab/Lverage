@@ -30,7 +30,7 @@ Correspondence:
 
 #@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@
 # Imports
-from MotifDBTemplate import MotifDBTemplate
+from .motif_database import MotifDBTemplate
 import requests
 
 class Jaspar2024MotifDB(MotifDBTemplate):
