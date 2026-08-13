@@ -1,0 +1,12 @@
+name: lverage-v2
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+  - pip>=24
+  - setuptools>=68
+  - numpy>=1.24
+  - pip:
+      - -e .
