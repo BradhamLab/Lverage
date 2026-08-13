@@ -118,8 +118,8 @@ class Lverage:
             motif_database_list : list,
             orf_searcher : OrfSearcherTemplate,
             domain_scanner : DomainScannerTemplate,
-            ortholog_species_list : list = [9606, 10090], 
-            valid_pfam_list : list = [], 
+            ortholog_species_list : list[int] | None = None,
+            valid_pfam_list : list[str] | None = None,
             blastp_escore_thresh : float = 10**-6, 
             blastp_top_n : int = 20, 
             blastp_database_path : str = "",
@@ -131,12 +131,17 @@ class Lverage:
             ):
         """Constructor"""
 
+        if ortholog_species_list is None:
+            ortholog_species_list = [9606, 10090]
+        if valid_pfam_list is None:
+            valid_pfam_list = []
+
         # Assigning class attributes
-        self.motif_database_list = motif_database_list
+        self.motif_database_list = motif_database_list.copy() if isinstance(motif_database_list, list) else motif_database_list
         self.orf_searcher = orf_searcher
         self.domain_scanner = domain_scanner
-        self.ortholog_species_list = ortholog_species_list
-        self.valid_pfam_list = valid_pfam_list
+        self.ortholog_species_list = ortholog_species_list.copy() if isinstance(ortholog_species_list, list) else ortholog_species_list
+        self.valid_pfam_list = valid_pfam_list.copy() if isinstance(valid_pfam_list, list) else valid_pfam_list
         self.blastp_escore_thresh = blastp_escore_thresh
         self.blastp_top_n = blastp_top_n
         self.blastp_database_path = blastp_database_path

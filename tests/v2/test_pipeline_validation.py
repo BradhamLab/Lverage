@@ -50,11 +50,15 @@ class StubDomainScanner(DomainScannerTemplate):
 
 class LverageValidationTests(unittest.TestCase):
 
-    def build_lverage(self, valid_pfam_list):
+    def build_lverage(self, valid_pfam_list=None, motif_database_list=None, ortholog_species_list=None):
+        if motif_database_list is None:
+            motif_database_list = [StubMotifDB()]
+
         return Lverage(
-            motif_database_list=[StubMotifDB()],
+            motif_database_list=motif_database_list,
             orf_searcher=StubOrfSearcher(),
             domain_scanner=StubDomainScanner(),
+            ortholog_species_list=ortholog_species_list,
             valid_pfam_list=valid_pfam_list,
             email="user@example.com"
         )
@@ -72,6 +76,33 @@ class LverageValidationTests(unittest.TestCase):
     def test_valid_pfam_list_rejects_non_string_values(self):
         with self.assertRaises(TypeError):
             self.build_lverage([46])
+
+    def test_default_lists_are_unique_to_each_instance(self):
+        first_lverage = self.build_lverage()
+        second_lverage = self.build_lverage()
+
+        self.assertIsNot(first_lverage.ortholog_species_list, second_lverage.ortholog_species_list)
+        self.assertIsNot(first_lverage.valid_pfam_list, second_lverage.valid_pfam_list)
+
+    def test_constructor_copies_configuration_lists(self):
+        motif_database = StubMotifDB()
+        motif_database_list = [motif_database]
+        ortholog_species_list = [9606]
+        valid_pfam_list = ["PF00046"]
+
+        lverage = self.build_lverage(
+            valid_pfam_list=valid_pfam_list,
+            motif_database_list=motif_database_list,
+            ortholog_species_list=ortholog_species_list
+        )
+
+        motif_database_list.clear()
+        ortholog_species_list.clear()
+        valid_pfam_list.clear()
+
+        self.assertEqual(lverage.motif_database_list, [motif_database])
+        self.assertEqual(lverage.ortholog_species_list, [9606])
+        self.assertEqual(lverage.valid_pfam_list, ["PF00046"])
 
 
 if __name__ == "__main__":
