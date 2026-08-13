@@ -172,6 +172,55 @@ class Jaspar2024MotifDB(MotifDBTemplate):
 
         raise NotImplementedError
 
+    @staticmethod
+    def _window_ortholog_sequence(sequence, ortholog_domain):
+        """
+        Limit an ortholog sequence while retaining its complete domain.
+
+        Parameters
+        ----------
+        sequence : str
+            Complete ortholog protein sequence
+        ortholog_domain : DomainRecord
+            Domain with zero-based, half-open bounds
+
+        Returns
+        -------
+        str
+            Sequence window of at most 2,000 residues
+
+        Raises
+        ------
+        ValueError
+            The sequence or domain bounds are invalid
+        """
+
+        try:
+            start = ortholog_domain.start
+            end = ortholog_domain.end
+        except AttributeError as error:
+            raise ValueError("ortholog domains must provide start and end bounds") from error
+
+        if not isinstance(sequence, str) or not sequence:
+            raise ValueError("ortholog sequences must be nonempty strings")
+        if isinstance(start, bool) or isinstance(end, bool):
+            raise ValueError("ortholog domain bounds must be integers")
+        if not isinstance(start, int) or not isinstance(end, int):
+            raise ValueError("ortholog domain bounds must be integers")
+        if start < 0 or end > len(sequence) or start >= end:
+            raise ValueError("ortholog domain bounds must define a nonempty slice within the sequence")
+
+        window_length = 2000
+        if end - start > window_length:
+            raise ValueError("ortholog domains must fit inside the JASPAR sequence window")
+        if len(sequence) <= window_length:
+            return sequence
+
+        domain_center = (start + end) // 2
+        window_start = domain_center - window_length // 2
+        window_start = max(0, min(window_start, len(sequence) - window_length))
+        return sequence[window_start:window_start + window_length]
+
     def check_species_validity(self, species_tax_id : int) -> bool:
         """
         Check whether a species appears in JASPAR.
