@@ -9,4 +9,4 @@ dependencies:
   - setuptools>=68
   - numpy>=1.24
   - pip:
-      - -e .
+      - -e .[docs]
