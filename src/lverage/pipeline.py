@@ -65,7 +65,37 @@ class LverageCode(Enum):
 
 class Lverage:
     """
-    
+    Infer transcription factor binding motifs using orthologous species.
+
+    Parameters
+    ----------
+    motif_database_list : list
+        MotifDB objects representing databases to search in with orthologous species. Each MotifDB must be a subclass of MotifDBTemplate
+    orf_searcher : subclass of OrfSearcherTemplate
+        Open-Reading-Frame searching object. Must be a subclass of OrfSearcherTemplate
+    domain_scanner : subclass of DomainScannerTemplate
+        Domain scanning object. Must be a subclass of DomainScannerTemplate
+    ortholog_species_list : list
+        Taxonomic IDs of orthologous species to use for searching in Motif Database
+    valid_pfam_list : list
+        List of valid PFAM domains (str) that are DNA-binding domains. By default or if none is passed, all PFAMs are considered valid.
+    blastp_escore_thresh : float
+        The minimum e-score threshold for blastp
+    blastp_top_n : int
+        The maximum number of top hits to consider for each query
+    blastp_database_path : str
+        Path to the blastp database
+    blastp_path : str
+        Path to the blastp executable
+    dbd_identity_thresh : float
+        The minimum identity threshold for DBD to ortholog DBD to be considered for motif searching
+    email : str
+        Email to use for any services requiring email to use, e.g., EMBL tools.
+    verbosity : int
+        How verbose should Lverage be? 0 is silent, 1 is minimal output (Status of current sequence), 2 is full output (every step)
+    user_interrupt : bool
+        Interrupt the program at specific stages to ask for user input. This automatically sets verbosity to 2 if True.
+
     Attributes
     ----------
     motif_database_list : list
@@ -95,13 +125,6 @@ class Lverage:
     user_interrupt : bool
         Interrupt the program at specific stages to ask for user input. This automatically sets verbosity to 2 if True.
             1. When checking is species are available in the Motif Databases, ask user if they want to continue. Verbosity 2 will print which species are not available.
-    
-    Methods
-    ----------
-    __init__
-        Constructor for Lverage class
-    validate_arguments
-        Validates class attributes that are passed to the constructor
     """
 
     lverage_code_info = {
@@ -129,8 +152,6 @@ class Lverage:
             verbosity : int = 0,
             user_interrupt : bool = False
             ):
-        """Constructor"""
-
         if ortholog_species_list is None:
             ortholog_species_list = [9606, 10090]
         if valid_pfam_list is None:
@@ -367,6 +388,11 @@ class Lverage:
         ----------
         tf_sequence : str | list[str]
             Sequence of a transcription factor to search for DNA-Binding Motifs with. If there are multiple sequences for this one, specific transcription factor (such as scaffolds), pass a list of sequences.
+
+        Returns
+        -------
+        list
+            Motif records found for the transcription factor
         """
 
         motif_records = []

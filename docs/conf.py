@@ -39,6 +39,9 @@ numpydoc_validation_checks = {
     "SS01",
     "YD01",
 }
+numpydoc_validation_exclude = {
+    r"lverage\.pipeline\.LverageCode$",
+}
 
 nitpicky = True
 
