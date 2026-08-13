@@ -102,7 +102,9 @@ class Jaspar2024MotifDB(MotifDBTemplate):
     n_hits : int
         Number of motif hits to return
     escore_threshold : float
-        Minimum e-score threshold for motif hits
+        Maximum e-score threshold for motif hits
+    request_timeout_seconds : float
+        Maximum number of seconds allowed for each API request
 
     Attributes
     ----------
@@ -112,12 +114,12 @@ class Jaspar2024MotifDB(MotifDBTemplate):
         Any extra information regarding this motif database
     jaspar_rest_url: str
         URL for the JASPAR REST API
-    jaspar_logo_url: str
-        URL for retrieving motif logos
     n_hits: int
         Number of motif hits to return
     escore_threshold: float
         Minimum e-score threshold for motif hits
+    request_timeout_seconds: float
+        Maximum number of seconds allowed for each API request
     """
 
     name = "JASPAR2024"
@@ -132,12 +134,7 @@ class Jaspar2024MotifDB(MotifDBTemplate):
     jaspar_rest_url = "https://jaspar.elixir.no/api/v1"
 
     # URL for retrieving species information
-    jaspar_rest_species_url = "https://jaspar.elixir.no/api/v1/species"
-
-    # URL for retrieving motif logos
-    jaspar_logo_url = "https://jaspar2020.genereg.net/static/logos/all/"
-
-
+    jaspar_rest_species_url = "https://jaspar.elixir.no/api/v1/species/"
 
     # Parameters for getting all species
     species_params = {"page":1,
@@ -147,30 +144,135 @@ class Jaspar2024MotifDB(MotifDBTemplate):
 
     def __init__(self, 
                  n_hits : int = 10, 
-                 escore_threshold : float = 10**-6):
-        """Constructor"""
+                 escore_threshold : float = 10**-6,
+                 request_timeout_seconds : float = 30):
+        """
+        Initialize a JASPAR motif database adapter.
+
+        Parameters
+        ----------
+        n_hits : int, optional
+            Maximum number of accepted motif hits
+        escore_threshold : float, optional
+            Maximum inference E-value
+        request_timeout_seconds : float, optional
+            Maximum number of seconds allowed for each API request
+        """
+
+        if isinstance(n_hits, bool) or not isinstance(n_hits, int) or n_hits <= 0:
+            raise ValueError("n_hits must be a positive integer")
+        if not isinstance(escore_threshold, (int, float)) or escore_threshold <= 0:
+            raise ValueError("escore_threshold must be positive")
+        if not isinstance(request_timeout_seconds, (int, float)) or request_timeout_seconds <= 0:
+            raise ValueError("request_timeout_seconds must be positive")
         
         self.n_hits = n_hits
         self.escore_threshold = escore_threshold
+        self.request_timeout_seconds = request_timeout_seconds
         self.jaspar_species = None
 
-    def search(self, request : MotifSearchRequest):
+    def search(self, request : MotifSearchRequest) -> list[JasparRecord]:
         """
         Search JASPAR for motif records.
-
-        This method is not implemented yet.
 
         Parameters
         ----------
         request : MotifSearchRequest
             Query and ortholog evidence used for motif inference
 
-        Raises
-        ------
-        NotImplementedError
+        Returns
+        -------
+        list
+            Accepted JASPAR motif records ordered by inference E-value
         """
 
-        raise NotImplementedError
+        if not isinstance(request, MotifSearchRequest):
+            raise TypeError("request must be a MotifSearchRequest")
+        if isinstance(request.ortholog_species_tax_id, bool):
+            raise ValueError("ortholog_species_tax_id must be a positive integer")
+        if not isinstance(request.ortholog_species_tax_id, int) or request.ortholog_species_tax_id <= 0:
+            raise ValueError("ortholog_species_tax_id must be a positive integer")
+
+        sequence = self._window_ortholog_sequence(
+            request.ortholog_sequence,
+            request.ortholog_domain,
+        )
+        response = requests.get(
+            f"{self.jaspar_rest_url}/infer/{sequence}/",
+            timeout=self.request_timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        results = self.__get_results(payload, "JASPAR inference")
+
+        try:
+            results = sorted(results, key=lambda result: float(result["evalue"]))
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError("JASPAR inference returned malformed results") from error
+
+        records = []
+        for result in results:
+            try:
+                inference_evalue = float(result["evalue"])
+                motif_url = result["url"]
+                if not isinstance(motif_url, str) or not motif_url:
+                    raise ValueError
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError("JASPAR inference returned a malformed hit") from error
+            if inference_evalue > self.escore_threshold:
+                continue
+
+            motif_response = requests.get(
+                motif_url,
+                timeout=self.request_timeout_seconds,
+            )
+            motif_response.raise_for_status()
+            motif = motif_response.json()
+            if not isinstance(motif, dict):
+                raise ValueError("JASPAR returned malformed motif details")
+
+            try:
+                motif_species = motif["species"]
+                species_ids = {int(species["tax_id"]) for species in motif_species}
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError("JASPAR motif details contain malformed species") from error
+            if request.ortholog_species_tax_id not in species_ids:
+                continue
+
+            records.append(self.__create_record(motif, inference_evalue))
+            if len(records) == self.n_hits:
+                break
+        return records
+
+    def __create_record(self, motif, inference_evalue):
+        try:
+            matrix_id = motif["matrix_id"]
+            motif_name = motif["name"]
+            pfm = motif["pfm"]
+            motif_class = motif["class"]
+            if isinstance(motif_class, list):
+                motif_class = motif_class[0]
+            if not all(isinstance(value, str) and value for value in [matrix_id, motif_name, motif_class]):
+                raise ValueError
+            if not isinstance(pfm, dict):
+                raise ValueError
+        except (KeyError, IndexError, TypeError, ValueError) as error:
+            raise ValueError("JASPAR returned malformed motif details") from error
+
+        return JasparRecord(
+            matrix_id=matrix_id,
+            motif_name=motif_name,
+            pfm=pfm,
+            motif_url=f"https://jaspar.elixir.no/matrix/{matrix_id}/",
+            motif_class=motif_class,
+            inference_evalue=inference_evalue,
+        )
+
+    @staticmethod
+    def __get_results(payload, service_name):
+        if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+            raise ValueError(f"{service_name} returned a malformed response")
+        return payload["results"]
 
     @staticmethod
     def _window_ortholog_sequence(sequence, ortholog_domain):
@@ -237,10 +339,27 @@ class Jaspar2024MotifDB(MotifDBTemplate):
         """
 
         if self.jaspar_species is None:
-            species_result = requests.get(self.jaspar_rest_species_url, params=self.species_params).json()['results']
-            self.jaspar_species = [species["tax_id"] for species in species_result]
+            species_ids = set()
+            species_url = self.jaspar_rest_species_url
+            species_params = self.species_params.copy()
+            while species_url is not None:
+                response = requests.get(
+                    species_url,
+                    params=species_params,
+                    timeout=self.request_timeout_seconds,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                results = self.__get_results(payload, "JASPAR species")
+                try:
+                    species_ids.update(int(species["tax_id"]) for species in results)
+                except (KeyError, TypeError, ValueError) as error:
+                    raise ValueError("JASPAR species returned malformed results") from error
+                next_url = payload.get("next")
+                if next_url is not None and (not isinstance(next_url, str) or not next_url):
+                    raise ValueError("JASPAR species returned malformed pagination")
+                species_url = next_url
+                species_params = None
+            self.jaspar_species = species_ids
 
         return species_tax_id in self.jaspar_species
-
-if __name__ == "__main__":
-    print(Jaspar2024MotifDB.jaspar_species)
