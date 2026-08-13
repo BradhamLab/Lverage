@@ -83,8 +83,6 @@ class Jaspar2024MotifDB(MotifDBTemplate):
                       "page_size":1000,
                       "release":"2024"
                       }
-    jaspar_species = [species["tax_id"] for species in requests.get(jaspar_rest_species_url, params=species_params).json()['results']]
-
 
     def __init__(self, 
                  n_hits : int = 10, 
@@ -93,11 +91,16 @@ class Jaspar2024MotifDB(MotifDBTemplate):
         
         self.n_hits = n_hits
         self.escore_threshold = escore_threshold
+        self.jaspar_species = None
 
     def search(self):
         pass
 
     def check_species_validity(self, species_tax_id : int) -> bool:
+        if self.jaspar_species is None:
+            species_result = requests.get(self.jaspar_rest_species_url, params=self.species_params).json()['results']
+            self.jaspar_species = [species["tax_id"] for species in species_result]
+
         return species_tax_id in self.jaspar_species
 
 if __name__ == "__main__":
