@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lverage"
+version = "0.2.0.dev0"
+description = "Infer transcription factor binding motifs using orthologous species"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["lverage*"]
