@@ -1,5 +1,6 @@
 """Interfaces and records for ortholog searching."""
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 
@@ -36,3 +37,29 @@ class OrthologRecord:
     evalue : float
     identity : float
     query_coverage : float
+
+
+class OrthologSearcherTemplate(ABC):
+    """Abstract class for searching protein sequences for orthologs."""
+
+    @abstractmethod
+    def get_orthologs(self, sequence : str) -> list[OrthologRecord]:
+        """
+        Search a protein sequence for orthologs.
+
+        Parameters
+        ----------
+        sequence : str
+            Protein sequence used as the BLAST query
+
+        Returns
+        -------
+        list
+            Ortholog records found for the query
+
+        Raises
+        ------
+        NotImplementedError
+        """
+
+        raise NotImplementedError
