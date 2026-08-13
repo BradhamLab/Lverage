@@ -15,6 +15,13 @@ dependencies = [
     "requests>=2.32",
 ]
 
+[project.optional-dependencies]
+docs = [
+    "numpydoc>=1.10",
+    "pydata-sphinx-theme>=0.16",
+    "sphinx>=9.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["lverage*"]
