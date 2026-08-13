@@ -37,6 +37,13 @@ class Jaspar2024MotifDB(MotifDBTemplate):
     """
     Class for the JASPAR2024 Motif Database, which can be found at https://jaspar.elixir.no/
 
+    Parameters
+    ----------
+    n_hits : int
+        Number of motif hits to return
+    escore_threshold : float
+        Minimum e-score threshold for motif hits
+
     Attributes
     ----------
     name: str
@@ -51,12 +58,6 @@ class Jaspar2024MotifDB(MotifDBTemplate):
         Number of motif hits to return
     escore_threshold: float
         Minimum e-score threshold for motif hits
-    
-    Returns
-    -------
-
-    Raises
-    ------
     """
 
     name = "JASPAR2024"
@@ -94,9 +95,29 @@ class Jaspar2024MotifDB(MotifDBTemplate):
         self.jaspar_species = None
 
     def search(self):
+        """
+        Search JASPAR for motif records.
+
+        This method is not implemented yet.
+        """
+
         pass
 
     def check_species_validity(self, species_tax_id : int) -> bool:
+        """
+        Check whether a species appears in JASPAR.
+
+        Parameters
+        ----------
+        species_tax_id : int
+            Taxonomic identifier of the species
+
+        Returns
+        -------
+        bool
+            If the species appears in the database
+        """
+
         if self.jaspar_species is None:
             species_result = requests.get(self.jaspar_rest_species_url, params=self.species_params).json()['results']
             self.jaspar_species = [species["tax_id"] for species in species_result]
