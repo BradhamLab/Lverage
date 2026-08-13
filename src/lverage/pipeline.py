@@ -1,14 +1,19 @@
 """Core orchestration for motif inference."""
 
 from enum import Enum
+import logging
 
 from Bio.Align import PairwiseAligner
 
 from .domain_scanner import DomainRecord
 from .domain_scanner import DomainScannerTemplate
-from .motif_database import MotifDBTemplate
+from .motif_database import MotifDBTemplate, MotifSearchRequest
 from .orf_searcher import OrfSearcherTemplate
 from .ortholog_searcher import OrthologSearcherTemplate
+from .records import LverageRecord
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class LverageCode(Enum):
@@ -120,13 +125,18 @@ class Lverage:
             raise ValueError("dbd_identity_thresh must be between zero and one")
 
     def _select_query_orf(self, tf_sequences):
+        return self._select_orf_from_candidates(self._get_sorted_orfs(tf_sequences))
+
+    def _get_sorted_orfs(self, tf_sequences):
         orf_list = []
         for sequence in tf_sequences:
             orf_list.extend(self.orf_searcher.get_orfs(sequence))
 
         orf_list = list(dict.fromkeys(orf_list))
         orf_list.sort(key=len, reverse=True)
+        return orf_list
 
+    def _select_orf_from_candidates(self, orf_list):
         for orf in orf_list:
             domains = self.domain_scanner.get_domains(orf)
             if self.valid_pfam_list:
@@ -208,7 +218,7 @@ class Lverage:
             raise ValueError("domain bounds must define a nonempty slice within the sequence")
         return sequence[start:end]
 
-    def run(self, tf_sequence : str | list[str]):
+    def run(self, tf_sequence : str | list[str]) -> list[LverageRecord]:
         """
         Run motif inference for one transcription factor.
 
@@ -217,10 +227,99 @@ class Lverage:
         tf_sequence : str or list of str
             One sequence or multiple sequence fragments for one factor
 
-        Raises
-        ------
-        NotImplementedError
-            Pipeline orchestration is added in a later core commit
+        Returns
+        -------
+        list
+            Motif results with flattened query, ortholog, domain, and database evidence
         """
 
-        raise NotImplementedError
+        self.lverage_code = LverageCode.NOT_SET
+        tf_sequences = self._validate_run_input(tf_sequence)
+
+        orf_list = self._get_sorted_orfs(tf_sequences)
+        if not orf_list:
+            self.lverage_code = LverageCode.NO_ORF
+            return []
+
+        query_orf, query_domains = self._select_orf_from_candidates(orf_list)
+        if query_orf is None:
+            self.lverage_code = LverageCode.NO_VALID_DOMAIN
+            return []
+
+        orthologs = self.ortholog_searcher.get_orthologs(query_orf)
+        if not orthologs:
+            self.lverage_code = LverageCode.NO_ORTHOLOGS
+            return []
+
+        records = []
+        has_valid_domain_pair = False
+        for ortholog in orthologs:
+            ortholog_domains = self.domain_scanner.get_domains(ortholog.sequence)
+            for query_domain in query_domains:
+                for ortholog_domain in ortholog_domains:
+                    if self._base_accession(query_domain.accession) != self._base_accession(ortholog_domain.accession):
+                        continue
+                    domain_identity = self._calculate_domain_identity(
+                        query_orf,
+                        query_domain,
+                        ortholog.sequence,
+                        ortholog_domain,
+                    )
+                    if domain_identity < self.dbd_identity_thresh:
+                        continue
+
+                    has_valid_domain_pair = True
+                    request = MotifSearchRequest(
+                        query_sequence=query_orf,
+                        query_domain=query_domain,
+                        ortholog_sequence=ortholog.sequence,
+                        ortholog_domain=ortholog_domain,
+                        ortholog_species_tax_id=ortholog.species_tax_id,
+                    )
+                    for motif_database in self.motif_database_list:
+                        if not motif_database.check_species_validity(ortholog.species_tax_id):
+                            LOGGER.info(
+                                "Skipping %s for unavailable species %s",
+                                motif_database.name,
+                                ortholog.species_tax_id,
+                            )
+                            continue
+                        for motif_record in motif_database.search(request):
+                            records.append(LverageRecord(
+                                query_domain=query_domain,
+                                ortholog=ortholog,
+                                ortholog_domain=ortholog_domain,
+                                domain_identity=domain_identity,
+                                motif_database_name=motif_database.name,
+                                motif_record=motif_record,
+                            ))
+
+        if records:
+            self.lverage_code = LverageCode.SUCCESS
+        elif has_valid_domain_pair:
+            self.lverage_code = LverageCode.NO_MOTIF
+        else:
+            self.lverage_code = LverageCode.NO_VALID_DBD
+        return records
+
+    @staticmethod
+    def _base_accession(accession):
+        if not isinstance(accession, str) or not accession:
+            raise ValueError("domain accessions must be nonempty strings")
+        return accession.split(".", 1)[0]
+
+    @staticmethod
+    def _validate_run_input(tf_sequence):
+        if isinstance(tf_sequence, str):
+            if not tf_sequence.strip():
+                raise ValueError("tf_sequence must be nonempty")
+            return [tf_sequence]
+        if not isinstance(tf_sequence, list):
+            raise TypeError("tf_sequence must be a string or list of strings")
+        if not tf_sequence:
+            raise ValueError("tf_sequence must contain at least one sequence")
+        if any(not isinstance(sequence, str) for sequence in tf_sequence):
+            raise TypeError("tf_sequence must contain only strings")
+        if any(not sequence.strip() for sequence in tf_sequence):
+            raise ValueError("tf_sequence must contain only nonempty strings")
+        return list(tf_sequence)
