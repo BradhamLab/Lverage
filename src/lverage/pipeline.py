@@ -350,6 +350,7 @@ class Lverage:
         for sequence in self.tf_sequences:
             orf_list.extend(self.orf_searcher.get_orfs(sequence))     
 
+        orf_list = list(dict.fromkeys(orf_list))
         orf_list.sort(key=lambda x: len(x), reverse=True) # sort by length
 
         # Getting the first ORF that has a domain (in provided valid_pfam_list)
@@ -361,7 +362,13 @@ class Lverage:
 
             if self.valid_pfam_list:
                 for domain in domains:
-                    if domain in self.valid_pfam_list:
+                    accession = domain.accession
+                    base_accession = accession.split('.')[0]
+                    if any(
+                        ('.' in valid_pfam and accession == valid_pfam)
+                        or ('.' not in valid_pfam and base_accession == valid_pfam)
+                        for valid_pfam in self.valid_pfam_list
+                    ):
                         self.orf = orf
                         self.valid_domains.append(domain)
             else:

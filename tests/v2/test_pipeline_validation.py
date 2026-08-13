@@ -19,7 +19,7 @@ validate_email_stub = types.ModuleType("validate_email")
 validate_email_stub.validate_email = lambda email: True
 sys.modules.setdefault("validate_email", validate_email_stub)
 
-from lverage.domain_scanner import DomainScannerTemplate
+from lverage.domain_scanner import DomainRecord, DomainScannerTemplate
 from lverage.motif_database import MotifDBTemplate, MotifSearchRequest
 from lverage.orf_searcher import OrfSearcherTemplate
 from lverage.pipeline import Lverage
@@ -103,6 +103,35 @@ class LverageValidationTests(unittest.TestCase):
         self.assertEqual(lverage.motif_database_list, [motif_database])
         self.assertEqual(lverage.ortholog_species_list, [9606])
         self.assertEqual(lverage.valid_pfam_list, ["PF00046"])
+
+    def test_orf_search_matches_versionless_pfam_accession(self):
+        lverage = Lverage.__new__(Lverage)
+        lverage.tf_sequences = ["DNA"]
+        lverage.orf_searcher = StubOrfSearcher()
+        lverage.domain_scanner = StubDomainScanner()
+        lverage.domain_scanner.get_domains = lambda sequence: [
+            DomainRecord("Homeobox", "PF00046.1", 1, 5)
+        ]
+        lverage.valid_pfam_list = ["PF00046"]
+
+        lverage._Lverage__search_orfs()
+
+        self.assertEqual(lverage.orf, "DNA")
+        self.assertEqual(lverage.valid_domains[0].accession, "PF00046.1")
+
+    def test_orf_search_requires_exact_versioned_pfam_accession(self):
+        lverage = Lverage.__new__(Lverage)
+        lverage.tf_sequences = ["DNA"]
+        lverage.orf_searcher = StubOrfSearcher()
+        lverage.domain_scanner = StubDomainScanner()
+        lverage.domain_scanner.get_domains = lambda sequence: [
+            DomainRecord("Homeobox", "PF00046.1", 1, 5)
+        ]
+        lverage.valid_pfam_list = ["PF00046.2"]
+
+        lverage._Lverage__search_orfs()
+
+        self.assertIsNone(lverage.orf)
 
 
 if __name__ == "__main__":
