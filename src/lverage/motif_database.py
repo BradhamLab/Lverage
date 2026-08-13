@@ -87,10 +87,10 @@ class MotifDBRecordTemplate(ABC):
     Subclasses should be returned by the search method of the MotifDB class.
     """
 
-    headers = [] # List of headers in the record; should be overridden by subclasses
+    headers : tuple[str, ...] = () # Tuple of headers in the record; should be overridden by subclasses
 
-    @staticmethod
-    def get_headers(self):
+    @classmethod
+    def get_headers(cls) -> list[str]:
         """
         Method to get the headers of the record.
         
@@ -100,7 +100,7 @@ class MotifDBRecordTemplate(ABC):
             List of headers (str) the record uses
         """
 
-        return self.headers
+        return list(cls.headers)
 
     @abstractmethod
     def get_values(self):

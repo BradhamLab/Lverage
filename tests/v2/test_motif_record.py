@@ -9,6 +9,8 @@ class IncompleteMotifRecord(MotifDBRecordTemplate):
 
 class ConcreteMotifRecord(MotifDBRecordTemplate):
 
+    headers = ("Matrix ID",)
+
     def get_values(self):
         return ["MA0001.1"]
 
@@ -27,6 +29,16 @@ class MotifDBRecordTemplateTests(unittest.TestCase):
         record = ConcreteMotifRecord()
 
         self.assertEqual(record.get_values(), ["MA0001.1"])
+
+    def test_headers_are_available_from_record_class(self):
+        self.assertEqual(ConcreteMotifRecord.get_headers(), ["Matrix ID"])
+
+    def test_get_headers_returns_a_list_copy(self):
+        headers = ConcreteMotifRecord.get_headers()
+        headers.append("Name")
+
+        self.assertEqual(ConcreteMotifRecord.headers, ("Matrix ID",))
+        self.assertEqual(ConcreteMotifRecord.get_headers(), ["Matrix ID"])
 
 
 if __name__ == "__main__":
