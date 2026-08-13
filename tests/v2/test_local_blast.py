@@ -1,9 +1,13 @@
 import subprocess
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from lverage.blast import DEFAULT_EXCLUDED_TERMS, LocalBlastSearcher
+from lverage.blast import DEFAULT_EXCLUDED_TERMS, LocalBlastSearcher, _parse_blast_hits
+
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 
 def make_alignment(description="Homeobox protein [Homo sapiens]", hsps=None):
@@ -130,6 +134,21 @@ class LocalBlastSearcherTests(unittest.TestCase):
         with patch("lverage.blast.NCBIXML.parse", side_effect=ValueError("invalid XML")):
             with self.assertRaises(ValueError):
                 searcher.get_orthologs("QUERY")
+
+    def test_biopython_parses_blast_xml_fixture(self):
+        blast_xml = (FIXTURE_DIR / "blastp.xml").read_text()
+
+        hits = _parse_blast_hits(
+            blast_xml,
+            4,
+            {"homo sapiens": ("Homo sapiens", 9606)},
+            [],
+        )
+
+        self.assertEqual(hits[0]["accession"], "NP_000001.1")
+        self.assertEqual(hits[0]["evalue"], 1e-20)
+        self.assertEqual(hits[0]["identity"], 0.75)
+        self.assertEqual(hits[0]["query_coverage"], 1.0)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,15 @@
 import subprocess
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import requests
 
 from lverage.blast import NCBI_EFETCH_URL, RemoteBlastSearcher
+
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 
 def make_alignment(accession="NP_000001.1", species="Homo sapiens"):
@@ -108,7 +112,33 @@ class RemoteBlastSearcherTests(unittest.TestCase):
         self.mock_parse.side_effect = ValueError("invalid XML")
 
         with self.assertRaises(ValueError):
-            searcher.get_orthologs("QUERY")
+                searcher.get_orthologs("QUERY")
+
+
+class RemoteBlastFastaFixtureTests(unittest.TestCase):
+
+    @patch("lverage.blast.shutil.which", return_value="/resolved/blastp")
+    @patch("lverage.blast.NCBIXML.parse")
+    @patch("lverage.blast.requests.get")
+    @patch("lverage.blast.subprocess.run")
+    def test_biopython_parses_complete_protein_fasta_fixture(self,
+                                                            mock_run,
+                                                            mock_get,
+                                                            mock_parse,
+                                                            mock_which):
+        mock_run.return_value = SimpleNamespace(stdout="<xml>")
+        mock_parse.return_value = iter([SimpleNamespace(alignments=[make_alignment()])])
+        response = SimpleNamespace(text=(FIXTURE_DIR / "proteins.fasta").read_text())
+        response.raise_for_status = unittest.mock.Mock()
+        mock_get.return_value = response
+        searcher = RemoteBlastSearcher(
+            {"Homo sapiens": 9606},
+            "researcher@example.org",
+        )
+
+        records = searcher.get_orthologs("QUERY")
+
+        self.assertEqual(records[0].sequence, "MPEPTIDE")
 
 
 if __name__ == "__main__":
