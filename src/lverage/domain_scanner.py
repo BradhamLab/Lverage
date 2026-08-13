@@ -22,6 +22,7 @@ Correspondence:
     \* Principle Investigator, ** Software Developers
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 
@@ -47,10 +48,26 @@ class DomainRecord:
     start : int
     end : int
 
-class DomainScannerTemplate:
+class DomainScannerTemplate(ABC):
 
-    def __init__(self):
-        pass
+    @abstractmethod
+    def get_domains(self, sequence : str) -> list[DomainRecord]:
+        """
+        Method for scanning a protein sequence for domains.
 
-    def get_domains(self):
-        pass
+        Parameters
+        ----------
+        sequence : str
+            Protein sequence to scan for domains
+
+        Returns
+        -------
+        list
+            List of DomainRecord objects representing the domains found
+
+        Raises
+        ------
+        NotImplementedError
+        """
+
+        raise NotImplementedError
