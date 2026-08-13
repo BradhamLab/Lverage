@@ -1,12 +1,5 @@
-import sys
-import types
 import unittest
 from unittest.mock import Mock, patch
-
-
-requests_stub = types.ModuleType("requests")
-requests_stub.get = Mock()
-sys.modules.setdefault("requests", requests_stub)
 
 from lverage.jaspar import Jaspar2024MotifDB
 from lverage.domain_scanner import DomainRecord
@@ -25,7 +18,10 @@ class Jaspar2024MotifDBTests(unittest.TestCase):
             Jaspar2024MotifDB().search(request)
 
     def test_import_does_not_request_species(self):
-        requests_stub.get.assert_not_called()
+        with patch("lverage.jaspar.requests.get") as mock_get:
+            Jaspar2024MotifDB()
+
+        mock_get.assert_not_called()
 
     @patch("lverage.jaspar.requests.get")
     def test_species_are_loaded_once_and_cached(self, mock_get):
