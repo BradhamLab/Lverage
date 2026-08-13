@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lverage Pipeline Visual Guide</title>
+  <style>
+    :root {
+      --bg: #f4efe7;
+      --panel: rgba(255, 251, 245, 0.86);
+      --panel-strong: #fffaf2;
+      --ink: #1c2230;
+      --muted: #5d6677;
+      --accent: #0f766e;
+      --accent-2: #d97706;
+      --accent-3: #b91c1c;
+      --line: rgba(28, 34, 48, 0.12);
+      --shadow: 0 20px 45px rgba(36, 37, 44, 0.11);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 30%),
+        radial-gradient(circle at top right, rgba(217, 119, 6, 0.18), transparent 28%),
+        linear-gradient(180deg, #fdf8f0 0%, var(--bg) 100%);
+    }
+
+    .wrap {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,248,237,0.96));
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 32px;
+      padding: 40px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -80px auto;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.22), transparent 70%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.2rem, 4vw, 4rem);
+      line-height: 1.02;
+      max-width: 10ch;
+    }
+
+    .hero p {
+      max-width: 70ch;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--muted);
+      margin: 18px 0 0;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .legend-card {
+      background: rgba(255,255,255,0.74);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .legend-card strong {
+      display: block;
+      font-size: 0.94rem;
+      margin-bottom: 6px;
+    }
+
+    .legend-card span {
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+
+    .section-title {
+      margin: 56px 0 18px;
+      font-size: 1.4rem;
+      letter-spacing: -0.02em;
+    }
+
+    .pipeline {
+      display: grid;
+      gap: 18px;
+      position: relative;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 84px 1fr;
+      gap: 18px;
+      align-items: start;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.95);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      position: relative;
+    }
+
+    .step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 42px;
+      bottom: -18px;
+      width: 2px;
+      height: 18px;
+      background: linear-gradient(180deg, rgba(15,118,110,0.5), rgba(15,118,110,0.05));
+    }
+
+    .badge {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: white;
+      background: linear-gradient(135deg, var(--accent), #0b4e56);
+      box-shadow: 0 14px 30px rgba(15, 118, 110, 0.22);
+    }
+
+    .step h3 {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 0.88rem;
+      background: rgba(15, 118, 110, 0.08);
+      color: #0d5d57;
+      border: 1px solid rgba(15, 118, 110, 0.12);
+    }
+
+    .decision-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .decision {
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .decision.good {
+      border-top: 5px solid var(--accent);
+    }
+
+    .decision.warn {
+      border-top: 5px solid var(--accent-2);
+    }
+
+    .decision.stop {
+      border-top: 5px solid var(--accent-3);
+    }
+
+    .decision h4 {
+      margin: 0 0 8px;
+      font-size: 1.02rem;
+    }
+
+    .decision p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.58;
+      font-size: 0.95rem;
+    }
+
+    .summary {
+      margin-top: 36px;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+    }
+
+    .summary-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,250,242,0.97));
+      border: 1px solid rgba(255,255,255,0.92);
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .summary-card h3 {
+      margin-top: 0;
+      font-size: 1.2rem;
+    }
+
+    .summary-card p,
+    .summary-card li {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    ul {
+      margin: 12px 0 0 18px;
+      padding: 0;
+    }
+
+    @media (max-width: 880px) {
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 28px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .step {
+        grid-template-columns: 1fr;
+      }
+
+      .step:not(:last-child)::after {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Lverage Visual Guide</div>
+      <h1>From gene DNA to candidate binding motifs</h1>
+      <p>
+        Lverage is a transcription-factor motif transfer pipeline. It starts with gene DNA, finds a likely protein,
+        verifies its DNA-binding domain, searches for orthologs in other species, checks whether that DNA-binding
+        domain is conserved, and uses those orthologs to infer candidate motifs from JASPAR.
+      </p>
+      <div class="legend">
+        <div class="legend-card">
+          <strong>Main Input</strong>
+          <span>FASTA files containing one gene per file, possibly with multiple scaffolds.</span>
+        </div>
+        <div class="legend-card">
+          <strong>Core Filter</strong>
+          <span>Only orthologs with sufficiently conserved DNA-binding domains are trusted.</span>
+        </div>
+        <div class="legend-card">
+          <strong>Main Output</strong>
+          <span>A TSV table linking genes, ortholog evidence, DBD similarity, and motif hits.</span>
+        </div>
+      </div>
+    </section>
+
+    <h2 class="section-title">Pipeline Flow</h2>
+    <section class="pipeline">
+      <article class="step">
+        <div class="badge">01</div>
+        <div>
+          <h3>Read gene FASTA records</h3>
+          <p>
+            Lverage loads all DNA records from one FASTA file and treats them as belonging to the same gene.
+            This allows one gene to be represented by a single sequence or by multiple scaffolds.
+          </p>
+          <div class="chips">
+            <span class="chip">Input DNA</span>
+            <span class="chip">One gene per file</span>
+            <span class="chip">Scaffold-aware</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="badge">02</div>
+        <div>
+          <h3>Translate candidate ORFs</h3>
+          <p>
+            Each DNA sequence is translated with ORF finding. Candidate protein products are deduplicated,
+            ranked by length, and screened one by one until Lverage finds a plausible transcription-factor protein.
+          </p>
+          <div class="chips">
+            <span class="chip">ORF search</span>
+            <span class="chip">Top candidates only</span>
+            <span class="chip">Protein inference</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="badge">03</div>
+        <div>
+          <h3>Scan for DNA-binding domains</h3>
+          <p>
+            Candidate proteins are sent to the domain scanner. Lverage keeps only ORFs that contain at least one
+            PFAM accession from the user-provided valid DBD list. This is where the pipeline decides whether the
+            ORF looks like a real transcription factor.
+          </p>
+          <div class="chips">
+            <span class="chip">Pfam/DBD scan</span>
+            <span class="chip">PFAM accession filter</span>
+            <span class="chip">TF gating step</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="badge">04</div>
+        <div>
+          <h3>Search ortholog proteins</h3>
+          <p>
+            The selected protein sequence is used as a BLASTP query against user-selected species. Lverage keeps
+            ortholog candidates along with accession, species, e-value, percent identity, query coverage, and sequence.
+          </p>
+          <div class="chips">
+            <span class="chip">Remote or local BLAST</span>
+            <span class="chip">Species filter</span>
+            <span class="chip">Annotation cleanup</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="badge">05</div>
+        <div>
+          <h3>Map ortholog DBDs to gene DBDs</h3>
+          <p>
+            Every ortholog protein is scanned for domains again. Lverage matches ortholog domains back to the gene’s
+            DBD list by PFAM accession so that each ortholog is evaluated against the same DBD family as the query gene.
+          </p>
+          <div class="chips">
+            <span class="chip">Ortholog domain scan</span>
+            <span class="chip">PFAM family matching</span>
+            <span class="chip">Ordered DBD mapping</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="badge">06</div>
+        <div>
+          <h3>Measure DBD conservation</h3>
+          <p>
+            The amino-acid span for each gene DBD is globally aligned to the matching ortholog DBD span. Lverage
+            converts that alignment into a similarity score and keeps only orthologs whose DBD similarity passes the
+            configured identity threshold.
+          </p>
+          <div class="chips">
+            <span class="chip">Global alignment</span>
+            <span class="chip">DBD-only comparison</span>
+            <span class="chip">Identity threshold</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="badge">07</div>
+        <div>
+          <h3>Infer motifs from ortholog evidence</h3>
+          <p>
+            Orthologs that pass the DBD conservation filter are used to query the motif database. In the current
+            LverageOld code path, JASPAR is the motif source. If the ortholog protein is very long, the ortholog
+            sequence is cropped to a window centered on the ortholog’s matching DBD before inference.
+          </p>
+          <div class="chips">
+            <span class="chip">JASPAR inference</span>
+            <span class="chip">Ortholog-driven evidence</span>
+            <span class="chip">Long-sequence windowing</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="badge">08</div>
+        <div>
+          <h3>Write evidence-rich motif records</h3>
+          <p>
+            Each accepted motif hit is written alongside the supporting ortholog metadata and the gene-versus-ortholog
+            DBD similarity. The final output is a TSV that explains not just which motif was found, but why Lverage
+            considered it transferable.
+          </p>
+          <div class="chips">
+            <span class="chip">TSV output</span>
+            <span class="chip">Traceable evidence</span>
+            <span class="chip">Gene + ortholog + motif</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <h2 class="section-title">Key Decision Points</h2>
+    <section class="decision-grid">
+      <div class="decision stop">
+        <h4>No valid ORF with a DBD</h4>
+        <p>
+          If no translated ORF contains a valid DNA-binding domain, the pipeline stops for that gene.
+        </p>
+      </div>
+      <div class="decision warn">
+        <h4>No usable orthologs</h4>
+        <p>
+          BLAST hits may be filtered out for species mapping issues, poor annotation quality, or lack of matching domains.
+        </p>
+      </div>
+      <div class="decision warn">
+        <h4>DBD not conserved enough</h4>
+        <p>
+          An ortholog may exist, but it is not used for motif transfer unless its DBD is similar enough to the query gene’s DBD.
+        </p>
+      </div>
+      <div class="decision good">
+        <h4>Motif transfer succeeds</h4>
+        <p>
+          A conserved ortholog with a compatible DBD contributes candidate motif hits, which are added to the final report.
+        </p>
+      </div>
+    </section>
+
+    <section class="summary">
+      <div class="summary-card">
+        <h3>Why this pipeline is built this way</h3>
+        <p>
+          Lverage is intentionally conservative. It does not transfer motifs based only on whole-protein similarity.
+          Instead, it focuses on DNA-binding domains, because those are the parts of transcription factors most directly
+          tied to DNA recognition.
+        </p>
+        <ul>
+          <li>It starts from raw gene DNA and works upward to protein and motif inference.</li>
+          <li>It uses ortholog species as evidence sources rather than guessing motifs from the query alone.</li>
+          <li>It records the evidence chain behind every motif hit.</li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <h3>One-sentence summary</h3>
+        <p>
+          Lverage takes a gene sequence, finds a likely transcription factor protein, verifies its DNA-binding domains,
+          finds orthologs with conserved DBDs, and uses those orthologs to infer candidate binding motifs.
+        </p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

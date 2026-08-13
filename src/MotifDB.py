@@ -227,6 +227,42 @@ class JasparDB(MotifDBInterface):
 
     uniprot_rest_url = "https://rest.uniprot.org/uniprotkb/"
 
+    @staticmethod
+    def _window_ortholog_sequence(ortholog_seq, ortholog_dbd, max_len=2000):
+        """Return an ortholog subsequence that contains the full ortholog DBD.
+
+        If the ortholog sequence is longer than ``max_len``, the window is centered
+        as much as possible around the ortholog DBD while guaranteeing the DBD stays
+        fully inside the returned slice.
+        """
+
+        if not isinstance(ortholog_dbd, DBD):
+            raise TypeError("ortholog_dbd must be a DBD object")
+        if len(ortholog_seq) <= max_len:
+            return ortholog_seq
+
+        dbd_start = ortholog_dbd.get_start()
+        dbd_end = ortholog_dbd.get_end()
+        if dbd_start < 0 or dbd_end > len(ortholog_seq):
+            raise ValueError("ortholog_dbd coordinates are out of bounds for ortholog_seq")
+
+        dbd_center = (dbd_start + dbd_end) // 2
+        new_start = max(0, dbd_center - (max_len // 2))
+        new_end = new_start + max_len
+
+        if new_end > len(ortholog_seq):
+            new_end = len(ortholog_seq)
+            new_start = max(0, new_end - max_len)
+
+        if dbd_start < new_start:
+            new_start = dbd_start
+            new_end = min(len(ortholog_seq), new_start + max_len)
+        if dbd_end > new_end:
+            new_end = dbd_end
+            new_start = max(0, new_end - max_len)
+
+        return ortholog_seq[new_start:new_end]
+
 
     def __init__(self, n_hits = 10, dbd_threshold = 0.85, escore_threshold = 10**-6, dbd_scanner = None, email = None):
         """Constructor
@@ -264,7 +300,7 @@ class JasparDB(MotifDBInterface):
         self.global_aligner.mismatch_score = -1
 
 
-    def search(self, ortholog_seq, ortholog_tax_id, protein_seq, dbd):
+    def search(self, ortholog_seq, ortholog_tax_id, protein_seq, gene_dbd, ortholog_dbd):
         """This method searches the JASPAR database using its protein inference tool to find motifs given an ortholog's protein sequence.
 
         Parameters
@@ -275,8 +311,10 @@ class JasparDB(MotifDBInterface):
             A string representing the taxonomy ID of the species
         protein_seq: str
             A string representing the gene of interest's protein sequence
-        dbd: DBD
+        gene_dbd: DBD
             A DBD object representing the DNA-binding domain of the gene of interest
+        ortholog_dbd: DBD
+            A DBD object representing the corresponding DNA-binding domain in the ortholog
 
         Returns
         -------
@@ -299,34 +337,17 @@ class JasparDB(MotifDBInterface):
             raise ValueError("Taxonomy ID must be a number")
         if len(protein_seq) == 0:
             raise ValueError("Protein sequence must be non-empty")
-        if not isinstance(dbd, DBD):
-            raise TypeError("DBD must be a DBD object")
+        if not isinstance(gene_dbd, DBD):
+            raise TypeError("gene_dbd must be a DBD object")
+        if not isinstance(ortholog_dbd, DBD):
+            raise TypeError("ortholog_dbd must be a DBD object")
 
         r = [] # list of motifs to return
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
         # If the ortholog sequence is longer than 2000 amino acids, we create a window of 2000 amino acids including the DNA-binding domain
 
-        if len(ortholog_seq) > 2000:
-            dbd_start = dbd.get_start()
-            dbd_end = dbd.get_end()
-
-            # Get the new start; if the dbd_start is less than 1000, set the new start to 0
-            new_start = max(0, dbd_start - 1000)
-
-            # Calculate how many amino acids are left to use out of 2000
-            remaining = 2000 - dbd_end - new_start
-
-            # Get the new end; if the dbd_end + remaining is greater than the length of the ortholog sequence, set the new end to the length of the ortholog sequence
-            new_end = min(len(ortholog_seq), dbd_end + remaining)
-
-            # Get remaining amino acids to use
-            remaining = 2000 - (new_end - new_start)
-
-            # If there are still remaining amino acids, add them to the start
-            new_start = max(0, new_start - remaining)
-
-            ortholog_seq = ortholog_seq[new_start:new_end]
+        ortholog_seq = self._window_ortholog_sequence(ortholog_seq, ortholog_dbd)
 
 
         #@#@#@@#@#@#@#@#@#@#@#@#@#@#@#@#@##@#@#@#@#@#@#@#@#@#@#@#@#@#
@@ -513,6 +534,5 @@ if __name__ == "__main__":
         print(rec.get_global_percent_identity())
         print(rec.get_dbd_percent_identity())
         print("\n")
-
 
 

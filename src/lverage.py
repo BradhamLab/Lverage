@@ -292,9 +292,8 @@ class Lverage:
 
         _ortholog_hit_list = []
         for ortholog_hit in ortholog_hit_list:
-            if str(lvutils.get_tax_id(ortholog_hit.get_species())) is not None:
+            if lvutils.get_tax_id(ortholog_hit.get_species()) is not None:
                 _ortholog_hit_list.append(ortholog_hit)
-
             else:
                 if self.verbose:
                     print(f"\t{ortholog_hit.get_title()} has a species ({ortholog_hit.get_species()}) not found in NCBI database", flush=True)
@@ -386,10 +385,11 @@ class Lverage:
                     ortholog_percent_identity = ortholog_hit.get_percent_identity()
                     ortholog_query_coverage = ortholog_hit.get_query_coverage()
                     ortholog_seq = ortholog_hit.get_seq()
+                    ortholog_dbd = ortholog_dbd_list[j][i]
 
                     sys.stdout = lvutils.PrependedOutput(sys.stdout, "\t\t\t")
                     try:
-                        motif_list = self.mdb.search(protein_sequence, ortholog_taxon_id, ortholog_seq, dbd)
+                        motif_list = self.mdb.search(ortholog_seq, ortholog_taxon_id, protein_sequence, dbd, ortholog_dbd)
 
                     
                     except Exception as e:
@@ -602,7 +602,6 @@ if __name__ == "__main__":
                 s = '\t'.join([gene_id] + record_values) + '\n'
                 f.write(s)
                 f.flush()
-
 
 
 
