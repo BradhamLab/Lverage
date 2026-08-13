@@ -9,3 +9,7 @@ database locations.
 .. autoclass:: lverage.blast.LocalBlastSearcher
    :members:
    :show-inheritance:
+
+.. autoclass:: lverage.blast.RemoteBlastSearcher
+   :members:
+   :show-inheritance:
