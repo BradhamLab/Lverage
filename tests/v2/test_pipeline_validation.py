@@ -1,27 +1,9 @@
-import sys
-import types
 import unittest
-
-
-ete3_stub = types.ModuleType("ete3")
-
-
-class StubNCBITaxa:
-
-    def get_rank(self, tax_ids):
-        return {tax_id: "species" for tax_id in tax_ids}
-
-
-ete3_stub.NCBITaxa = StubNCBITaxa
-sys.modules.setdefault("ete3", ete3_stub)
-
-validate_email_stub = types.ModuleType("validate_email")
-validate_email_stub.validate_email = lambda email: True
-sys.modules.setdefault("validate_email", validate_email_stub)
 
 from lverage.domain_scanner import DomainRecord, DomainScannerTemplate
 from lverage.motif_database import MotifDBTemplate, MotifSearchRequest
 from lverage.orf_searcher import OrfSearcherTemplate
+from lverage.ortholog_searcher import OrthologSearcherTemplate
 from lverage.pipeline import Lverage
 
 
@@ -48,90 +30,81 @@ class StubDomainScanner(DomainScannerTemplate):
         return []
 
 
+class StubOrthologSearcher(OrthologSearcherTemplate):
+
+    def get_orthologs(self, sequence : str):
+        return []
+
+
 class LverageValidationTests(unittest.TestCase):
 
-    def build_lverage(self, valid_pfam_list=None, motif_database_list=None, ortholog_species_list=None):
+    def build_lverage(self, valid_pfam_list=None, motif_database_list=None, **kwargs):
         if motif_database_list is None:
             motif_database_list = [StubMotifDB()]
 
         return Lverage(
             motif_database_list=motif_database_list,
-            orf_searcher=StubOrfSearcher(),
-            domain_scanner=StubDomainScanner(),
-            ortholog_species_list=ortholog_species_list,
+            orf_searcher=kwargs.get("orf_searcher", StubOrfSearcher()),
+            domain_scanner=kwargs.get("domain_scanner", StubDomainScanner()),
+            ortholog_searcher=kwargs.get("ortholog_searcher", StubOrthologSearcher()),
             valid_pfam_list=valid_pfam_list,
-            email="user@example.com"
+            dbd_identity_thresh=kwargs.get("dbd_identity_thresh", 0.7),
         )
 
     def test_empty_valid_pfam_list_is_accepted(self):
-        lverage = self.build_lverage([])
-
-        self.assertEqual(lverage.valid_pfam_list, [])
-
-    def test_valid_pfam_list_accepts_strings(self):
-        lverage = self.build_lverage(["PF00046"])
-
-        self.assertEqual(lverage.valid_pfam_list, ["PF00046"])
+        self.assertEqual(self.build_lverage([]).valid_pfam_list, [])
 
     def test_valid_pfam_list_rejects_non_string_values(self):
         with self.assertRaises(TypeError):
             self.build_lverage([46])
 
-    def test_default_lists_are_unique_to_each_instance(self):
-        first_lverage = self.build_lverage()
-        second_lverage = self.build_lverage()
-
-        self.assertIsNot(first_lverage.ortholog_species_list, second_lverage.ortholog_species_list)
-        self.assertIsNot(first_lverage.valid_pfam_list, second_lverage.valid_pfam_list)
-
     def test_constructor_copies_configuration_lists(self):
         motif_database = StubMotifDB()
         motif_database_list = [motif_database]
-        ortholog_species_list = [9606]
         valid_pfam_list = ["PF00046"]
-
-        lverage = self.build_lverage(
-            valid_pfam_list=valid_pfam_list,
-            motif_database_list=motif_database_list,
-            ortholog_species_list=ortholog_species_list
-        )
-
+        lverage = self.build_lverage(valid_pfam_list, motif_database_list)
         motif_database_list.clear()
-        ortholog_species_list.clear()
         valid_pfam_list.clear()
 
         self.assertEqual(lverage.motif_database_list, [motif_database])
-        self.assertEqual(lverage.ortholog_species_list, [9606])
         self.assertEqual(lverage.valid_pfam_list, ["PF00046"])
 
+    def test_constructor_requires_an_ortholog_searcher(self):
+        with self.assertRaises(TypeError):
+            self.build_lverage(ortholog_searcher=object())
+
+    def test_constructor_does_not_query_motif_databases(self):
+        class FailingMotifDB(StubMotifDB):
+
+            def check_species_validity(self, species_tax_id : int):
+                raise AssertionError("constructor contacted a remote service")
+
+        self.build_lverage(motif_database_list=[FailingMotifDB()])
+
+    def test_identity_threshold_is_a_ratio(self):
+        self.assertEqual(self.build_lverage(dbd_identity_thresh=0).dbd_identity_thresh, 0)
+        self.assertEqual(self.build_lverage(dbd_identity_thresh=1).dbd_identity_thresh, 1)
+        with self.assertRaises(ValueError):
+            self.build_lverage(dbd_identity_thresh=1.01)
+
     def test_orf_search_matches_versionless_pfam_accession(self):
-        lverage = Lverage.__new__(Lverage)
-        lverage.tf_sequences = ["DNA"]
-        lverage.orf_searcher = StubOrfSearcher()
-        lverage.domain_scanner = StubDomainScanner()
+        lverage = self.build_lverage(["PF00046"])
         lverage.domain_scanner.get_domains = lambda sequence: [
             DomainRecord("Homeobox", "PF00046.1", 1, 5)
         ]
-        lverage.valid_pfam_list = ["PF00046"]
 
-        lverage._Lverage__search_orfs()
+        orf, domains = lverage._select_query_orf(["DNA"])
 
-        self.assertEqual(lverage.orf, "DNA")
-        self.assertEqual(lverage.valid_domains[0].accession, "PF00046.1")
+        self.assertEqual(orf, "DNA")
+        self.assertEqual(domains[0].accession, "PF00046.1")
 
     def test_orf_search_requires_exact_versioned_pfam_accession(self):
-        lverage = Lverage.__new__(Lverage)
-        lverage.tf_sequences = ["DNA"]
-        lverage.orf_searcher = StubOrfSearcher()
-        lverage.domain_scanner = StubDomainScanner()
+        lverage = self.build_lverage(["PF00046.2"])
         lverage.domain_scanner.get_domains = lambda sequence: [
             DomainRecord("Homeobox", "PF00046.1", 1, 5)
         ]
-        lverage.valid_pfam_list = ["PF00046.2"]
 
-        lverage._Lverage__search_orfs()
-
-        self.assertIsNone(lverage.orf)
+        self.assertEqual(lverage._select_query_orf(["DNA"]), (None, []))
 
 
 if __name__ == "__main__":
