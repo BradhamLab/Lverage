@@ -9,9 +9,20 @@ requests_stub.get = Mock()
 sys.modules.setdefault("requests", requests_stub)
 
 from lverage.jaspar import Jaspar2024MotifDB
+from lverage.domain_scanner import DomainRecord
+from lverage.motif_database import MotifSearchRequest
 
 
 class Jaspar2024MotifDBTests(unittest.TestCase):
+
+    def test_search_uses_motif_request_contract(self):
+        request = MotifSearchRequest(
+            "QUERY", DomainRecord("Homeobox", "PF00046.1", 0, 5),
+            "ORTHOLOG", DomainRecord("Homeobox", "PF00046.1", 0, 5), 9606
+        )
+
+        with self.assertRaises(NotImplementedError):
+            Jaspar2024MotifDB().search(request)
 
     def test_import_does_not_request_species(self):
         requests_stub.get.assert_not_called()

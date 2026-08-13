@@ -30,7 +30,7 @@ Correspondence:
 
 #@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@
 # Imports
-from .motif_database import MotifDBTemplate
+from .motif_database import MotifDBTemplate, MotifSearchRequest
 import requests
 
 class Jaspar2024MotifDB(MotifDBTemplate):
@@ -94,14 +94,14 @@ class Jaspar2024MotifDB(MotifDBTemplate):
         self.escore_threshold = escore_threshold
         self.jaspar_species = None
 
-    def search(self):
+    def search(self, request : MotifSearchRequest):
         """
         Search JASPAR for motif records.
 
         This method is not implemented yet.
         """
 
-        pass
+        raise NotImplementedError
 
     def check_species_validity(self, species_tax_id : int) -> bool:
         """
