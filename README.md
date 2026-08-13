@@ -36,6 +36,104 @@ Then the user must install the required libraries. Located in the repository is 
 python3 -m pip install -r requirements.txt
 ```
 
+## Local BLAST Database Setup for V2
+
+Lverage V2 can search a local protein database with BLAST+. BLAST+ is an
+external requirement and is not installed with the Python package. Confirm that
+both required programs are available:
+
+```bash
+blastp -version
+blastdbcmd -version
+```
+
+The source FASTA must contain complete protein sequences. Each record must have
+a unique sequence identifier immediately after `>`, followed by a description
+containing the scientific name in square brackets. For example:
+
+```text
+>NP_000001.1 Homeobox protein [Homo sapiens]
+MPEPTIDESEQUENCE
+>NP_000002.1 Homeobox protein [Mus musculus]
+MSEQUENCE
+```
+
+Build the protein database with `-parse_seqids`. This option is required because
+Lverage retrieves the complete sequence of each BLAST hit with `blastdbcmd`.
+The value passed to `-out` is a database prefix, not a directory or an
+individual database file. See the
+[NCBI BLAST+ documentation](https://www.ncbi.nlm.nih.gov/books/NBK52637/table/blast_setup_pc.T.programs_and_utilities/)
+for the specific-retrieval requirement.
+
+```bash
+mkdir -p databases
+
+makeblastdb \
+    -in proteins.fasta \
+    -dbtype prot \
+    -parse_seqids \
+    -out databases/lverage_proteins
+```
+
+Do not omit `-parse_seqids`. A database without parsed sequence identifiers can
+be searched by `blastp`, but Lverage will be unable to retrieve complete subject
+proteins from it.
+
+Validate both the database and accession retrieval before using it:
+
+```bash
+blastdbcmd -db databases/lverage_proteins -info
+
+blastdbcmd \
+    -db databases/lverage_proteins \
+    -entry NP_000001.1 \
+    -outfmt '%f'
+```
+
+The second command should print the expected FASTA record. If it reports that
+the database contains no accession information, rebuild the database from its
+source FASTA with `-parse_seqids`. Use a new output prefix rather than
+overwriting a database that may be in use.
+
+If a taxonomy-enabled source database such as NCBI `nr` is already installed,
+a smaller FASTA can first be extracted. The following example selects human and
+mouse proteins:
+
+```bash
+blastdbcmd \
+    -db /path/to/nr \
+    -taxids 9606,10090 \
+    -target_only \
+    -outfmt '%f' \
+    -out human_mouse.fasta
+
+makeblastdb \
+    -in human_mouse.fasta \
+    -dbtype prot \
+    -parse_seqids \
+    -out databases/human_mouse_nr
+```
+
+Taxonomic extraction requires the taxonomy files associated with the source
+BLAST database. Check the resulting FASTA headers and sequence count before
+building the new database.
+
+Pass the database prefix and a mapping of the scientific names used in its
+FASTA headers to `LocalBlastSearcher`:
+
+```python
+from lverage.blast import LocalBlastSearcher
+
+
+ortholog_searcher = LocalBlastSearcher(
+    database_path="databases/human_mouse_nr",
+    species_map={
+        "Homo sapiens": 9606,
+        "Mus musculus": 10090,
+    },
+)
+```
+
 ## How to Use
 We warn against moving any file within the directory anywhere else as this will create errors. If you wish to access from other places, we suggest appending the directory to your PATH environment variable, creating an alias, or creating a shortcut.
 
