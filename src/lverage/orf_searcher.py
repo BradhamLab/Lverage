@@ -23,20 +23,24 @@ Correspondence:
     \* Principle Investigator, ** Software Developers
 """
 
-class OrfSearcherTemplate:
+from abc import ABC, abstractmethod
+
+class OrfSearcherTemplate(ABC):
     """
     Abstract class for OrfSearcher classes, containing all necessary functionalities
     This should not be instantiated!
     """
 
-    def __init__(self):
-        """Constructor"""
-        pass
-
-    def search(self, **kwargs):
+    @abstractmethod
+    def get_orfs(self, sequence : str) -> list[str]:
         """
         Method for searching a DNA sequence for open-reading-frames
         This method should be overridden by a concrete class
+
+        Parameters
+        ----------
+        sequence : str
+            DNA sequence to search for open-reading-frames
 
         Returns
         -------
