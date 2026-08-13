@@ -257,8 +257,6 @@ class Lverage:
         # validating valid_pfam_list
         if not isinstance(self.valid_pfam_list, list):
             raise TypeError(f"Lverage constructor error! Argument 'valid_pfam_list' must be a list, currently {type(self.valid_pfam_list)}")
-        if len(self.valid_pfam_list) == 0:
-            raise ValueError("Lverage constructor error! Argument 'valid_pfam_list' must contain at least one valid PFAM domain")
         for valid_pfam in self.valid_pfam_list:
             if not isinstance(valid_pfam, str):
                 raise TypeError(f"Lverage constructor error! Argument 'valid_pfam_list' must contain strings, currently {valid_pfam} is {type(valid_pfam)}")
