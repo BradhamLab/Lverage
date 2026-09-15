@@ -19,6 +19,7 @@ Correspondence:
     - Anthony B. Garza   - abgarza@bu.edu  - **
     - Stephanie P. Hao   - sphao@bu.edu    - **
     - Yeting Li          - yetingli@bu.edu - **
+    - Thomas Shin        - thshin@bu.edu   - **
 
     \* Principle Investigator, ** Software Developers
 """

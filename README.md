@@ -91,3 +91,4 @@ To contact us, please use the following contact information.
 | Stephanie P. Hao   | sphao@bu.edu        |
 | Yeting Li          | yetingli@bu.edu     |
 | Nofal Ouardaoui    | naouarda@bu.edu     |
+| Thomas Shin        | thshin@bu.edu       |
