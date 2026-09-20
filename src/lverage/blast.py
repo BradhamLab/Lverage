@@ -84,7 +84,9 @@ def _parse_blast_hits(blast_xml, query_length, species_lookup, excluded_terms):
                 "species_tax_id": species[1],
                 "evalue": best_hsp.expect,
                 "identity": best_hsp.identities / best_hsp.align_length,
-                "query_coverage": best_hsp.align_length / query_length,
+                "query_coverage": (
+                    best_hsp.query_end - best_hsp.query_start + 1
+                ) / query_length,
             })
         except (AttributeError, TypeError, ValueError, ZeroDivisionError):
             LOGGER.warning("Skipping malformed BLAST hit", exc_info=True)
@@ -182,6 +184,7 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
             [
                 self.blastp_path,
                 "-db", self.database_path,
+                                "-query", "-",
                 "-outfmt", "5",
                 "-evalue", str(self.evalue_threshold),
                 "-max_target_seqs", str(self.top_n),
@@ -199,16 +202,25 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
             self.excluded_terms,
         )
         for hit in hits:
-            try:
-                complete_sequence = self.__get_complete_sequence(hit["hit_id"])
-            except subprocess.CalledProcessError:
+            complete_sequence = ""
+            entries = [hit["hit_id"]]
+            if hit["accession"] and hit["accession"] != hit["hit_id"]:
+                entries.append(hit["accession"])
+            for entry in entries:
+                if not entry:
+                    continue
+                try:
+                    complete_sequence = self.__get_complete_sequence(entry)
+                except subprocess.CalledProcessError:
+                    LOGGER.warning("Failed to retrieve BLAST hit: %s", entry)
+                    continue
+                if complete_sequence:
+                    break
+            if not complete_sequence:
                 LOGGER.warning(
                     "Skipping BLAST hit whose complete protein could not be retrieved: %s",
                     hit["hit_id"],
                 )
-                continue
-            if not complete_sequence:
-                LOGGER.warning("Skipping BLAST hit with no retrievable protein: %s", hit["hit_id"])
                 continue
             orthologs.append(_make_ortholog(hit, complete_sequence))
         return orthologs

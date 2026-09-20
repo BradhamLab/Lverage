@@ -12,7 +12,13 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 def make_alignment(description="Homeobox protein [Homo sapiens]", hsps=None):
     if hsps is None:
-        hsps = [SimpleNamespace(expect=1e-20, identities=80, align_length=100)]
+        hsps = [SimpleNamespace(
+            expect=1e-20,
+            identities=80,
+            align_length=100,
+            query_start=1,
+            query_end=100,
+        )]
     return SimpleNamespace(
         accession="NP_000001.1",
         hit_def=description,
@@ -61,8 +67,20 @@ class LocalBlastSearcherTests(unittest.TestCase):
     def test_search_builds_command_and_uses_best_hsp_metrics(self):
         searcher = self.make_searcher(evalue_threshold=1e-8, top_n=7)
         alignment = make_alignment(hsps=[
-            SimpleNamespace(expect=1e-5, identities=50, align_length=75),
-            SimpleNamespace(expect=1e-30, identities=90, align_length=100),
+            SimpleNamespace(
+                expect=1e-5,
+                identities=50,
+                align_length=75,
+                query_start=1,
+                query_end=75,
+            ),
+            SimpleNamespace(
+                expect=1e-30,
+                identities=90,
+                align_length=100,
+                query_start=51,
+                query_end=150,
+            ),
         ])
         self.mock_run.side_effect = [
             SimpleNamespace(stdout="<xml>"),
@@ -78,13 +96,71 @@ class LocalBlastSearcherTests(unittest.TestCase):
         self.assertEqual(records[0].query_coverage, 0.5)
         self.assertEqual(records[0].species_tax_id, 9606)
         self.assertEqual(self.mock_run.call_args_list[1].args[0], [
-            "/resolved/blastp", "-db", "proteins", "-outfmt", "5",
+            "/resolved/blastp", "-db", "proteins", "-query", "-", "-outfmt", "5",
             "-evalue", "1e-08", "-max_target_seqs", "7",
         ])
+        self.assertEqual(
+            self.mock_run.call_args_list[1].kwargs["input"],
+            ">query\n" + "A" * 200 + "\n",
+        )
         self.assertEqual(self.mock_run.call_args_list[2].args[0], [
             "/resolved/blastdbcmd", "-db", "proteins", "-entry",
             "ref|NP_000001.1|", "-outfmt", "%s",
         ])
+
+    def test_coverage_uses_query_coordinates_for_gapped_alignment(self):
+        searcher = self.make_searcher()
+        alignment = make_alignment(hsps=[SimpleNamespace(
+            expect=1e-20,
+            identities=8,
+            align_length=12,
+            query_start=11,
+            query_end=18,
+        )])
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout="<xml>"),
+            SimpleNamespace(stdout="SEQUENCE"),
+        ]
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=[alignment])
+        ])):
+            records = searcher.get_orthologs("A" * 20)
+
+        self.assertEqual(records[0].query_coverage, 0.4)
+
+    def test_sequence_retrieval_falls_back_to_accession(self):
+        searcher = self.make_searcher()
+        alignment = make_alignment()
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout="<xml>"),
+            subprocess.CalledProcessError(1, "blastdbcmd"),
+            SimpleNamespace(stdout="SEQUENCE"),
+        ]
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=[alignment])
+        ])):
+            records = searcher.get_orthologs("QUERY")
+
+        self.assertEqual(records[0].sequence, "SEQUENCE")
+        self.assertEqual(self.mock_run.call_args_list[3].args[0][-3], "NP_000001.1")
+
+    def test_sequence_retrieval_failure_for_both_identifiers_skips_hit(self):
+        searcher = self.make_searcher()
+        alignment = make_alignment()
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout="<xml>"),
+            subprocess.CalledProcessError(1, "blastdbcmd"),
+            subprocess.CalledProcessError(1, "blastdbcmd"),
+        ]
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=[alignment])
+        ])):
+            records = searcher.get_orthologs("QUERY")
+
+        self.assertEqual(records, [])
 
     def test_species_resolution_is_case_insensitive(self):
         searcher = self.make_searcher()
