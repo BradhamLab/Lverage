@@ -12,22 +12,16 @@ sequence-ID index. The existing SCC ``human_mouse_nr`` database was built
 without that index and must be rebuilt before it can support an end-to-end
 ``LocalBlastSearcher`` run.
 
-Both adapters return :class:`lverage.ortholog_searcher.OrthologRecord` objects.
+``LocalBlastSearcher`` returns :class:`lverage.ortholog_searcher.OrthologRecord`
+objects.
 Identity and query coverage are ratios from zero to one. Individual malformed,
 excluded, unresolved, or unretrievable hits are skipped and logged; executable,
-database, subprocess, HTTP, timeout, and whole-result parsing failures are
-raised to the caller.
+database, subprocess, timeout, and whole-result parsing failures are raised to
+the caller.
 
 ``LocalBlastSearcher`` validates a database prefix with ``blastdbcmd -info``
-and retrieves complete subject proteins from that database. The remote adapter
-runs BLAST+ with ``-remote`` and batch-fetches complete proteins through NCBI
-E-utilities. NCBI services are shared: do not parallelize remote searches, and
-prefer off-peak hours for larger workloads.
+and retrieves complete subject proteins from that database.
 
 .. autoclass:: lverage.blast.LocalBlastSearcher
-   :members:
-   :show-inheritance:
-
-.. autoclass:: lverage.blast.RemoteBlastSearcher
    :members:
    :show-inheritance:
