@@ -1,6 +1,7 @@
 """Pfam-based domain scanners."""
 
 import logging
+import os
 import shutil
 import subprocess
 import tempfile
@@ -116,19 +117,27 @@ class LocalPfamScanner(DomainScannerTemplate):
         """
 
         _validate_sequence(sequence)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".fasta") as query_file:
-            query_file.write(f">query\n{sequence}\n")
-            query_file.flush()
+        fd, query_path = tempfile.mkstemp(prefix="lverage_pfam_", suffix=".fasta")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as query_file:
+                query_file.write(f">query\n{sequence}\n")
+
             result = subprocess.run(
                 [
                     self.pfamscan_path,
-                    "-fasta", query_file.name,
+                    "-fasta", query_path,
                     "-dir", self.database_path,
                 ],
                 capture_output=True,
                 check=True,
                 text=True,
             )
+        finally:
+            try:
+                os.unlink(query_path)
+            except FileNotFoundError:
+                pass
+
         return _parse_local_results(result.stdout)
 
 
