@@ -6,6 +6,7 @@ This document tracks all software, external tools, databases, environment config
 
 - Python 3.11
 - Biopython
+- orffinder 1.8 (Python ORF finder)
 - Requests
 
 Developer/documentation dependencies:
