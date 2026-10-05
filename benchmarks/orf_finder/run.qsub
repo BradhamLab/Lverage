@@ -2,7 +2,7 @@
 
 # SCC SGE project is supplied at submission with: qsub -P "$SCC_PROJECT" ...
 # Do not infer it from the paxlab Unix group or project-directory name.
-#$ -N lverage_orf_benchmark
+#$ -N lverage_assigned_orfs
 #$ -cwd
 #$ -j y
 #$ -l h_rt=02:00:00
@@ -28,4 +28,5 @@ export ORFFINDER_EXECUTABLE
 printf 'Host: %s\n' "$(hostname)"
 printf 'Conda environment: %s\n' "$CONDA_PREFIX"
 printf 'ORFfinder: %s\n' "$ORFFINDER_EXECUTABLE"
+printf 'Assigned input FASTAs: %s\n' "$REPO_ROOT/benchmarks/orf_finder/data/test_inputs"
 python -m benchmarks.orf_finder.benchmark run --executable "$ORFFINDER_EXECUTABLE"

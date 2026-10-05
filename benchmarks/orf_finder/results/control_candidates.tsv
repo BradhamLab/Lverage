@@ -1,19 +1,19 @@
-candidate_id	tool	record_id	start0	end0	strand	nucleotide_length	protein	terminal_stop_in_nt	complete	annotated_cds_iou	annotated_cds_exact
-forward_complete:ncbi:ORF1_forward_complete	ncbi_ml30	forward_complete	0	84	+	84	MAAAAAAAAAAAAAAAAAAAAAAAAAA	True	True	0.0	False
-incomplete_terminal:ncbi:ORF1_incomplete_terminal	ncbi_ml30	incomplete_terminal	0	78	+	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False	0.0	False
-incomplete_terminal_reverse:ncbi:ORF1_incomplete_terminal_reverse	ncbi_ml30	incomplete_terminal_reverse	0	78	-	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False	0.0	False
-nested_pair:ncbi:ORF1_nested_pair	ncbi_ml30	nested_pair	7	58	+	51	MGQRYAGGTVRHIVLE	True	True	0.0	False
-reverse_complete:ncbi:ORF1_reverse_complete	ncbi_ml30	reverse_complete	0	81	-	81	MAAAAAAAAAAAAAAAAAAAAAAAAA	True	True	0.0	False
-nested_pair:ncbi:ORF2_nested_pair	ncbi_ml30	nested_pair	12	45	-	33	MCLTVPPAYR	True	True	0.0	False
-forward_complete:ncbi:ORF1_forward_complete	ncbi_ml75	forward_complete	0	84	+	84	MAAAAAAAAAAAAAAAAAAAAAAAAAA	True	True	0.0	False
-incomplete_terminal:ncbi:ORF1_incomplete_terminal	ncbi_ml75	incomplete_terminal	0	78	+	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False	0.0	False
-incomplete_terminal_reverse:ncbi:ORF1_incomplete_terminal_reverse	ncbi_ml75	incomplete_terminal_reverse	0	78	-	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False	0.0	False
-reverse_complete:ncbi:ORF1_reverse_complete	ncbi_ml75	reverse_complete	0	81	-	81	MAAAAAAAAAAAAAAAAAAAAAAAAA	True	True	0.0	False
-forward_complete:raw:1	python_raw	forward_complete	0	84	+	84	MAAAAAAAAAAAAAAAAAAAAAAAAAA*	True	True	0.0	False
-reverse_complete:raw:1	python_raw	reverse_complete	0	81	-	81	MAAAAAAAAAAAAAAAAAAAAAAAAA*	True	True	0.0	False
-incomplete_terminal:raw:1	python_raw	incomplete_terminal	0	78	+	78	MAAAAAAAAAAAAAAAAAAAAAAAA	False	False	0.0	False
-incomplete_terminal_reverse:raw:1	python_raw	incomplete_terminal_reverse	0	78	-	78	MAAAAAAAAAAAAAAAAAAAAAAAA	False	False	0.0	False
-forward_complete:adapter:1	adapter_corrected	forward_complete	0	84	+	84	MAAAAAAAAAAAAAAAAAAAAAAAAAA	True	True	0.0	False
-reverse_complete:adapter:1	adapter_corrected	reverse_complete	0	81	-	81	MAAAAAAAAAAAAAAAAAAAAAAAAA	True	True	0.0	False
-incomplete_terminal:adapter:1	adapter_corrected	incomplete_terminal	0	78	+	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False	0.0	False
-incomplete_terminal_reverse:adapter:1	adapter_corrected	incomplete_terminal_reverse	0	78	-	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False	0.0	False
+candidate_id	tool	record_id	start0	end0	strand	nucleotide_length	protein	terminal_stop_in_nt	complete
+forward_complete:ncbi:ORF1_forward_complete	ncbi_ml30	forward_complete	0	84	+	84	MAAAAAAAAAAAAAAAAAAAAAAAAAA	True	True
+incomplete_terminal:ncbi:ORF1_incomplete_terminal	ncbi_ml30	incomplete_terminal	0	78	+	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False
+incomplete_terminal_reverse:ncbi:ORF1_incomplete_terminal_reverse	ncbi_ml30	incomplete_terminal_reverse	0	78	-	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False
+nested_pair:ncbi:ORF1_nested_pair	ncbi_ml30	nested_pair	7	58	+	51	MGQRYAGGTVRHIVLE	True	True
+reverse_complete:ncbi:ORF1_reverse_complete	ncbi_ml30	reverse_complete	0	81	-	81	MAAAAAAAAAAAAAAAAAAAAAAAAA	True	True
+nested_pair:ncbi:ORF2_nested_pair	ncbi_ml30	nested_pair	12	45	-	33	MCLTVPPAYR	True	True
+forward_complete:ncbi:ORF1_forward_complete	ncbi_ml75	forward_complete	0	84	+	84	MAAAAAAAAAAAAAAAAAAAAAAAAAA	True	True
+incomplete_terminal:ncbi:ORF1_incomplete_terminal	ncbi_ml75	incomplete_terminal	0	78	+	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False
+incomplete_terminal_reverse:ncbi:ORF1_incomplete_terminal_reverse	ncbi_ml75	incomplete_terminal_reverse	0	78	-	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False
+reverse_complete:ncbi:ORF1_reverse_complete	ncbi_ml75	reverse_complete	0	81	-	81	MAAAAAAAAAAAAAAAAAAAAAAAAA	True	True
+forward_complete:raw:1	python_raw	forward_complete	0	84	+	84	MAAAAAAAAAAAAAAAAAAAAAAAAAA*	True	True
+reverse_complete:raw:1	python_raw	reverse_complete	0	81	-	81	MAAAAAAAAAAAAAAAAAAAAAAAAA*	True	True
+incomplete_terminal:raw:1	python_raw	incomplete_terminal	0	78	+	78	MAAAAAAAAAAAAAAAAAAAAAAAA	False	False
+incomplete_terminal_reverse:raw:1	python_raw	incomplete_terminal_reverse	0	78	-	78	MAAAAAAAAAAAAAAAAAAAAAAAA	False	False
+forward_complete:adapter:1	adapter_corrected	forward_complete	0	84	+	84	MAAAAAAAAAAAAAAAAAAAAAAAAAA	True	True
+reverse_complete:adapter:1	adapter_corrected	reverse_complete	0	81	-	81	MAAAAAAAAAAAAAAAAAAAAAAAAA	True	True
+incomplete_terminal:adapter:1	adapter_corrected	incomplete_terminal	0	78	+	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False
+incomplete_terminal_reverse:adapter:1	adapter_corrected	incomplete_terminal_reverse	0	78	-	78	MAAAAAAAAAAAAAAAAAAAAAAAAA	False	False

@@ -2,9 +2,9 @@ import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
+from unittest.mock import patch
 
 from Bio.Seq import Seq
-from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 from benchmarks.orf_finder import benchmark
@@ -40,7 +40,7 @@ class BenchmarkPairingTests(unittest.TestCase):
     def candidate(candidate_id, start, end, strand="+"):
         return benchmark.Candidate(
             candidate_id, "test", "TX.1", start, end, strand, end - start,
-            "MTEST", False, False, 0.0, False,
+            "MTEST", False, False,
         )
 
     def test_all_positive_overlaps_are_retained_and_exact_matches_separate(self):
@@ -86,7 +86,6 @@ class BenchmarkNcbiParserTests(unittest.TestCase):
 
     def parse(self, record_id, interval_header, orf_tag, cds_sequence, protein, input_sequence):
         record = SeqRecord(Seq(input_sequence), id=record_id)
-        record.features = [SeqFeature(FeatureLocation(0, len(input_sequence), strand=1), type="CDS", qualifiers={"gene": ["TEST"], "translation": ["M"]})]
         with tempfile.TemporaryDirectory() as temp_dir:
             cds_path = Path(temp_dir) / "cds.fasta"
             protein_path = Path(temp_dir) / "protein.fasta"
@@ -118,19 +117,22 @@ class BenchmarkNcbiParserTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "does not match translated CDS"):
             self.parse("TX.1", "1-33", "ORF1_TX.1:0:32", cds, "M", cds)
 
+    def test_terminal_stop_is_removed_from_protein_but_retained_in_interval(self):
+        cds = "ATG" + "GCT" * 9 + "TAA"
+        protein = "M" + "A" * 9
+        candidate = self.parse("TX.1", "1-33", "ORF1_TX.1:0:32", cds, protein, cds)[0]
+
+        self.assertEqual(candidate.interval, (0, 33, "+"))
+        self.assertTrue(candidate.terminal_stop_in_nt)
+        self.assertTrue(candidate.complete)
+        self.assertEqual(candidate.protein, protein)
+
 
 class BenchmarkAdapterAssociationTests(unittest.TestCase):
 
     def setUp(self):
         self.record_id = "SYNTHETIC.1"
         self.sequence = "ATG" + "GCT" * 24
-        record = SeqRecord(Seq(self.sequence), id=self.record_id)
-        record.features = [SeqFeature(FeatureLocation(0, len(self.sequence), strand=1), type="CDS", qualifiers={"gene": ["SYN"], "translation": ["M" + "A" * 24]})]
-        self.old_records = benchmark._RECORDS_BY_ID
-        benchmark._RECORDS_BY_ID = {self.record_id: record}
-
-    def tearDown(self):
-        benchmark._RECORDS_BY_ID = self.old_records
 
     def test_adapter_corrects_package_one_nt_terminal_threshold_behavior(self):
         corrected = benchmark.corrected_adapter_candidates(self.record_id, self.sequence)
@@ -144,14 +146,76 @@ class BenchmarkAdapterAssociationTests(unittest.TestCase):
     def test_corrected_candidate_proteins_match_production_adapter_with_duplicates(self):
         orf = "ATG" + "GCT" * 23 + "TAA"
         sequence = orf + orf
-        record = SeqRecord(Seq(sequence), id=self.record_id)
-        record.features = [SeqFeature(FeatureLocation(0, len(sequence), strand=1), type="CDS", qualifiers={"gene": ["SYN"], "translation": ["M" + "A" * 23]})]
-        benchmark._RECORDS_BY_ID[self.record_id] = record
-
         candidates = benchmark.corrected_adapter_candidates(self.record_id, sequence)
 
         proteins = [candidate.protein for candidate in candidates]
         self.assertGreaterEqual(Counter(proteins).most_common(1)[0][1], 2)
+
+
+class AssignedInputValidationTests(unittest.TestCase):
+
+    @staticmethod
+    def write_assigned_files(directory, replacement=None):
+        accessions = {
+            "HoxA13.fa": "NG_008181.2",
+            "Jun.fa": "NG_047027.2",
+            "MITF.fa": "NG_011631.1",
+        }
+        for filename, accession in accessions.items():
+            sequence = replacement if filename == "HoxA13.fa" and replacement is not None else "ATGAAATAG"
+            (directory / filename).write_text(f">{accession} supplied test record\n{sequence}\n", encoding="ascii")
+
+    def test_supplied_inputs_are_single_versioned_dna_records_with_checksums(self):
+        records, provenance = benchmark.load_assigned_inputs()
+
+        self.assertEqual([entry["filename"] for entry in provenance], list(benchmark.ASSIGNED_INPUT_FILES))
+        self.assertEqual(len(records), 3)
+        for entry in provenance:
+            self.assertEqual(entry["sequence_length"], len(records[entry["accession_version"]].seq))
+            self.assertEqual(len(entry["file_sha256"]), 64)
+            self.assertEqual(len(entry["sequence_sha256"]), 64)
+            self.assertIn(entry["accession_version"], entry["original_header"])
+
+    def test_dataset_validation_rejects_invalid_dna_symbols(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            self.write_assigned_files(directory, replacement="ATG-UAA")
+
+            with self.assertRaisesRegex(ValueError, "Invalid DNA symbols"):
+                benchmark.load_assigned_inputs(directory)
+
+    def test_dataset_validation_rejects_multiple_records_in_one_input(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            self.write_assigned_files(directory)
+            path = directory / "HoxA13.fa"
+            path.write_text(path.read_text(encoding="ascii") + ">extra\nATGAAATAG\n", encoding="ascii")
+
+            with self.assertRaisesRegex(ValueError, "exactly one FASTA record"):
+                benchmark.load_assigned_inputs(directory)
+
+    def test_completed_report_uses_assigned_input_labels_and_clean_markdown_spacing(self):
+        row = {
+            "record_id": "NG_008181.2",
+            "python_raw_count": 2,
+            "adapter_corrected_count": 3,
+            "ncbi_count": 4,
+            "raw_adapter_exact_translation_difference_count": 1,
+            "adapter_corrected_vs_ncbi_exact_count": 2,
+            "adapter_corrected_vs_ncbi_positive_overlap_pair_count": 5,
+            "adapter_corrected_longest_locations": '["0:99:+"]',
+            "ncbi_longest_locations": '["0:99:+"]',
+        }
+        provenance = [{"filename": "HoxA13.fa", "accession_version": "NG_008181.2"}]
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(benchmark, "RESULTS", Path(temp_dir)):
+            benchmark.write_report([row], provenance)
+            report = (Path(temp_dir) / "report.md").read_text(encoding="utf-8")
+
+        self.assertIn("HoxA13.fa | NG_008181.2 | 2 | 3 | 4", report)
+        self.assertIn("does not perform splicing", report)
+        self.assertTrue(report.endswith("\n"))
+        self.assertFalse(report.endswith("\n\n"))
 
 
 if __name__ == "__main__":

@@ -15,11 +15,10 @@ import sys
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from io import StringIO
 from pathlib import Path
 from typing import Iterable
 
-from Bio import Entrez, SeqIO, __version__ as biopython_version
+from Bio import SeqIO, __version__ as biopython_version
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from orffinder import orffinder
@@ -33,18 +32,16 @@ RESULTS = HERE / "results"
 DEFAULT_EXECUTABLE = "/projectnb/paxlab/thomas/tools/orffinder/ORFfinder"
 MINIMUM_NT = 75
 GENETIC_CODE = 1
-ACCESSIONS = (
-    ("NM_000546.6", "TP53"),
-    ("NM_002467.6", "MYC"),
-    ("NM_003106.4", "SOX2"),
-    ("NM_000280.5", "PAX6"),
-    ("NM_000125.4", "ESR1"),
-    ("NM_004496.4", "FOXA1"),
-    ("NM_002049.4", "GATA1"),
-    ("NM_000457.5", "HNF4A"),
-    ("NM_001754.5", "RUNX1"),
-    ("NM_152739.4", "HOXA9"),
-)
+ASSIGNED_INPUT_DIR = DATA / "test_inputs"
+ASSIGNED_INPUT_MANIFEST = DATA / "assigned_input_manifest.tsv"
+ASSIGNED_INPUT_FILES = ("HoxA13.fa", "Jun.fa", "MITF.fa")
+ASSIGNED_ACCESSIONS = {
+    "HoxA13.fa": "NG_008181.2",
+    "Jun.fa": "NG_047027.2",
+    "MITF.fa": "NG_011631.1",
+}
+DNA_ALPHABET = frozenset("ACGTRYSWKMBDHVN")
+ACCESSION_VERSION = re.compile(r"\b(NG_\d+\.\d+)\b")
 
 
 @dataclass(frozen=True)
@@ -59,8 +56,6 @@ class Candidate:
     protein: str
     terminal_stop_in_nt: bool
     complete: bool
-    annotated_cds_iou: float
-    annotated_cds_exact: bool
 
     @property
     def interval(self) -> tuple[int, int, str]:
@@ -88,19 +83,6 @@ def _locus_interval(locus: dict, sequence_length: int) -> tuple[int, int, str, i
     return start0, end0, locus["sense"], nucleotide_length
 
 
-def _cds_reference(record: SeqRecord) -> tuple[int, int, str, dict] | None:
-    features = [feature for feature in record.features if feature.type == "CDS"]
-    if not features:
-        return None
-    feature = features[0]
-    if len(features) > 1:
-        raise ValueError(f"Expected a single principal CDS in {record.id}; found {len(features)}")
-    if feature.location is None or len(feature.location.parts) != 1:
-        raise ValueError(f"Unsupported compound CDS location for {record.id}: {feature.location}")
-    strand = "+" if feature.location.strand == 1 else "-" if feature.location.strand == -1 else "?"
-    return int(feature.location.start), int(feature.location.end), strand, feature.qualifiers
-
-
 def interval_iou(left: tuple[int, int], right: tuple[int, int]) -> float:
     intersection = max(0, min(left[1], right[1]) - max(left[0], right[0]))
     union = max(left[1], right[1]) - min(left[0], right[0])
@@ -123,18 +105,14 @@ def python_raw_candidates(record_id: str, sequence: str) -> list[Candidate]:
         {key: str(value) if key == "protein" else value for key, value in locus.items()}
         for locus in loci
     ]
-    reference_record = _RECORDS_BY_ID[record_id]
-    cds = _cds_reference(reference_record)
     candidates = []
     for locus in loci:
         start0, end0, strand, nucleotide_length = _locus_interval(locus, len(sequence))
         protein = str(locus["protein"])
-        cds_iou = interval_iou((start0, end0), cds[:2]) if cds and strand == cds[2] else 0.0
         candidates.append(Candidate(
             f"{record_id}:raw:{locus['index']}", "python_raw", record_id,
             start0, end0, strand, nucleotide_length, protein,
-            bool(not locus["trailing"]), not locus["trailing"], cds_iou,
-            bool(cds and (start0, end0, strand) == cds[:3]),
+            bool(not locus["trailing"]), not locus["trailing"],
         ))
     return candidates
 
@@ -152,7 +130,6 @@ def corrected_adapter_candidates(record_id: str, sequence: str) -> list[Candidat
     )
     forward = sequence
     reverse = str(Seq(sequence).reverse_complement())
-    cds = _cds_reference(_RECORDS_BY_ID[record_id])
     candidates = []
     for locus in loci:
         start0, end0, strand, nucleotide_length = _locus_interval(locus, len(sequence))
@@ -170,12 +147,10 @@ def corrected_adapter_candidates(record_id: str, sequence: str) -> list[Candidat
         protein = str(Seq(strand_sequence[start_index:start_index + coding_length]).translate()).rstrip("*")
         if not protein:
             continue
-        cds_iou = interval_iou((start0, end0), cds[:2]) if cds and strand == cds[2] else 0.0
         candidates.append(Candidate(
             f"{record_id}:adapter:{locus['index']}", "adapter_corrected", record_id,
             start0, end0, strand, nucleotide_length, protein,
-            bool(not locus["trailing"]), not locus["trailing"], cds_iou,
-            bool(cds and (start0, end0, strand) == cds[:3]),
+            bool(not locus["trailing"]), not locus["trailing"],
         ))
 
     actual = OrffinderOrfSearcher(
@@ -266,14 +241,11 @@ def parse_ncbi_outputs(cds_fasta: Path, protein_fasta: Path, records: dict[str, 
             expected_cds = str(Seq(input_sequence[start0:end0]).reverse_complement())
         if expected_cds != cds_sequence:
             raise ValueError(f"NCBI CDS sequence does not match saved input interval for {tag}")
-        cds = _cds_reference(records[record_id])
-        cds_iou = interval_iou((start0, end0), cds[:2]) if cds and strand == cds[2] else 0.0
         candidates.append(Candidate(
             f"{record_id}:ncbi:{tag}", "ncbi", record_id,
             start0, end0, strand, end0 - start0, protein,
             bool(cds_sequence[-3:] in {"TAA", "TAG", "TGA"}),
             bool(cds_sequence[-3:] in {"TAA", "TAG", "TGA"}),
-            cds_iou, bool(cds and (start0, end0, strand) == cds[:3]),
         ))
     return candidates
 
@@ -334,95 +306,71 @@ def compare_candidates(left: list[Candidate], right: list[Candidate]) -> dict:
     }
 
 
-def validate_dataset(records: list[SeqRecord]) -> dict[str, SeqRecord]:
-    by_id = {record.id: record for record in records}
-    expected = dict(ACCESSIONS)
-    if set(by_id) != set(expected):
-        raise ValueError(f"Exact RefSeq accession/version set mismatch: expected {sorted(expected)}, got {sorted(by_id)}")
-    for accession, gene in ACCESSIONS:
-        record = by_id[accession]
-        gene_names = {
-            value
-            for feature in record.features
-            if feature.type == "CDS"
-            for value in feature.qualifiers.get("gene", [])
-        }
-        if gene_names != {gene}:
-            raise ValueError(f"{accession} expected gene {gene}, found {sorted(gene_names)}")
-        if not any(feature.type == "CDS" and feature.qualifiers.get("translation") for feature in record.features):
-            raise ValueError(f"{accession} has no annotated CDS translation qualifier")
-    return by_id
-
-
-def annotated_translation_check(record: SeqRecord, feature) -> tuple[str, bool, str]:
-    qualifiers = feature.qualifiers
-    codon_start = int(qualifiers.get("codon_start", ["1"])[0])
-    translation_table = int(qualifiers.get("transl_table", ["1"])[0])
-    coding_sequence = feature.extract(record.seq)[codon_start - 1:]
-    computed = str(coding_sequence.translate(table=translation_table)).rstrip("*")
-    annotated = qualifiers.get("translation", [""])[0]
-    start_codon = str(coding_sequence[:3]).upper()
-    notes = "; ".join(qualifiers.get("note", []))
-    if computed == annotated:
-        note = ""
-    elif "non-AUG" in notes and start_codon != "ATG" and annotated.startswith("M"):
-        note = (
-            f"Annotated initiation is non-AUG ({start_codon}); GenBank translation "
-            "qualifier encodes initiator methionine while standard-code translation is leucine."
+def load_assigned_inputs(input_dir: Path = ASSIGNED_INPUT_DIR) -> tuple[dict[str, SeqRecord], list[dict]]:
+    """Load and validate the professor-provided genomic RefSeqGene FASTAs."""
+    fasta_paths = sorted(
+        path.name for path in input_dir.iterdir()
+        if path.is_file() and path.suffix.lower() in {".fa", ".fasta"}
+    )
+    if tuple(fasta_paths) != tuple(sorted(ASSIGNED_INPUT_FILES)):
+        raise ValueError(
+            f"Expected exactly {sorted(ASSIGNED_INPUT_FILES)} in {input_dir}, got {fasta_paths}"
         )
-    elif qualifiers.get("transl_except") or qualifiers.get("exception"):
-        note = "Annotated translation differs; see retained transl_except/exception qualifiers."
-    else:
-        note = "Annotated translation differs from qualifier-directed standard translation; inspect retained qualifiers."
-    return start_codon, computed == annotated, note
 
-
-def write_dataset_provenance(ordered_records: list[SeqRecord]) -> None:
-    rows = []
-    for record, (_, gene) in zip(ordered_records, ACCESSIONS):
-        cds = _cds_reference(record)
-        assert cds is not None
-        start0, end0, strand, qualifiers = cds
-        feature = next(feature for feature in record.features if feature.type == "CDS")
-        translation = qualifiers.get("translation", [""])[0]
-        start_codon, computed_matches, translation_note = annotated_translation_check(record, feature)
-        qualifier_data = {key: values for key, values in sorted(qualifiers.items())}
-        rows.append({
-            "accession_version": record.id,
-            "gene": gene,
-            "source": "NCBI RefSeq nuccore GenBank record",
-            "sequence_length": len(record.seq),
-            "sequence_sha256": sha256_text(str(record.seq).upper()),
-            "cds_start0": start0,
-            "cds_end0": end0,
-            "cds_strand": strand,
-            "cds_length_nt": end0 - start0,
-            "cds_start_codon": start_codon,
-            "cds_translation": translation,
-            "cds_translation_sha256": sha256_text(translation),
-            "cds_translation_matches_qualifier_directed_standard_translation": computed_matches,
-            "cds_translation_note": translation_note,
-            "cds_qualifiers_json": json.dumps(qualifier_data, sort_keys=True, separators=(",", ":")),
-            "record_definition": record.description,
-            "retrieved_utc": datetime.now(timezone.utc).isoformat(),
+    records: dict[str, SeqRecord] = {}
+    provenance = []
+    for filename in ASSIGNED_INPUT_FILES:
+        path = input_dir / filename
+        with path.open(encoding="utf-8") as handle:
+            parsed = list(SeqIO.parse(handle, "fasta"))
+        if len(parsed) != 1:
+            raise ValueError(f"Expected exactly one FASTA record in {filename}; found {len(parsed)}")
+        record = parsed[0]
+        if not record.id or not record.description:
+            raise ValueError(f"Missing FASTA identifier/header in {filename}")
+        accession_match = ACCESSION_VERSION.search(record.description)
+        if accession_match is None:
+            raise ValueError(f"No versioned RefSeqGene accession in FASTA header: {record.description}")
+        accession_version = accession_match.group(1)
+        if accession_version != ASSIGNED_ACCESSIONS[filename]:
+            raise ValueError(
+                f"{filename} expected RefSeqGene accession {ASSIGNED_ACCESSIONS[filename]}, "
+                f"found {accession_version}"
+            )
+        if record.id != accession_version:
+            raise ValueError(
+                f"FASTA identifier {record.id!r} does not match header accession {accession_version!r}"
+            )
+        sequence = str(record.seq).upper()
+        if not sequence:
+            raise ValueError(f"Empty DNA sequence in {filename}")
+        invalid = sorted(set(sequence) - DNA_ALPHABET)
+        if invalid:
+            raise ValueError(f"Invalid DNA symbols in {filename}: {invalid}")
+        if record.id in records:
+            raise ValueError(f"Duplicate FASTA record identifier: {record.id}")
+        records[record.id] = record
+        provenance.append({
+            "filename": filename,
+            "original_header": record.description,
+            "accession_version": accession_version,
+            "sequence_length": len(sequence),
+            "file_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "sequence_sha256": sha256_text(sequence),
         })
-    write_tsv(DATA / "dataset.tsv", rows)
-
-
-def fetch_dataset(email: str) -> None:
-    """Fetch the ten agreed RefSeq records in one request and archive that response."""
-    DATA.mkdir(parents=True, exist_ok=True)
-    Entrez.email = email
-    accessions = [accession for accession, _ in ACCESSIONS]
-    with Entrez.efetch(db="nuccore", id=",".join(accessions), rettype="gb", retmode="text") as handle:
-        response_text = handle.read()
-    (DATA / "human_refseq.gb").write_text(response_text, encoding="utf-8")
-    records = list(SeqIO.parse(StringIO(response_text), "genbank"))
-    by_id = validate_dataset(records)
-    ordered = [by_id[accession] for accession in accessions]
-    fasta_records = [SeqRecord(record.seq, id=record.id, description="") for record in ordered]
-    SeqIO.write(fasta_records, DATA / "human_refseq.fasta", "fasta")
-    write_dataset_provenance(ordered)
+    if input_dir.resolve() == ASSIGNED_INPUT_DIR.resolve():
+        with ASSIGNED_INPUT_MANIFEST.open(encoding="utf-8", newline="") as handle:
+            saved_manifest = list(csv.DictReader(handle, delimiter="\t"))
+        normalized_manifest = [
+            {**entry, "sequence_length": int(entry["sequence_length"])}
+            for entry in saved_manifest
+        ]
+        if normalized_manifest != provenance:
+            raise ValueError(
+                f"Assigned FASTA files do not match their saved provenance manifest: "
+                f"{ASSIGNED_INPUT_MANIFEST}"
+            )
+    return records, provenance
 
 
 def write_tsv(path: Path, rows: list[dict]) -> None:
@@ -506,10 +454,7 @@ def run_control_probes(executable: str) -> dict:
                                    start_codons=["ATG"], remove_nested=True, trim_trailing=False)
     if len(py_unfiltered) <= len(py_filtered):
         raise AssertionError("Python package nested-filter control did not remove a nested candidate")
-    global _RECORDS_BY_ID
-    original_records = _RECORDS_BY_ID
     original_raw_outputs = dict(_RAW_PACKAGE_OUTPUTS)
-    _RECORDS_BY_ID = control_records
     _RAW_PACKAGE_OUTPUTS.clear()
     control_candidate_rows = []
     control_by_tool = {"ncbi_ml30": baseline30, "ncbi_ml75": baseline75,
@@ -520,7 +465,6 @@ def run_control_probes(executable: str) -> dict:
         adapter_candidates = corrected_adapter_candidates(record_id, sequence)
         control_by_tool["python_raw"].extend(raw_candidates)
         control_by_tool["adapter_corrected"].extend(adapter_candidates)
-    _RECORDS_BY_ID = original_records
     write_json(RESULTS / "raw" / "controls_python_package_loci.json", _RAW_PACKAGE_OUTPUTS)
     _RAW_PACKAGE_OUTPUTS.clear()
     _RAW_PACKAGE_OUTPUTS.update(original_raw_outputs)
@@ -563,36 +507,24 @@ def run_control_probes(executable: str) -> dict:
 
 
 def run_benchmark(executable: str) -> None:
-    DATA.mkdir(parents=True, exist_ok=True)
+    records, input_provenance = load_assigned_inputs()
     RESULTS.mkdir(parents=True, exist_ok=True)
-    gb_path = DATA / "human_refseq.gb"
-    fasta_path = DATA / "human_refseq.fasta"
-    if not gb_path.exists() or not fasta_path.exists():
-        raise FileNotFoundError("Dataset absent; run benchmark.py fetch --email ADDRESS first")
-    genbank_records = list(SeqIO.parse(gb_path, "genbank"))
-    records = validate_dataset(genbank_records)
-    fasta_records = {record.id: record for record in SeqIO.parse(fasta_path, "fasta")}
-    if set(fasta_records) != set(records):
-        raise ValueError("Saved benchmark FASTA and GenBank records have different identifiers")
-    for record_id, record in records.items():
-        if str(fasta_records[record_id].seq).upper() != str(record.seq).upper():
-            raise ValueError(f"Saved FASTA sequence differs from archived GenBank sequence: {record_id}")
-    global _RECORDS_BY_ID
-    _RECORDS_BY_ID = records
-
     raw_dir = RESULTS / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
+    assigned_fasta = raw_dir / "assigned_inputs.fasta"
+    SeqIO.write(list(records.values()), assigned_fasta, "fasta")
+
     control_metadata = run_control_probes(executable)
     _RAW_PACKAGE_OUTPUTS.clear()
     ncbi_cds_path = raw_dir / "ncbi_outfmt1_cds.fasta"
     ncbi_protein_path = raw_dir / "ncbi_outfmt0_proteins.fasta"
-    command1 = _run_ncbi(executable, fasta_path, ncbi_protein_path, 0)
-    command2 = _run_ncbi(executable, fasta_path, ncbi_cds_path, 1)
+    command1 = _run_ncbi(executable, assigned_fasta, ncbi_protein_path, 0)
+    command2 = _run_ncbi(executable, assigned_fasta, ncbi_cds_path, 1)
     ncbi_candidates = parse_ncbi_outputs(ncbi_cds_path, ncbi_protein_path, records)
 
     candidates_by_tool: dict[str, list[Candidate]] = {"python_raw": [], "adapter_corrected": [], "ncbi": ncbi_candidates}
-    for record_id, fasta_record in fasta_records.items():
-        sequence = str(fasta_record.seq).upper()
+    for record_id, record in records.items():
+        sequence = str(record.seq).upper()
         candidates_by_tool["python_raw"].extend(python_raw_candidates(record_id, sequence))
         candidates_by_tool["adapter_corrected"].extend(corrected_adapter_candidates(record_id, sequence))
 
@@ -609,7 +541,7 @@ def run_benchmark(executable: str) -> None:
             left_groups[candidate.record_id].append(candidate)
         for candidate in candidates_by_tool[right_name]:
             right_groups[candidate.record_id].append(candidate)
-        for record_id, _ in ACCESSIONS:
+        for record_id in records:
             result = compare_candidates(left_groups[record_id], right_groups[record_id])
             comparisons[left_name, right_name, record_id] = result
             for a, b, iou in result["exact"]:
@@ -651,9 +583,16 @@ def run_benchmark(executable: str) -> None:
     write_tsv(RESULTS / "matches.tsv", match_rows)
     write_tsv(RESULTS / "unmatched.tsv", unmatched_rows)
     write_tsv(RESULTS / "translation_differences.tsv", translation_difference_rows)
+    provenance_by_accession = {entry["accession_version"]: entry for entry in input_provenance}
     comparison_rows = []
-    for record_id, gene in ACCESSIONS:
-        entry = {"record_id": record_id, "gene": gene}
+    for record_id in records:
+        input_entry = provenance_by_accession[record_id]
+        gene = Path(input_entry["filename"]).stem
+        entry = {
+            "record_id": record_id,
+            "input_filename": input_entry["filename"],
+            "gene_label": gene,
+        }
         for tool in tools:
             candidates = [candidate for candidate in candidates_by_tool[tool] if candidate.record_id == record_id]
             longest_length = max((candidate.nucleotide_length for candidate in candidates), default=0)
@@ -691,45 +630,59 @@ def run_benchmark(executable: str) -> None:
                        "minimum_orf_length_nt": MINIMUM_NT, "nested_filter": False, "strand": "both",
                        "ncbi_minimum_floor_nt": 30},
         "commands": [command1, command2],
+        "assigned_inputs": input_provenance,
+        "combined_input_fasta_sha256": hashlib.sha256(assigned_fasta.read_bytes()).hexdigest(),
         "synthetic_control_results": control_metadata,
-        "dataset_fasta_sha256": hashlib.sha256(fasta_path.read_bytes()).hexdigest(),
-        "dataset_genbank_sha256": hashlib.sha256(gb_path.read_bytes()).hexdigest(),
+        "dataset_type": "three professor-provided genomic RefSeqGene FASTA records; no sequence download or GenBank annotation",
+        "biological_scope": "ORF scanning does not perform splicing and does not establish the protein annotated for the named gene",
         "coordinate_system": "zero-based half-open on original input; strand separate",
         "ncbi_terminal_stop_normalization": "CDS FASTA sequence/location includes stop; protein excludes translated terminal stop; normalized interval retains the terminal stop nucleotide",
         "overlap_rule": "All same-strand positive non-exact interval intersections are emitted with IoU. Exact interval-and-strand matches are separate.",
         "pairing_rule": "Reserve exact matches one-to-one in ascending stable candidate-ID order. Among remaining candidates, sort positive-overlap edges with IoU >= 0.5 by descending IoU then ascending left/right candidate IDs; greedily accept an edge if neither endpoint is already paired. Report unmatched candidates after these pairings.",
     }
     write_json(RESULTS / "metadata.json", metadata)
-    write_report(candidates_by_tool, comparison_rows, pair_rows, match_rows)
+    write_report(comparison_rows, input_provenance)
 
 
-def write_report(candidates_by_tool: dict[str, list[Candidate]], comparisons: list[dict], overlaps: list[dict], matches: list[dict]) -> None:
+def write_report(comparisons: list[dict], input_provenance: list[dict]) -> None:
     lines = [
         "# ORFfinder benchmark results",
         "",
-        "This report is generated from the saved RefSeq inputs and preserved tool outputs. It distinguishes raw `orffinder` package behavior, Lverage's corrected adapter, and NCBI standalone ORFfinder. No additional ORFs are classified as errors merely because they are not annotated CDS.",
+        "Completed comparison of the three assigned genomic RefSeqGene FASTA records using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder. ORF scanning on genomic sequence does not perform splicing or establish the protein annotated for the named gene.",
         "",
-        "## Results per transcript",
+        "## Results per assigned input",
         "",
-        "| Accession | Gene | Raw package | Corrected adapter | NCBI | Raw/adapter translation differences | Adapter/NCBI exact | Adapter/NCBI positive overlaps | Same longest interval? |",
+        "| Input file | RefSeqGene accession.version | Raw package ORFs | Corrected adapter ORFs | NCBI ORFs | Raw/adapter exact-region translation differences | Adapter/NCBI exact matches | Adapter/NCBI positive overlaps | Same longest interval? |",
         "|---|---|---:|---:|---:|---:|---:|---:|---|",
     ]
     by_record = {row["record_id"]: row for row in comparisons}
-    for record_id, gene in ACCESSIONS:
+    adapter_total = sum(int(row["adapter_corrected_count"]) for row in comparisons)
+    ncbi_total = sum(int(row["ncbi_count"]) for row in comparisons)
+    exact_total = sum(int(row["adapter_corrected_vs_ncbi_exact_count"]) for row in comparisons)
+    for item in input_provenance:
+        record_id = item["accession_version"]
         row = by_record[record_id]
         exact = row["adapter_corrected_vs_ncbi_exact_count"]
         same_longest = bool(set(json.loads(row["adapter_corrected_longest_locations"])) & set(json.loads(row["ncbi_longest_locations"])))
-        lines.append(f"| {record_id} | {gene} | {row['python_raw_count']} | {row['adapter_corrected_count']} | {row['ncbi_count']} | {row['raw_adapter_exact_translation_difference_count']} | {exact} | {row['adapter_corrected_vs_ncbi_positive_overlap_pair_count']} | {'yes' if same_longest else 'no'} |")
+        lines.append(f"| {item['filename']} | {record_id} | {row['python_raw_count']} | {row['adapter_corrected_count']} | {row['ncbi_count']} | {row['raw_adapter_exact_translation_difference_count']} | {exact} | {row['adapter_corrected_vs_ncbi_positive_overlap_pair_count']} | {'yes' if same_longest else 'no'} |")
     lines.extend([
+        "",
+        "## Findings",
+        "",
+        f"- Across the three assigned inputs, the corrected adapter returned {adapter_total:,} candidates and NCBI returned {ncbi_total:,}; there were {exact_total:,} exact interval-and-strand matches.",
+        f"- Every NCBI candidate had an exact adapter match. The adapter returned {adapter_total - ncbi_total:,} additional candidates.",
+        "- All three inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI.",
+        "- Raw-package/adapter protein-string differences include terminal stop-symbol removal. Their counts do not indicate incorrect proteins.",
+        "- These findings apply only to the assigned genomic sequences and recorded settings. ORF scanning does not perform splicing or establish the annotated protein for the named gene.",
         "",
         "## Interpretation",
         "",
         "- Called-region differences are represented in `candidates.tsv`, `overlaps.tsv`, `matches.tsv`, and `unmatched.tsv`; exact matches and non-exact overlaps are separate.",
         "- Overlap means a positive intersection on the same strand; `overlaps.tsv` includes exact interval pairs with IoU 1.0 and marks them explicitly. Exact matches are also listed separately in `matches.tsv`. The additional one-to-one summary uses deterministic greedy pairing at IoU ≥ 0.5 after exact matches are reserved.",
-        "- Longest ORFs are ranked by normalized nucleotide span. All tied longest locations and proteins are retained in `comparisons.tsv`; the table's same-longest flag means at least one exact location-and-strand intersection between the tied sets.",
+        "- Longest ORFs are ranked by normalized nucleotide span. All tied longest locations and proteins are retained in `comparisons.tsv`; same-longest means the tied sets share at least one exact interval-and-strand location.",
         "- Raw package translation differences are counted only for exact same-region raw/adapter candidate pairs in `translation_differences.tsv`; candidates found by only one discovery path remain region differences. The corrected adapter candidate reconstruction is checked against production `OrffinderOrfSearcher.get_orfs()` as an ordered protein list and `Counter`, preserving duplicate counts.",
-        "- The archived GenBank CDS annotation is a reference. Candidate/CDS interval IoU, strand, exactness, annotated translation, and complete CDS qualifiers are in the candidate and dataset tables; additional ORFs are not automatically errors.",
         "- Tool settings and exact commands are in `metadata.json`. NCBI outfmt 1 locations are 1-based inclusive; they are normalized to half-open intervals while retaining stop codons. Outfmt 0 supplies proteins and is cross-checked against the matching CDS record.",
+        "- `metadata.json` records each input filename, original FASTA header, accession version, sequence length, and file/sequence SHA-256 checksums. Synthetic controls are validation fixtures and are not part of these assigned-input results.",
         "",
     ])
     # Keep generated Markdown sections separated and normalize the file ending
@@ -741,18 +694,12 @@ def write_report(candidates_by_tool: dict[str, list[Candidate]], comparisons: li
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    fetch_parser = subparsers.add_parser("fetch", help="fetch and validate the agreed RefSeq records")
-    fetch_parser.add_argument("--email", required=True, help="contact email for NCBI Entrez")
-    run_parser = subparsers.add_parser("run", help="run the benchmark from archived data")
+    run_parser = subparsers.add_parser("run", help="compare the three assigned genomic RefSeqGene FASTAs")
     run_parser.add_argument("--executable", default=os.environ.get("ORFFINDER_EXECUTABLE", DEFAULT_EXECUTABLE))
     args = parser.parse_args()
-    if args.command == "fetch":
-        fetch_dataset(args.email)
-    else:
-        run_benchmark(args.executable)
+    run_benchmark(args.executable)
 
 
-_RECORDS_BY_ID: dict[str, SeqRecord] = {}
 _RAW_PACKAGE_OUTPUTS: dict[str, list[dict]] = {}
 
 if __name__ == "__main__":

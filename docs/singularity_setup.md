@@ -37,9 +37,16 @@ Setup notes:
 	`/projectnb/paxlab/thomas/tools/orffinder/ORFfinder`.
 - The production Lverage adapter continues to use the Python package; the NCBI
 	executable is required only for the optional benchmark.
-- The reproducible benchmark inputs, synthetic controls, runner, parser tests,
-	SCC job script, provenance, and generated outputs are under
-	`benchmarks/orf_finder/`.
+- The benchmark uses only the three professor-provided genomic RefSeqGene FASTA
+	files under `benchmarks/orf_finder/data/test_inputs/`; it does not fetch
+	replacement sequences or require GenBank records/CDS annotations.
+- These are genomic sequences: ORF scanning does not splice exons and cannot
+	establish the named gene's mature transcript or annotated protein. Synthetic
+	sequences under `data/controls.fasta` are validation fixtures kept separate
+	from assigned-input results.
+- The runner, parser/coordinate tests, SCC job script, input provenance/checksums,
+	and generated outputs are under `benchmarks/orf_finder/`. New assigned-input
+	results remain pending until the compute-node benchmark runs.
 - The standalone binary is not installed by Conda or pip. Confirm its version
 	and executable path before running. The benchmark job script initializes
 	`/projectnb/paxlab/thomas/envs/lverage-v2` explicitly.

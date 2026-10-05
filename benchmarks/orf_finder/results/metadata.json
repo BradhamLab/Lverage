@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-10-04T15:22:49.894493+00:00",
+  "generated_utc": "2026-10-05T16:23:52.018727+00:00",
   "python_version": "3.11.16 (main, Sep  2 2026, 23:39:52) [GCC 15.3.0]",
   "biopython_version": "1.88",
   "orffinder_version": "1.8",
@@ -20,7 +20,7 @@
     [
       "/projectnb/paxlab/thomas/tools/orffinder/ORFfinder",
       "-in",
-      "/projectnb/paxlab/thomas/Lverage/benchmarks/orf_finder/data/human_refseq.fasta",
+      "/projectnb/paxlab/thomas/Lverage/benchmarks/orf_finder/results/raw/assigned_inputs.fasta",
       "-s",
       "0",
       "-g",
@@ -39,7 +39,7 @@
     [
       "/projectnb/paxlab/thomas/tools/orffinder/ORFfinder",
       "-in",
-      "/projectnb/paxlab/thomas/Lverage/benchmarks/orf_finder/data/human_refseq.fasta",
+      "/projectnb/paxlab/thomas/Lverage/benchmarks/orf_finder/results/raw/assigned_inputs.fasta",
       "-s",
       "0",
       "-g",
@@ -56,6 +56,33 @@
       "/projectnb/paxlab/thomas/Lverage/benchmarks/orf_finder/results/raw/ncbi_outfmt1_cds.fasta"
     ]
   ],
+  "assigned_inputs": [
+    {
+      "filename": "HoxA13.fa",
+      "original_header": "NG_008181.2 Homo sapiens homeobox A13 (HOXA13), RefSeqGene (LRG_1349) on chromosome 7",
+      "accession_version": "NG_008181.2",
+      "sequence_length": 12743,
+      "file_sha256": "a4d037ab00e9af8d17daddc5da9b12daf400bef83428581b3f94a1270b15e9da",
+      "sequence_sha256": "55df719104935ff8d6a01d3d1c1d114833e363e2051cf2569d475f75ceb6c8e0"
+    },
+    {
+      "filename": "Jun.fa",
+      "original_header": "NG_047027.2 Homo sapiens Jun proto-oncogene, AP-1 transcription factor subunit (JUN), RefSeqGene on chromosome 1",
+      "accession_version": "NG_047027.2",
+      "sequence_length": 10257,
+      "file_sha256": "1271f5cec76acf8b5e996ff8bf0a13e1e58188640f5e70674554837421f3bb64",
+      "sequence_sha256": "9ddf2b109fae43b10667d4eab5b2214b2c8d35d4fcca21ea61fd6b7f80d8d323"
+    },
+    {
+      "filename": "MITF.fa",
+      "original_header": "NG_011631.1 Homo sapiens melanocyte inducing transcription factor (MITF), RefSeqGene (LRG_776) on chromosome 3",
+      "accession_version": "NG_011631.1",
+      "sequence_length": 235855,
+      "file_sha256": "2800eadff068caa44224fb79374879c47dff349f7b2789e130feae296710f5c7",
+      "sequence_sha256": "9672268bbb58d07683e2b25a996200e7dd6fe02b0c79e2f3c1a277d391dec6fa"
+    }
+  ],
+  "combined_input_fasta_sha256": "aea144e78e84d04343d416e1d7ae26022c8a16cc10b239b9419e6316862d6200",
   "synthetic_control_results": {
     "ncbi_ml30_candidate_count": 6,
     "ncbi_ml75_candidate_count": 4,
@@ -162,8 +189,8 @@
       ]
     ]
   },
-  "dataset_fasta_sha256": "0256a74a68be35e80845e493bc124146af121be05777e73b834b050b31e6330a",
-  "dataset_genbank_sha256": "8275ae82f31e1b21cdb2496dd77bcaa33acaed309b44edd127a7b68c2db2b0d9",
+  "dataset_type": "three professor-provided genomic RefSeqGene FASTA records; no sequence download or GenBank annotation",
+  "biological_scope": "ORF scanning does not perform splicing and does not establish the protein annotated for the named gene",
   "coordinate_system": "zero-based half-open on original input; strand separate",
   "ncbi_terminal_stop_normalization": "CDS FASTA sequence/location includes stop; protein excludes translated terminal stop; normalized interval retains the terminal stop nucleotide",
   "overlap_rule": "All same-strand positive non-exact interval intersections are emitted with IoU. Exact interval-and-strand matches are separate.",
