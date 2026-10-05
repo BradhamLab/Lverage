@@ -1,0 +1,51 @@
+{
+  "forward_complete": [
+    {
+      "start": 1,
+      "end": 85,
+      "frame": 1,
+      "sense": "+",
+      "length": 84,
+      "trailing": false,
+      "index": 1,
+      "protein": "MAAAAAAAAAAAAAAAAAAAAAAAAAA*"
+    }
+  ],
+  "reverse_complete": [
+    {
+      "start": 82,
+      "end": 1,
+      "frame": 1,
+      "sense": "-",
+      "length": 81,
+      "trailing": false,
+      "index": 1,
+      "protein": "MAAAAAAAAAAAAAAAAAAAAAAAAA*"
+    }
+  ],
+  "nested_pair": [],
+  "incomplete_terminal": [
+    {
+      "start": 1,
+      "end": 78,
+      "frame": 1,
+      "sense": "+",
+      "length": 77,
+      "trailing": true,
+      "index": 1,
+      "protein": "MAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  ],
+  "incomplete_terminal_reverse": [
+    {
+      "start": 79,
+      "end": 1,
+      "frame": 1,
+      "sense": "-",
+      "length": 77,
+      "trailing": true,
+      "index": 1,
+      "protein": "MAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  ]
+}

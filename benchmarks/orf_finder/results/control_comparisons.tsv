@@ -1,0 +1,11 @@
+record_id	left_tool	right_tool	left_count	right_count	exact_count	positive_overlap_pair_count	iou_ge_0_5_pair_count	unmatched_left_count	unmatched_right_count
+forward_complete	python_raw	adapter_corrected	1	1	1	1	0	0	0
+forward_complete	adapter_corrected	ncbi_ml75	1	1	1	1	0	0	0
+reverse_complete	python_raw	adapter_corrected	1	1	1	1	0	0	0
+reverse_complete	adapter_corrected	ncbi_ml75	1	1	1	1	0	0	0
+nested_pair	python_raw	adapter_corrected	0	0	0	0	0	0	0
+nested_pair	adapter_corrected	ncbi_ml75	0	0	0	0	0	0	0
+incomplete_terminal	python_raw	adapter_corrected	1	1	1	1	0	0	0
+incomplete_terminal	adapter_corrected	ncbi_ml75	1	1	1	1	0	0	0
+incomplete_terminal_reverse	python_raw	adapter_corrected	1	1	1	1	0	0	0
+incomplete_terminal_reverse	adapter_corrected	ncbi_ml75	1	1	1	1	0	0	0

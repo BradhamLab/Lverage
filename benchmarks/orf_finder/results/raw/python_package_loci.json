@@ -1,0 +1,2522 @@
+{
+  "NM_000546.6": [
+    {
+      "start": 143,
+      "end": 1325,
+      "frame": 2,
+      "sense": "+",
+      "length": 1182,
+      "trailing": false,
+      "index": 1,
+      "protein": "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD*"
+    },
+    {
+      "start": 2023,
+      "end": 2500,
+      "frame": 1,
+      "sense": "+",
+      "length": 477,
+      "trailing": false,
+      "index": 2,
+      "protein": "MMIWIHQDLFYAQGQFLFSFFFFFFFFFETGSRFVAQAGVEWRDLGLLQPLPPRLEQSCLSLRSSWDHRFMPPWPANFCMFCRDGVSQCCPGWSQTPGLRRSTCLSLPECWDYNCEPPRPAGRVNIFYILQAHLHFHPTLPLLLPFYIPFLYRSLILQ*"
+    },
+    {
+      "start": 2054,
+      "end": 2512,
+      "frame": 2,
+      "sense": "+",
+      "length": 458,
+      "trailing": true,
+      "index": 3,
+      "protein": "MLRVNFFFLFFFFFSFSLRLGLALLPRLEWSGVILAYCSLCLPGSSSPASASGVAGTTGSCHHGQPTFACFVEMGSHSVAQAGLKLLGSGDPPVSASQSAGITIVSHHVQLEGSTSFTFCKHICIFTPPFPSFSLFISHFYIDLLFYNKTLL"
+    },
+    {
+      "start": 1283,
+      "end": 932,
+      "frame": 1,
+      "sense": "-",
+      "length": 351,
+      "trailing": false,
+      "index": 4,
+      "protein": "MAGGRLTLFGLQVAGVSPAPPWLLPSLGILEFQGLIQLSEHLEALTPTDLKGEIFSIQWFLLWLGRGAGVVGQCSLSAPWGQLVVRLPFLAEILFLCAPVSPRTGTNTHLKAVPSQ*"
+    },
+    {
+      "start": 2273,
+      "end": 2512,
+      "frame": 2,
+      "sense": "+",
+      "length": 239,
+      "trailing": true,
+      "index": 5,
+      "protein": "MGSHSVAQAGLKLLGSGDPPVSASQSAGITIVSHHVQLEGSTSFTFCKHICIFTPPFPSFSLFISHFYIDLLFYNKTLL"
+    },
+    {
+      "start": 1535,
+      "end": 1316,
+      "frame": 1,
+      "sense": "-",
+      "length": 219,
+      "trailing": false,
+      "index": 6,
+      "protein": "MSYSPSSSPQQNTSAGQLVQWSPGTKQMEVLGASDAHLLQARVQRPKTQNGRGGRDGGGRLSVGNKKWRMSV*"
+    },
+    {
+      "start": 678,
+      "end": 882,
+      "frame": 3,
+      "sense": "+",
+      "length": 204,
+      "trailing": false,
+      "index": 7,
+      "protein": "MSAAQIAMVWPLLSILSEWKEICVWSIWMTETLFDIVWWCPMSRLRLALTVPPSTTTTCVTVPAWAA*"
+    },
+    {
+      "start": 2262,
+      "end": 2064,
+      "frame": 3,
+      "sense": "-",
+      "length": 198,
+      "trailing": false,
+      "index": 8,
+      "protein": "MQKLAGHGGMNLWSQLLRRLRQDCSSRGGKGCSKPRSRHSTPAWATKRDPVSKKKKKKKKKEKRN*"
+    },
+    {
+      "start": 324,
+      "end": 510,
+      "frame": 3,
+      "sense": "+",
+      "length": 186,
+      "trailing": false,
+      "index": 9,
+      "protein": "MKLPECQRLLPPWPLHQQLLHRRPLHQPPPGPCHLLSLPRKPTRAATVSVWASCILGQPSL*"
+    },
+    {
+      "start": 628,
+      "end": 460,
+      "frame": 2,
+      "sense": "-",
+      "length": 168,
+      "trailing": false,
+      "index": 10,
+      "protein": "MAMARTRVPGGGVESTHSCTGQVLASWQNILLRAGEYVQVTDLAVPECKKPRRKP*"
+    },
+    {
+      "start": 2428,
+      "end": 2281,
+      "frame": 2,
+      "sense": "-",
+      "length": 147,
+      "trailing": false,
+      "index": 11,
+      "protein": "MQMCLQNVKDVDPSSWTWWLTIVIPALWEAETGGSPEPRSLRPAWATL*"
+    },
+    {
+      "start": 145,
+      "end": 10,
+      "frame": 2,
+      "sense": "-",
+      "length": 135,
+      "trailing": false,
+      "index": 12,
+      "protein": "MAVTRKAVWLPIQGSVSPSWKARSQPERKVSPEPSSYLLPGRWL*"
+    },
+    {
+      "start": 1387,
+      "end": 1264,
+      "frame": 2,
+      "sense": "-",
+      "length": 123,
+      "trailing": false,
+      "index": 13,
+      "protein": "MAGEGEMGVGGCQWGTRSGECQSESGPSVLNMSFLWREVD*"
+    },
+    {
+      "start": 785,
+      "end": 689,
+      "frame": 1,
+      "sense": "-",
+      "length": 96,
+      "trailing": false,
+      "index": 14,
+      "protein": "MSKSVSVIQILHTQISFHSDKMLRRGQTIAI*"
+    },
+    {
+      "start": 2471,
+      "end": 2393,
+      "frame": 1,
+      "sense": "-",
+      "length": 78,
+      "trailing": false,
+      "index": 15,
+      "protein": "MGYKKGEGGEGWGENADVLAECKRC*"
+    },
+    {
+      "start": 1176,
+      "end": 1251,
+      "frame": 3,
+      "sense": "+",
+      "length": 75,
+      "trailing": false,
+      "index": 16,
+      "protein": "MRPWNSRMPRLGRSQGGAGLTPAT*"
+    }
+  ],
+  "NM_002467.6": [
+    {
+      "start": 409,
+      "end": 1729,
+      "frame": 1,
+      "sense": "+",
+      "length": 1320,
+      "trailing": false,
+      "index": 1,
+      "protein": "MPLNVSFTNRNYDLDYDSVQPYFYCDEEENFYQQQQQSELQPPAPSEDIWKKFELLPTPPLSPSRRSGLCSPSYVAVTPFSLRGDNDGGGGSFSTADQLEMVTELLGGDMVNQSFICDPDDETFIKNIIIQDCMWSGFSAAAKLVSEKLASYQAARKDSGSPNPARGHSVCSTSSLYLQDLSAAASECIDPSVVFPYPLNDSSSPKSCASQDSSAFSPSSDSLLSSTESSPQGSPEPLVLHEETPPTTSSDSEEEQEDEEEIDVVSVEKRQAPGKRSESGSPSAGGHSKPPHSPLVLKRCHVSTHQHNYAAPPSTRKDYPAAKRVKLDSVRVLRQISNNRKCTSPRSSDTEENVKRRTHNVLERQRRNELKRSFFALRDQIPELENNEKAPKVVILKKATAYILSVQAEEQKLISEEDLLRKRREQLKHKLEQLRNSCA*"
+    },
+    {
+      "start": 1650,
+      "end": 1362,
+      "frame": 3,
+      "sense": "-",
+      "length": 288,
+      "trailing": false,
+      "index": 2,
+      "protein": "MSFCSSAWTDRMYAVAFLRITTLGAFSLFSNSGIWSRRAKKLRFSSFLLWRSKTLCVRLLTFSSVSEDLGLVHFRLLLICLRTLTLSNLTLLAAG*"
+    },
+    {
+      "start": 1130,
+      "end": 1409,
+      "frame": 2,
+      "sense": "+",
+      "length": 279,
+      "trailing": false,
+      "index": 3,
+      "protein": "MRRHRPPPAATLRRNKKMRKKSMLFLWKRGRLLAKGQSLDHLLLEATANLLTAHWSSRGATSPHISTTTQRLPPLGRTILLPRGSSWTVSES*"
+    },
+    {
+      "start": 443,
+      "end": 716,
+      "frame": 2,
+      "sense": "+",
+      "length": 273,
+      "trailing": false,
+      "index": 4,
+      "protein": "MTSTTTRCSRISTATRRRTSTSSSSRASCSPRRPARISGRNSSCCPPRPCPLAAAPGSARPPTLRSHPSPFGETTTAVAGASPRPTSWRW*"
+    },
+    {
+      "start": 798,
+      "end": 627,
+      "frame": 3,
+      "sense": "-",
+      "length": 171,
+      "trailing": false,
+      "index": 5,
+      "protein": "MMMFLMKVSSSGSQMKLWFTMSPPSSSVTISSWSAVEKLPPPPSLSPRREKGVTAT*"
+    },
+    {
+      "start": 1132,
+      "end": 964,
+      "frame": 2,
+      "sense": "-",
+      "length": 168,
+      "trailing": false,
+      "index": 6,
+      "protein": "MEHQGLGAALRGGLRRGEQRIRGRREGAGVLRGAGLGRAAVVERVGEDHRGVDAL*"
+    },
+    {
+      "start": 209,
+      "end": 53,
+      "frame": 1,
+      "sense": "-",
+      "length": 156,
+      "trailing": false,
+      "index": 7,
+      "protein": "MGKVSWMRQGLRTAGWGISGRAGPEAKPPIRSGSPFPGRPQRSSARPALPP*"
+    },
+    {
+      "start": 3221,
+      "end": 3068,
+      "frame": 1,
+      "sense": "-",
+      "length": 153,
+      "trailing": false,
+      "index": 8,
+      "protein": "MLRLKKHNPLDCNSCTHKQPADSYRRLRGGLDRLGVNSLGSNLASTFPYQ*"
+    },
+    {
+      "start": 3059,
+      "end": 2906,
+      "frame": 1,
+      "sense": "-",
+      "length": 153,
+      "trailing": false,
+      "index": 9,
+      "protein": "MWMSLCVPQLPSLLLIWGNQQYLLHGVDVELGIKCLGVLGTQIELSIVMT*"
+    },
+    {
+      "start": 2268,
+      "end": 2130,
+      "frame": 3,
+      "sense": "-",
+      "length": 138,
+      "trailing": false,
+      "index": 10,
+      "protein": "MKTNRDGGGWEGEETKQNIHNLRFGSMIYLPVILFFLKTIEKNQL*"
+    },
+    {
+      "start": 3200,
+      "end": 3329,
+      "frame": 2,
+      "sense": "+",
+      "length": 129,
+      "trailing": false,
+      "index": 11,
+      "protein": "MFFKSQHLSLVRHQFPFFCDLFCFYFVVHCLIFPFTMRRSPS*"
+    },
+    {
+      "start": 1431,
+      "end": 1545,
+      "frame": 3,
+      "sense": "+",
+      "length": 114,
+      "trailing": false,
+      "index": 12,
+      "protein": "MHQPQVLGHRGECQEANTQRLGAPEEERAKTELFCPA*"
+    },
+    {
+      "start": 975,
+      "end": 861,
+      "frame": 3,
+      "sense": "-",
+      "length": 114,
+      "trailing": false,
+      "index": 13,
+      "protein": "MHSEAAALRSCRYKLEVEQTLWPRAGFGLPLSLRAAW*"
+    },
+    {
+      "start": 2606,
+      "end": 2717,
+      "frame": 2,
+      "sense": "+",
+      "length": 111,
+      "trailing": false,
+      "index": 14,
+      "protein": "MGTRWEPASAAFTTRRQSCPWVISQTPEDLWEECYY*"
+    },
+    {
+      "start": 2665,
+      "end": 2776,
+      "frame": 1,
+      "sense": "+",
+      "length": 111,
+      "trailing": false,
+      "index": 15,
+      "protein": "MGYLANPRGSLGGMLLLTLFHKQGNRRAQRGYVTYL*"
+    },
+    {
+      "start": 3433,
+      "end": 3337,
+      "frame": 2,
+      "sense": "-",
+      "length": 96,
+      "trailing": false,
+      "index": 16,
+      "protein": "MTPMTKNKYVLFYDLNWLLPRSRHESDSTNG*"
+    },
+    {
+      "start": 2812,
+      "end": 2719,
+      "frame": 2,
+      "sense": "-",
+      "length": 93,
+      "trailing": false,
+      "index": 17,
+      "protein": "MGPDCCFVLSAWLQISYITSLSSSISLFVK*"
+    },
+    {
+      "start": 2212,
+      "end": 2296,
+      "frame": 1,
+      "sense": "+",
+      "length": 84,
+      "trailing": false,
+      "index": 18,
+      "protein": "MFCFVSSPSQPPPSLFVFINCPFRGWS*"
+    },
+    {
+      "start": 3596,
+      "end": 3680,
+      "frame": 2,
+      "sense": "+",
+      "length": 84,
+      "trailing": false,
+      "index": 19,
+      "protein": "MKDAIAVLITSLSQSQSRSSAPCTLGF*"
+    },
+    {
+      "start": 3422,
+      "end": 3503,
+      "frame": 2,
+      "sense": "+",
+      "length": 81,
+      "trailing": false,
+      "index": 20,
+      "protein": "MGVIILETTNSPCFHPFLHTHDTCSS*"
+    },
+    {
+      "start": 1892,
+      "end": 1817,
+      "frame": 1,
+      "sense": "-",
+      "length": 75,
+      "trailing": false,
+      "index": 21,
+      "protein": "MPKVQFEAVYIMAKSFSLKTQPRL*"
+    },
+    {
+      "start": 1324,
+      "end": 1249,
+      "frame": 2,
+      "sense": "-",
+      "length": 75,
+      "trailing": false,
+      "index": 22,
+      "protein": "MCGDVAPLEDQWAVRRFAVASSRR*"
+    }
+  ],
+  "NM_003106.4": [
+    {
+      "start": 437,
+      "end": 1391,
+      "frame": 2,
+      "sense": "+",
+      "length": 954,
+      "trailing": false,
+      "index": 1,
+      "protein": "MYNMMETELKPPGPQQTSGGGGGNSTAAAAGGNQKNSPDRVKRPMNAFMVWSRGQRRKMAQENPKMHNSEISKRLGAEWKLLSETEKRPFIDEAKRLRALHMKEHPDYKYRPRRKTKTLMKKDKYTLPGGLLAPGGNSMASGVGVGAGLGAGVNQRMDSYAHMNGWSNGSYSMMQDQLGYPQHPGLNAHGAAQMQPMHRYDVSALQYNSMTSSQTYMNGSPTYSMSYSQQGTPGMALGSMGSVVKSEASSSPPVVTSSSHSRAPCQAGDLRDMISMYLPGAEVPEPAAPSRLHMSQHYQSGPVPGTAINGTLPLSHM*"
+    },
+    {
+      "start": 742,
+      "end": 43,
+      "frame": 2,
+      "sense": "-",
+      "length": 699,
+      "trailing": false,
+      "index": 2,
+      "protein": "MCSARSRLASSMNGRFSVSDKSFHSAPRRLLISELCILGFSWAILRRCPRDHTMKAFMGRLTRSGLFFWLPPAAAAVELPPPPPEVCCGPGGFSSVSIMLYMRALCAGPARRRPPTLGPAGTLGGPRAGGEEEGRRAGVSGAQGSARKIRRRIIWGKKRERQTGIRIKKSASLLLWPILPPPMIVIIIFWKGLSLGLKLLSLSFSLLFFLSVLVLKRQQTTFPLLQTLSSLP*"
+    },
+    {
+      "start": 1444,
+      "end": 1747,
+      "frame": 1,
+      "sense": "+",
+      "length": 303,
+      "trailing": false,
+      "index": 3,
+      "protein": "MGGVQKRRVRNSMEKTRYAQKEKGKKKIPSPTANDSCKREHQSHPHSRKNRDADKKTFMREILDFFLGDYFCTEKTWGGWGGRGNGPCIDLEERKLRKTF*"
+    },
+    {
+      "start": 573,
+      "end": 744,
+      "frame": 3,
+      "sense": "+",
+      "length": 171,
+      "trailing": false,
+      "index": 4,
+      "protein": "MPSWCGPAGSGARWPRRTPRCTTRRSASAWAPSGNFCRRRRSGRSSTRLSGCERCT*"
+    },
+    {
+      "start": 1532,
+      "end": 1379,
+      "frame": 1,
+      "sense": "-",
+      "length": 153,
+      "trailing": false,
+      "index": 5,
+      "protein": "MGFFFFLFLFERTGFSPCCFLLSSFAPLPFPSFFFENFSPLQFAVRPSHV*"
+    },
+    {
+      "start": 1264,
+      "end": 1114,
+      "frame": 2,
+      "sense": "-",
+      "length": 150,
+      "trailing": false,
+      "index": 6,
+      "protein": "MLIMSRRSPAWQGALEWEEEVTTGGLELASDLTTEPMEPRAMPGVPCCE*"
+    },
+    {
+      "start": 907,
+      "end": 757,
+      "frame": 2,
+      "sense": "-",
+      "length": 150,
+      "trailing": false,
+      "index": 7,
+      "protein": "MRWFTPAPRPAPTPTPLAMLLPPGASSPPGSVYLSFFMSVLVFRRGRYL*"
+    },
+    {
+      "start": 1887,
+      "end": 1986,
+      "frame": 3,
+      "sense": "+",
+      "length": 99,
+      "trailing": false,
+      "index": 8,
+      "protein": "MAIKMSIVYKLRICQYFSRRGFLLNFDSAAEI*"
+    },
+    {
+      "start": 2228,
+      "end": 2132,
+      "frame": 1,
+      "sense": "-",
+      "length": 96,
+      "trailing": false,
+      "index": 9,
+      "protein": "MESWDRTKAIINYQRCQPAWPFLLLTVSYKI*"
+    },
+    {
+      "start": 1907,
+      "end": 1814,
+      "frame": 1,
+      "sense": "-",
+      "length": 93,
+      "trailing": false,
+      "index": 10,
+      "protein": "MDILIAMFISINTVQKLLANIKTFFSSLGD*"
+    },
+    {
+      "start": 1544,
+      "end": 1622,
+      "frame": 2,
+      "sense": "+",
+      "length": 78,
+      "trailing": false,
+      "index": 11,
+      "protein": "MTAAKENTNPIHTHAKTAMPTRKLL*"
+    }
+  ],
+  "NM_000280.5": [
+    {
+      "start": 324,
+      "end": 1593,
+      "frame": 3,
+      "sense": "+",
+      "length": 1269,
+      "trailing": false,
+      "index": 1,
+      "protein": "MQNSHSGVNQLGGVFVNGRPLPDSTRQKIVELAHSGARPCDISRILQVSNGCVSKILGRYYETGSIRPRAIGGSKPRVATPEVVSKIAQYKRECPSIFAWEIRDRLLSEGVCTNDNIPSVSSINRVLRNLASEKQQMGADGMYDKLRMLNGQTGSWGTRPGWYPGTSVPGQPTQDGCQQQEGGGENTNSISSNGEDSDEAQMRLQLKRKLQRNRTSFTQEQIEALEKEFERTHYPDVFARERLAAKIDLPEARIQVWFSNRRAKWRREEKLRNQRRQASNTPSHIPISSSFSTSVYQPIPQPTTPVSSFTSGSMLGRTDTALTNTYSALPPMPSFTMANNLPMQPPVPSQTSSYSCMLPTSPSVNGRSYDTYTPPHMQTHMNSQPMGTSGTTSTGLISPGVSVPVQVPGSEPDMSQYWPRLQ*"
+    },
+    {
+      "start": 893,
+      "end": 503,
+      "frame": 1,
+      "sense": "-",
+      "length": 390,
+      "trailing": false,
+      "index": 2,
+      "protein": "MELVFSPPPSCCWQPSCVGCPGTEVPGYQPGRVPQLPVCPFNILSLSYMPSAPICCFSLARLRRTLFIDDTLGMLSLVQTPSDSNLSRISQAKMDGHSRLYWAILLTTSGVATLGLLPPIALGLMEPVS*"
+    },
+    {
+      "start": 224,
+      "end": 488,
+      "frame": 2,
+      "sense": "+",
+      "length": 264,
+      "trailing": false,
+      "index": 3,
+      "protein": "MCEAFYCESGQTSEISEPHIRAPWNPAAPSQSQHAEQSQRSESARWCLCQRAATAGLHPAEDCRASSQRGPAVRHFPNSAGVQRMCE*"
+    },
+    {
+      "start": 1689,
+      "end": 1914,
+      "frame": 3,
+      "sense": "+",
+      "length": 225,
+      "trailing": false,
+      "index": 4,
+      "protein": "MAVRAASVLQLCPVLYHWGRNGLETRTFVYRRHDISWNKSSFWYPNFYSFWCIICKWAFVCYNEKKNNVDWMDV*"
+    },
+    {
+      "start": 688,
+      "end": 520,
+      "frame": 2,
+      "sense": "-",
+      "length": 168,
+      "trailing": false,
+      "index": 5,
+      "protein": "MTRLVCYRWYRPPRTVICLGFPKQRWTGTPAYTGLFCLQLLESLLSVYYHRLPWV*"
+    },
+    {
+      "start": 2253,
+      "end": 2412,
+      "frame": 3,
+      "sense": "+",
+      "length": 159,
+      "trailing": false,
+      "index": 6,
+      "protein": "MSKCKYLSSLEILRMISIIKLISFIFDKNIDVLYTFSCNHTFLFWPAKVNCS*"
+    },
+    {
+      "start": 2077,
+      "end": 1924,
+      "frame": 2,
+      "sense": "-",
+      "length": 153,
+      "trailing": false,
+      "index": 7,
+      "protein": "MQRNDTNLEHQSINYEQMGRSIRYILIKLLNSWQSLLIMVFFLKKKKTTS*"
+    },
+    {
+      "start": 1750,
+      "end": 1897,
+      "frame": 1,
+      "sense": "+",
+      "length": 147,
+      "trailing": false,
+      "index": 8,
+      "protein": "MDLKQGPLYTEGTISVGTNLHFGIQTFIHFGVLFVNGHLYVIMKKRTM*"
+    },
+    {
+      "start": 2344,
+      "end": 2458,
+      "frame": 1,
+      "sense": "+",
+      "length": 114,
+      "trailing": false,
+      "index": 9,
+      "protein": "MFYTHFHAIIRFFFGQQKLIVLRYSCITVHGPIILCI*"
+    },
+    {
+      "start": 1023,
+      "end": 912,
+      "frame": 3,
+      "sense": "-",
+      "length": 111,
+      "trailing": false,
+      "index": 10,
+      "protein": "MGSLKLFLQGLNLLLGKGCSISLQLPLQLKSHLSLI*"
+    },
+    {
+      "start": 1176,
+      "end": 1068,
+      "frame": 3,
+      "sense": "-",
+      "length": 108,
+      "trailing": false,
+      "index": 11,
+      "protein": "MTRCVAGLSSLIPQFFFSSPFGPSIRKPYLYSCFR*"
+    },
+    {
+      "start": 2047,
+      "end": 2155,
+      "frame": 1,
+      "sense": "+",
+      "length": 108,
+      "trailing": false,
+      "index": 12,
+      "protein": "MFQVCIIPLHIIKPGTTCTRFMSEISVGFPKVVNR*"
+    },
+    {
+      "start": 192,
+      "end": 93,
+      "frame": 3,
+      "sense": "-",
+      "length": 99,
+      "trailing": false,
+      "index": 13,
+      "protein": "MRHPFWLSQLLSRVLFGWGFLCCCCCLKTTMV*"
+    },
+    {
+      "start": 847,
+      "end": 943,
+      "frame": 1,
+      "sense": "+",
+      "length": 96,
+      "trailing": false,
+      "index": 14,
+      "protein": "MAASNRKEGERIPTPSVPTEKIQMRLKCDFS*"
+    },
+    {
+      "start": 1394,
+      "end": 1298,
+      "frame": 1,
+      "sense": "-",
+      "length": 96,
+      "trailing": false,
+      "index": 15,
+      "protein": "MQEYEEVWLGTGGCIGRLFAMVKLGIGGRAL*"
+    },
+    {
+      "start": 970,
+      "end": 892,
+      "frame": 2,
+      "sense": "-",
+      "length": 78,
+      "trailing": false,
+      "index": 16,
+      "protein": "MFYFFAASASAEVAFEPHLNLLRWN*"
+    },
+    {
+      "start": 1961,
+      "end": 2036,
+      "frame": 2,
+      "sense": "+",
+      "length": 75,
+      "trailing": false,
+      "index": 17,
+      "protein": "MINKLCHEFKSFIKIYRILLPICS*"
+    }
+  ],
+  "NM_000125.4": [
+    {
+      "start": 232,
+      "end": 2020,
+      "frame": 1,
+      "sense": "+",
+      "length": 1788,
+      "trailing": false,
+      "index": 1,
+      "protein": "MTMTLHTKASGMALLHQIQGNELEPLNRPQLKIPLERPLGEVYLDSSKPAVYNYPEGAAYEFNAAAAANAQVYGQTGLPYGPGSEAAAFGSNGLGGFPPLNSVSPSPLMLLHPPPQLSPFLQPHGQQVPYYLENEPSGYTVREAGPPAFYRPNSDNRRQGGRERLASTNDKGSMAMESAKETRYCAVCNDYASGYHYGVWSCEGCKAFFKRSIQGHNDYMCPATNQCTIDKNRRKSCQACRLRKCYEVGMMKGGIRKDRRGGRMLKHKRQRDDGEGRGEVGSAGDMRAANLWPSPLMIKRSKKNSLALSLTADQMVSALLDAEPPILYSEYDPTRPFSEASMMGLLTNLADRELVHMINWAKRVPGFVDLTLHDQVHLLECAWLEILMIGLVWRSMEHPGKLLFAPNLLLDRNQGKCVEGMVEIFDMLLATSSRFRMMNLQGEEFVCLKSIILLNSGVYTFLSSTLKSLEEKDHIHRVLDKITDTLIHLMAKAGLTLQQQHQRLAQLLLILSHIRHMSNKGMEHLYSMKCKNVVPLYDLLLEMLDAHRLHAPTSRGGASVEETDQSHLATAGSTSSHSLQKYYITGEAEGFPATV*"
+    },
+    {
+      "start": 1815,
+      "end": 1353,
+      "frame": 2,
+      "sense": "-",
+      "length": 462,
+      "trailing": false,
+      "index": 2,
+      "protein": "MLYRCSMPLLLMCLMWERMRRSWASRWCCCCRVRPALAIRWIKVSVILSRTRWIWSFSSRDFRVLDRNVYTPELSKIIDLRHTNSSPCRFIMRNRDDVASSMSKISTMPSTHFPWFLSKSKLGANSSFPGCSMERQTRPIIRISSQAHSRRWT*"
+    },
+    {
+      "start": 1804,
+      "end": 1525,
+      "frame": 1,
+      "sense": "-",
+      "length": 279,
+      "trailing": false,
+      "index": 3,
+      "protein": "MLHAFVTHVPDVGEDEEELGQPLVLLLQGQACLGHQVDQSVCDLVQDSVDMVLLFQRLQGAGQKCVHSRIKQNNRFEAHKLLSLQIHHAEPR*"
+    },
+    {
+      "start": 737,
+      "end": 983,
+      "frame": 2,
+      "sense": "+",
+      "length": 246,
+      "trailing": false,
+      "index": 4,
+      "protein": "MTREVWLWNLPRRLATVQCAMTMLQATIMESGPVRAARPSSREVFKDITTICVQPPTSAPLIKTGGRAARPAGSVNATKWE*"
+    },
+    {
+      "start": 3693,
+      "end": 3933,
+      "frame": 3,
+      "sense": "+",
+      "length": 240,
+      "trailing": false,
+      "index": 5,
+      "protein": "MSVLANDPGELLGLLLVCLVWKSGFHSFLIVQLSDHQRTENLGGQKKKKSFYVHLNLGTILCICVKDMFKNIILLLLFV*"
+    },
+    {
+      "start": 240,
+      "end": 1,
+      "frame": 2,
+      "sense": "-",
+      "length": 238,
+      "trailing": true,
+      "index": 6,
+      "protein": "MVMVRGRGQGADRVPAGQKAQKPAGHLEKEHSPRLEATQRMSRRHASSGPGPAPGACGSGEAGRPDGSKCSPRTNALRQ"
+    },
+    {
+      "start": 234,
+      "end": 1,
+      "frame": 2,
+      "sense": "-",
+      "length": 232,
+      "trailing": true,
+      "index": 7,
+      "protein": "MVRGRGQGADRVPAGQKAQKPAGHLEKEHSPRLEATQRMSRRHASSGPGPAPGACGSGEAGRPDGSKCSPRTNALRQ"
+    },
+    {
+      "start": 1841,
+      "end": 2051,
+      "frame": 2,
+      "sense": "+",
+      "length": 210,
+      "trailing": false,
+      "index": 8,
+      "protein": "MTCCWRCWTPTAYMRPLAVEGHPWRRRTKATWPLRALLHRIPCKSITSRGRQRVSLPRSESSLAPTRFR*"
+    },
+    {
+      "start": 2158,
+      "end": 1954,
+      "frame": 1,
+      "sense": "-",
+      "length": 204,
+      "trailing": false,
+      "index": 9,
+      "protein": "MATHLESHWCWMHAGVYAGDRIWLKWCMMRVKCSRDYLNRVGARELSDRGRETLCLPRDVILLQGMR*"
+    },
+    {
+      "start": 4818,
+      "end": 5001,
+      "frame": 3,
+      "sense": "+",
+      "length": 183,
+      "trailing": false,
+      "index": 10,
+      "protein": "MANILRRVLKVFGGKWLILGVHQGSVESTSALETTNQLAPFTAISKMAASVLEKKEQHQQ*"
+    },
+    {
+      "start": 2162,
+      "end": 1982,
+      "frame": 3,
+      "sense": "-",
+      "length": 180,
+      "trailing": false,
+      "index": 11,
+      "protein": "MNGHSSRKPLVLDACRSVCRRQNLAKVVHDEGKMQQGLSEPCGSQGALRPWQGNPLPPP*"
+    },
+    {
+      "start": 3244,
+      "end": 3070,
+      "frame": 1,
+      "sense": "-",
+      "length": 174,
+      "trailing": false,
+      "index": 12,
+      "protein": "MKKSWTTPGIPGHPQRAMRGLQGMFLGSCSLWQGHPEQVWLCLRTVSSFCPTFPLVL*"
+    },
+    {
+      "start": 4175,
+      "end": 4346,
+      "frame": 2,
+      "sense": "+",
+      "length": 171,
+      "trailing": false,
+      "index": 13,
+      "protein": "MKITFHINFCIHSRQNSTNPDAYCWILNDRQSYVAKIMPEKENYSGQLILLLPKYQ*"
+    },
+    {
+      "start": 4939,
+      "end": 4780,
+      "frame": 1,
+      "sense": "-",
+      "length": 159,
+      "trailing": false,
+      "index": 14,
+      "protein": "MELVDLWSPGQKWTLLNPGAHPELTIFLQILSILFLIYLPFPRFLNPLPHHT*"
+    },
+    {
+      "start": 1122,
+      "end": 966,
+      "frame": 2,
+      "sense": "-",
+      "length": 156,
+      "trailing": false,
+      "index": 15,
+      "protein": "MSGLGQRLAALMSPADPTSPLPSPSSLWRLCFNILPPLRSFRIPPFIIPTS*"
+    },
+    {
+      "start": 5932,
+      "end": 5779,
+      "frame": 1,
+      "sense": "-",
+      "length": 153,
+      "trailing": false,
+      "index": 16,
+      "protein": "MLFLGCTALNTHTDDGFGTWQHLHILKVQAQLDAKKRIEIFLESQKTVQN*"
+    },
+    {
+      "start": 4698,
+      "end": 4545,
+      "frame": 2,
+      "sense": "-",
+      "length": 153,
+      "trailing": false,
+      "index": 17,
+      "protein": "MFLHPIPTSARKYLLSISGTSSKNTKRFPKLLETPGRTFQSSDVLCPLQM*"
+    },
+    {
+      "start": 3775,
+      "end": 3622,
+      "frame": 1,
+      "sense": "-",
+      "length": 153,
+      "trailing": false,
+      "index": 18,
+      "protein": "MNEIHFSKQDIPREARAAHLGHWLTQTSPLNRVSITDNKVTQRKSNILFC*"
+    },
+    {
+      "start": 677,
+      "end": 530,
+      "frame": 3,
+      "sense": "-",
+      "length": 147,
+      "trailing": false,
+      "index": 19,
+      "protein": "MPAGRPRAPCSRWARSPGSRAPAGRGAAGKATAAAAGAVASAGSETRC*"
+    },
+    {
+      "start": 2410,
+      "end": 2554,
+      "frame": 1,
+      "sense": "+",
+      "length": 144,
+      "trailing": false,
+      "index": 20,
+      "protein": "MALRISHSKEFKVAPLIGDLEKARSRVYYSTLLYSYGNASFYESGTP*"
+    },
+    {
+      "start": 3554,
+      "end": 3410,
+      "frame": 3,
+      "sense": "-",
+      "length": 144,
+      "trailing": false,
+      "index": 21,
+      "protein": "MSLSFLAYRSKEIEGNELAGVEAVGNGAGEEGGGFSSPNQTLILDYL*"
+    },
+    {
+      "start": 3031,
+      "end": 3169,
+      "frame": 1,
+      "sense": "+",
+      "length": 138,
+      "trailing": false,
+      "index": 22,
+      "protein": "MELNSTCAGLLWLLENKRESRAETGYSSEAQPDLLRVALPQAAAT*"
+    },
+    {
+      "start": 5874,
+      "end": 6012,
+      "frame": 3,
+      "sense": "+",
+      "length": 138,
+      "trailing": false,
+      "index": 23,
+      "protein": "MFQTHRQCVCLELCTLETTYCPMSRCLRHRPLCIHREVIGYRDLN*"
+    },
+    {
+      "start": 5586,
+      "end": 5457,
+      "frame": 2,
+      "sense": "-",
+      "length": 129,
+      "trailing": false,
+      "index": 24,
+      "protein": "MVQCNLDHAPKTCTKENYGCLLSYCMTLFAFHITSFPKQICL*"
+    },
+    {
+      "start": 260,
+      "end": 134,
+      "frame": 3,
+      "sense": "-",
+      "length": 126,
+      "trailing": false,
+      "index": 25,
+      "protein": "MLWCGGSWSWSVAAGRVQTVSPQGRRLRNRRATWKKSTARG*"
+    },
+    {
+      "start": 6057,
+      "end": 6177,
+      "frame": 3,
+      "sense": "+",
+      "length": 120,
+      "trailing": false,
+      "index": 26,
+      "protein": "MLFVHYILFSVELLFYGKRLKCQIVFDGLICPFADAYYY*"
+    },
+    {
+      "start": 120,
+      "end": 1,
+      "frame": 2,
+      "sense": "-",
+      "length": 118,
+      "trailing": true,
+      "index": 27,
+      "protein": "MSRRHASSGPGPAPGACGSGEAGRPDGSKCSPRTNALRQ"
+    },
+    {
+      "start": 1479,
+      "end": 1596,
+      "frame": 3,
+      "sense": "+",
+      "length": 117,
+      "trailing": false,
+      "index": 28,
+      "protein": "MCRGHGGDLRHAAGYIISVPHDESAGRGVCVPQIYYFA*"
+    },
+    {
+      "start": 6023,
+      "end": 6137,
+      "frame": 2,
+      "sense": "+",
+      "length": 114,
+      "trailing": false,
+      "index": 29,
+      "protein": "MPVSVLSQVINNAFCALHTLQCRALVLWEKAQMPNCV*"
+    },
+    {
+      "start": 2756,
+      "end": 2861,
+      "frame": 2,
+      "sense": "+",
+      "length": 105,
+      "trailing": false,
+      "index": 30,
+      "protein": "MESSKLILVKSPYMRDKFLIFVFIFVLQKKALPP*"
+    },
+    {
+      "start": 5069,
+      "end": 5174,
+      "frame": 2,
+      "sense": "+",
+      "length": 105,
+      "trailing": false,
+      "index": 31,
+      "protein": "MPSCSNYERLGHPKRRPYQCRLQNLTPKEVQSLI*"
+    },
+    {
+      "start": 4862,
+      "end": 4955,
+      "frame": 2,
+      "sense": "+",
+      "length": 93,
+      "trailing": false,
+      "index": 32,
+      "protein": "MVNSGCAPGFSRVHFCPGDHKSTSSIYSHF*"
+    },
+    {
+      "start": 5311,
+      "end": 5404,
+      "frame": 1,
+      "sense": "+",
+      "length": 93,
+      "trailing": false,
+      "index": 33,
+      "protein": "MAIDLGHWLRVLLPLHDTDYKYFPIHTFQL*"
+    },
+    {
+      "start": 963,
+      "end": 1050,
+      "frame": 3,
+      "sense": "+",
+      "length": 87,
+      "trailing": false,
+      "index": 34,
+      "protein": "MLRSGNDERWDTKRPKRRENVETQAPER*"
+    },
+    {
+      "start": 2146,
+      "end": 2233,
+      "frame": 1,
+      "sense": "+",
+      "length": 87,
+      "trailing": false,
+      "index": 35,
+      "protein": "MSGHSFACSVLSGTSSVFCWEQPKGFQG*"
+    },
+    {
+      "start": 1351,
+      "end": 1264,
+      "frame": 1,
+      "sense": "-",
+      "length": 87,
+      "trailing": false,
+      "index": 36,
+      "protein": "MEGQIHKAWHPLRPVDHVNQLPVCQVGQ*"
+    },
+    {
+      "start": 5975,
+      "end": 5891,
+      "frame": 3,
+      "sense": "-",
+      "length": 84,
+      "trailing": false,
+      "index": 37,
+      "protein": "MQRGLCLRHLLMGQYVVSRVHSSKHTH*"
+    },
+    {
+      "start": 3018,
+      "end": 2934,
+      "frame": 2,
+      "sense": "-",
+      "length": 84,
+      "trailing": false,
+      "index": 38,
+      "protein": "MQHQGPCSFQLPFTLIMHHHSEQFTPV*"
+    },
+    {
+      "start": 4390,
+      "end": 4474,
+      "frame": 1,
+      "sense": "+",
+      "length": 84,
+      "trailing": false,
+      "index": 39,
+      "protein": "MFILRFSFKKIKIKQKKISRTRRCNTS*"
+    },
+    {
+      "start": 1371,
+      "end": 1452,
+      "frame": 3,
+      "sense": "+",
+      "length": 81,
+      "trailing": false,
+      "index": 40,
+      "protein": "MCLARDPDDWSRLALHGAPREATVCS*"
+    },
+    {
+      "start": 3635,
+      "end": 3713,
+      "frame": 2,
+      "sense": "+",
+      "length": 78,
+      "trailing": false,
+      "index": 41,
+      "protein": "MFDFLWVTLLSVIETLLRGDVCVSQ*"
+    },
+    {
+      "start": 2075,
+      "end": 2150,
+      "frame": 2,
+      "sense": "+",
+      "length": 75,
+      "trailing": false,
+      "index": 42,
+      "protein": "MHHFSQILSPAYTPACIQHQWLSR*"
+    },
+    {
+      "start": 4574,
+      "end": 4649,
+      "frame": 2,
+      "sense": "+",
+      "length": 75,
+      "trailing": false,
+      "index": 43,
+      "protein": "MIEMFAQGSPATLEISLYFYLKCH*"
+    }
+  ],
+  "NM_004496.4": [
+    {
+      "start": 142,
+      "end": 1561,
+      "frame": 1,
+      "sense": "+",
+      "length": 1419,
+      "trailing": false,
+      "index": 1,
+      "protein": "MLGTVKMEGHETSDWNSYYADTQEAYSSVPVSNMNSGLGSMNSMNTYMTMNTMTTSGNMTPASFNMSYANPGLGAGLSPGAVAGMPGGSAGAMNSMTAAGVTAMGTALSPSGMGAMGAQQAASMNGLGPYAAAMNPCMSPMAYAPSNLGRSRAGGGGDAKTFKRSYPHAKPPYSYISLITMAIQQAPSKMLTLSEIYQWIMDLFPYYRQNQQRWQNSIRHSLSFNDCFVKVARSPDKPGKGSYWTLHPDSGNMFENGCYLRRQKRFKCEKQPGAGGGGGSGSGGSGAKGGPESRKDPSGASNPSADSPLHRGVHGKTGQLEGAPAPGPAASPQTLDHSGATATGGASELKTPASSTAPPISSGPGALASVPASHPAHGLAPHESQLHLKGDPHYSFNHPFSINNLMSSSEQQHKLDFKAYEQALQYSPYGSTLPASLPLGSASVTTRSPIEPSALEPAYYQGVYSRPVLNTS*"
+    },
+    {
+      "start": 1072,
+      "end": 358,
+      "frame": 2,
+      "sense": "-",
+      "length": 714,
+      "trailing": false,
+      "index": 2,
+      "protein": "MEGRVGAGVRGARGVLAALRAALGAAAPASAPAPAAGPRLLLALEALLAAQVAAVLEHVAGVRVQRPVGALARLVRGACHLDEAVIEGQRVADGVLPALLVLPVIGEEVHDPLVDLAQREHLAGRLLDGHGDERDVRVGRLGVRVAALERLGVAAAARAAAAQVGRRVRHGAHARVHGGRVGAQAIHGGRLLRTHGAHAARAQRRTHGRHAGRSHAVHGARRAPRHAGYCAGTQAGP*"
+    },
+    {
+      "start": 1221,
+      "end": 915,
+      "frame": 3,
+      "sense": "-",
+      "length": 306,
+      "trailing": false,
+      "index": 3,
+      "protein": "MGGAVEEAGVFNSEAPPVAVAPLWSRVWGLAAGPGAGAPSSWPVFPCTPRWRGESALGLEAPEGSLRLSGPPLAPLPPLPLPPPPPAPGCFSHLKRFWRRK*"
+    },
+    {
+      "start": 815,
+      "end": 1103,
+      "frame": 2,
+      "sense": "+",
+      "length": 288,
+      "trailing": false,
+      "index": 4,
+      "protein": "MTASSRWHAPRTSRARAPTGRCTRTPATCSRTAATCAARSASSARSSRGPAAGAGAEAGAAAPRAALRAARTPLAPLTPAPTRPSIGVCTGRPAS*"
+    },
+    {
+      "start": 1830,
+      "end": 2070,
+      "frame": 3,
+      "sense": "+",
+      "length": 240,
+      "trailing": false,
+      "index": 5,
+      "protein": "MKFSSFLAPLSFFPLSPPDILVCGGLFKKTKKEDGQVCKIFVCAFSPSLPDPLRVYRSVAILLTIRIEMVKKQVYTRGS*"
+    },
+    {
+      "start": 1661,
+      "end": 1433,
+      "frame": 1,
+      "sense": "-",
+      "length": 228,
+      "trailing": false,
+      "index": 6,
+      "protein": "MLLTVWFVWFCLLLIFSLLLPAWLCQTNPPVPGARKCLGRVWNTHLGSTPAPGLRARWGSWWSPRRCLEAGWRAT*"
+    },
+    {
+      "start": 1697,
+      "end": 1913,
+      "frame": 2,
+      "sense": "+",
+      "length": 216,
+      "trailing": false,
+      "index": 7,
+      "protein": "MHNLSPSAKDCYFIIVFKIHCVYYYKDNPKPIFFLRSLMIHKCIYEILLLPCPPLFLPSFPSRHSSLWRVI*"
+    },
+    {
+      "start": 2303,
+      "end": 2126,
+      "frame": 1,
+      "sense": "-",
+      "length": 177,
+      "trailing": false,
+      "index": 8,
+      "protein": "MYHVYHLSITSICYVNIRRMSTHLSMCIIKSIHNIHVFHLKTSAICMYQKCKLRSKWL*"
+    },
+    {
+      "start": 1381,
+      "end": 1204,
+      "frame": 2,
+      "sense": "-",
+      "length": 177,
+      "trailing": false,
+      "index": 9,
+      "protein": "MLLLRGGHEVVDGERVVEGVVGVPFQVQLGLVGCQAVCRVRGGHRGQRPGPGAYGGRS*"
+    },
+    {
+      "start": 2294,
+      "end": 2468,
+      "frame": 2,
+      "sense": "+",
+      "length": 174,
+      "trailing": false,
+      "index": 10,
+      "protein": "MIHSQELLDRKLQGPQPLCPLYPQMALGINSSGIALKNSASCFAECHGHVILRSHNT*"
+    },
+    {
+      "start": 513,
+      "end": 342,
+      "frame": 3,
+      "sense": "-",
+      "length": 171,
+      "trailing": false,
+      "index": 11,
+      "protein": "MEAACCAPMAPMPLGLSAVPMAVTPAAVMLFMAPAEPPGMPATAPGLRPAPRPGLA*"
+    },
+    {
+      "start": 2479,
+      "end": 2602,
+      "frame": 1,
+      "sense": "+",
+      "length": 123,
+      "trailing": false,
+      "index": 12,
+      "protein": "MSVYHLKNFFFSKREYYNVGGEISYRELDFKTWSKIQKSY*"
+    },
+    {
+      "start": 2186,
+      "end": 2285,
+      "frame": 2,
+      "sense": "+",
+      "length": 99,
+      "trailing": false,
+      "index": 13,
+      "protein": "MKYMYIVYGLNYAHAQMCRHPPYIYITYRGNR*"
+    },
+    {
+      "start": 1930,
+      "end": 2020,
+      "frame": 1,
+      "sense": "+",
+      "length": 90,
+      "trailing": false,
+      "index": 14,
+      "protein": "MVKFVKYLFVLFPPPYLTPYEFTGLWQYS*"
+    },
+    {
+      "start": 1889,
+      "end": 1808,
+      "frame": 1,
+      "sense": "-",
+      "length": 81,
+      "trailing": false,
+      "index": 15,
+      "protein": "MSGGERGKKERGARKEENFIYTLVDH*"
+    },
+    {
+      "start": 3292,
+      "end": 3373,
+      "frame": 1,
+      "sense": "+",
+      "length": 81,
+      "trailing": true,
+      "index": 16,
+      "protein": "MYHFSLSENSSNENKISAVADRIKLCP"
+    },
+    {
+      "start": 170,
+      "end": 245,
+      "frame": 2,
+      "sense": "+",
+      "length": 75,
+      "trailing": false,
+      "index": 17,
+      "protein": "MKPATGTATTQTRRRPTPPSRSAT*"
+    }
+  ],
+  "NM_002049.4": [
+    {
+      "start": 76,
+      "end": 1318,
+      "frame": 1,
+      "sense": "+",
+      "length": 1242,
+      "trailing": false,
+      "index": 1,
+      "protein": "MEFPGLGSLGTSEPLPQFVDPALVSSTPESGVFFPSGPEGLDAAASSTAPSTATAAAAALAYYRDAEAYRHSPVFQVYPLLNCMEGIPGGSPYAGWAYGKTGLYPASTVCPTREDSPPQAVEDLDGKGSTSFLETLKTERLSPDLLTLGPALPSSLPVPNSAYGGPDFSSTFFSPTGSPLNSAAYSSPKLRGTLPLPPCEARECVNCGATATPLWRRDRTGHYLCNACGLYHKMNGQNRPLIRPKKRLIVSKRAGTQCTNCQTTTTTLWRRNASGDPVCNACGLYYKLHQVNRPLTMRKDGIQTRNRKASGKGKKKRGSSLGGTGAAEGPAGGFMVVAGGSGSGNCGEVASGLTLGPPGTAHLYQGLGPVVLSGPVSHLMPFPGPLLGSPTGSFPTGPMPPTTSTTVVAPLSS*"
+    },
+    {
+      "start": 314,
+      "end": 1,
+      "frame": 3,
+      "sense": "-",
+      "length": 312,
+      "trailing": true,
+      "index": 2,
+      "protein": "MGTPERLGSVCRPQRPCSRPVPQLQRWLCSGQWRKLLHPSPQAQRGRKPLILVWRTPEQDPQTGGGALRSPGTPGQGTPWSLWGLTWAGGCGGFGRLGDVASSV"
+    },
+    {
+      "start": 200,
+      "end": 485,
+      "frame": 2,
+      "sense": "+",
+      "length": 285,
+      "trailing": false,
+      "index": 3,
+      "protein": "MQQLPPLPRAQPPLQLRHWPTTGTLRPTDTPQSFRCTHCSTVWRGSQGAHHMPAGPTARRGSTLPQLCVPPARTLLPRPWKIWMEKAAPASWRL*"
+    },
+    {
+      "start": 539,
+      "end": 317,
+      "frame": 3,
+      "sense": "-",
+      "length": 222,
+      "trailing": false,
+      "index": 4,
+      "protein": "MKAVQVPGSGGLGSAALSSKSPGSWCCLFHPDLPRPGEESPRGWDTQLRQGRAPSCRRPSRHMVSPLGSPPYS*"
+    },
+    {
+      "start": 1004,
+      "end": 824,
+      "frame": 3,
+      "sense": "-",
+      "length": 180,
+      "trailing": false,
+      "index": 5,
+      "protein": "MPCGFESEYHPSAWSVAGSPGVACSRGRRHCTRDPHWHFSATVSWWSSGSWCTEYLPVY*"
+    },
+    {
+      "start": 974,
+      "end": 1136,
+      "frame": 2,
+      "sense": "+",
+      "length": 162,
+      "trailing": false,
+      "index": 6,
+      "protein": "MVFRLETARHLEKGKRNGAPVWEAQEQPKDQLVALWWWLGAAVAGIVGRWLQA*"
+    },
+    {
+      "start": 563,
+      "end": 692,
+      "frame": 2,
+      "sense": "+",
+      "length": 129,
+      "trailing": false,
+      "index": 7,
+      "protein": "MGALTFPVPSFLPPGAPSIQQPIPLPSFVELSPCLPVRPGSV*"
+    },
+    {
+      "start": 1272,
+      "end": 1164,
+      "frame": 2,
+      "sense": "-",
+      "length": 108,
+      "trailing": false,
+      "index": 8,
+      "protein": "MGPVGKEPVGEPSRGPGKGMRWLTGPDSTTGPRPW*"
+    },
+    {
+      "start": 1314,
+      "end": 1422,
+      "frame": 3,
+      "sense": "+",
+      "length": 108,
+      "trailing": false,
+      "index": 9,
+      "protein": "MRAQSMASRGGVVSFSSCSQNSGQPKSLGPRHPLA*"
+    },
+    {
+      "start": 747,
+      "end": 831,
+      "frame": 3,
+      "sense": "+",
+      "length": 84,
+      "trailing": false,
+      "index": 10,
+      "protein": "MQRLRPLSQDEWAEQAPHPAQEAPDCQ*"
+    },
+    {
+      "start": 78,
+      "end": 1,
+      "frame": 2,
+      "sense": "-",
+      "length": 76,
+      "trailing": true,
+      "index": 11,
+      "protein": "MEPLGINLGWWLRRVRPPWGCGKLS"
+    }
+  ],
+  "NM_000457.5": [
+    {
+      "start": 135,
+      "end": 1560,
+      "frame": 3,
+      "sense": "+",
+      "length": 1425,
+      "trailing": false,
+      "index": 1,
+      "protein": "MRLSKTLVDMDMADYSAALDPAYTTLEFENVQVLTMGNDTSPSEGTNLNAPNSLGVSALCAICGDRATGKHYGASSCDGCKGFFRRSVRKNHMYSCRFSRQCVVDKDKRNQCRYCRLKKCFRAGMKKEAVQNERDRISTRRSSYEDSSLPSINALLQAEVLSRQITSPVSGINGDIRAKKIASIADVCESMKEQLLVLVEWAKYIPAFCELPLDDQVALLRAHAGEHLLLGATKRSMVFKDVLLLGNDYIVPRHCPELAEMSRVSIRILDELVLPFQELQIDDNEYAYLKAIIFFDPDAKGLSDPGKIKRLRSQVQVSLEDYINDRQYDSRGRFGELLLLLPTLQSITWQMIEQIQFIKLFGMAKIDNLLQEMLLGGSPSDAPHAHHPLHPHLMQEHMGTNVIVANTMPTHLSNGQMCEWPRPRGQAATPETPQPSPPGGSGSEPYKLLPGAVATIVKPLSAIPQPTITKQEVI*"
+    },
+    {
+      "start": 1326,
+      "end": 867,
+      "frame": 3,
+      "sense": "-",
+      "length": 459,
+      "trailing": false,
+      "index": 2,
+      "protein": "MFLHQVRVQGVVGMGCIAGGPSQQHLLQQVVNLGHAEELDELDLLDHLPGDALQGGQQQQQLSKAATRVILAVVDVVLQAHLHLGTQPLDLPWIAQPLGIWVKEDDGFEVGILIVIDLQLLEGQHQLVKDAYGHPAHLRQLRAVPRDNVVIA*"
+    },
+    {
+      "start": 3760,
+      "end": 4153,
+      "frame": 1,
+      "sense": "+",
+      "length": 393,
+      "trailing": false,
+      "index": 3,
+      "protein": "MCQGGITTSLRQSQPSPQSQRRLCPAQSSQAFPHHLTQVPLKSLPDGSAWSAVRQGGWNHFWALWSFPLCSSTSSLQRCSDLCLGRKVEIRMSHGVPWATVALHGNNLLEQGVSSLLGIYPFLEEKPIPP*"
+    },
+    {
+      "start": 845,
+      "end": 563,
+      "frame": 1,
+      "sense": "-",
+      "length": 282,
+      "trailing": false,
+      "index": 4,
+      "protein": "MDLLVAPSSRCSPAWALSRATWSSRGSSQKAGMYLAHSTRTSSCSFMDSHTSAMLAIFFARMSPLIPETGEVICRDRTSACRSALMEGRLLSS*"
+    },
+    {
+      "start": 247,
+      "end": 511,
+      "frame": 1,
+      "sense": "+",
+      "length": 264,
+      "trailing": false,
+      "index": 5,
+      "protein": "MTRPHQKAPTSTRPTAWVSAPCVPSAGTGPRANTTVPRAVTAARASSGGACGRTTCTPADLAGSAWWTKTRGTSAATAGSRNASGLA*"
+    },
+    {
+      "start": 262,
+      "end": 1,
+      "frame": 2,
+      "sense": "-",
+      "length": 260,
+      "trailing": true,
+      "index": 6,
+      "protein": "MGTCHCPSSTPAHSQIPGWCRLGPVQHCSRPCPCRRGFWRVAFSLPPRRGHLPYPGRPPRRPPPSALPLPPPSALSAFLSNRPLGR"
+    },
+    {
+      "start": 5790,
+      "end": 5541,
+      "frame": 3,
+      "sense": "-",
+      "length": 249,
+      "trailing": false,
+      "index": 7,
+      "protein": "MELGREANSQFSQASSSTTPSEWNAVVCGDRDTRPPSCNSLALERSPVATDLAGDSQVHLLLLFFLLIIYVLRQSLVLSSRL*"
+    },
+    {
+      "start": 804,
+      "end": 558,
+      "frame": 3,
+      "sense": "-",
+      "length": 246,
+      "trailing": false,
+      "index": 8,
+      "protein": "MGSEQGHLVVQGELAESWDVLGPLNENQQLLLHGLTHICDAGNLLRPNVAVDPGDGGGDLSGQDLRLQERIDGGQAAVLIA*"
+    },
+    {
+      "start": 1955,
+      "end": 2195,
+      "frame": 2,
+      "sense": "+",
+      "length": 240,
+      "trailing": false,
+      "index": 9,
+      "protein": "MVSRQSPVRLGPIVALGAPCSSFCCCPHLCCLPLLSPCSAIPSSPTPPLQRPRRPWKRFPQSFWEHVVSTDWDQAPGRV*"
+    },
+    {
+      "start": 3381,
+      "end": 3615,
+      "frame": 3,
+      "sense": "+",
+      "length": 234,
+      "trailing": false,
+      "index": 10,
+      "protein": "MGVGQCAQCGGRGGLSRPGFEGCSGDRHSRCILEALDPRMERPACHPCGILVALRTFWKMPLTSVNKRDVLWGWRCD*"
+    },
+    {
+      "start": 1841,
+      "end": 1631,
+      "frame": 1,
+      "sense": "-",
+      "length": 210,
+      "trailing": false,
+      "index": 11,
+      "protein": "MDEGEGEGSGFNMRKVVQGSRGLPKSKSCYPEQGVKGGSGMWPLGHVLGPFILPIPALGLVLASRLPLP*"
+    },
+    {
+      "start": 2142,
+      "end": 1953,
+      "frame": 3,
+      "sense": "-",
+      "length": 189,
+      "trailing": false,
+      "index": 12,
+      "protein": "MTGGIVSKASLASGEVVLEKTGWLSKVTAEGGSRGGGSSRRRSKVPQVPQLDPASQGSVWTP*"
+    },
+    {
+      "start": 3550,
+      "end": 3364,
+      "frame": 2,
+      "sense": "-",
+      "length": 186,
+      "trailing": false,
+      "index": 13,
+      "protein": "MSSKPPRFHMDDMLVAPSWGLMLPECTWSDGLRSSPQTQACLALPCPHTVHTVPPPCQQAR*"
+    },
+    {
+      "start": 529,
+      "end": 709,
+      "frame": 1,
+      "sense": "+",
+      "length": 180,
+      "trailing": false,
+      "index": 14,
+      "protein": "MSGTGSALEGQAMRTAACPPSMRSCRRRSCPDRSPPPSPGSTATFGRRRLPASQMCVSP*"
+    },
+    {
+      "start": 5406,
+      "end": 5229,
+      "frame": 3,
+      "sense": "-",
+      "length": 177,
+      "trailing": false,
+      "index": 15,
+      "protein": "MGSPYIALAGLELLSSSDPPASASQSAGITEVSHCAQPCSRKKNKKQNKTKQKNHLLL*"
+    },
+    {
+      "start": 2595,
+      "end": 2772,
+      "frame": 3,
+      "sense": "+",
+      "length": 177,
+      "trailing": false,
+      "index": 16,
+      "protein": "MQGAGLPENEHSSSAEDGRLEAGRSGGVDDIMRVRVMRLGAGEDKMGKPSHQSDIQEE*"
+    },
+    {
+      "start": 5949,
+      "end": 6126,
+      "frame": 3,
+      "sense": "+",
+      "length": 177,
+      "trailing": false,
+      "index": 17,
+      "protein": "MPTYGDILLGDEGRAGRSFHLFLKGGDKSSGLGSTRFADQRNLGQVTPPLRASSVKWE*"
+    },
+    {
+      "start": 5944,
+      "end": 6115,
+      "frame": 1,
+      "sense": "+",
+      "length": 171,
+      "trailing": false,
+      "index": 18,
+      "protein": "MGCLHMGTSSLGMRVEQGDPFTSSLREGTKVLVWEAHVLLISVTLGRSLHHSEPHL*"
+    },
+    {
+      "start": 170,
+      "end": 1,
+      "frame": 1,
+      "sense": "-",
+      "length": 168,
+      "trailing": true,
+      "index": 19,
+      "protein": "MSMSTRVLESRILPASTPRPPALPWAPTPKAPALRPPTASSQCPLCLPFKPSSGKI"
+    },
+    {
+      "start": 164,
+      "end": 1,
+      "frame": 1,
+      "sense": "-",
+      "length": 162,
+      "trailing": true,
+      "index": 20,
+      "protein": "MSTRVLESRILPASTPRPPALPWAPTPKAPALRPPTASSQCPLCLPFKPSSGKI"
+    },
+    {
+      "start": 3284,
+      "end": 3443,
+      "frame": 2,
+      "sense": "+",
+      "length": 159,
+      "trailing": false,
+      "index": 21,
+      "protein": "MTLDSFSLFTPQVKGRGGRGLFPGSQAHLACWHGGGTVCTVWGQGRAKQAWV*"
+    },
+    {
+      "start": 3728,
+      "end": 3884,
+      "frame": 2,
+      "sense": "+",
+      "length": 156,
+      "trailing": false,
+      "index": 22,
+      "protein": "MRKRRGEVLGQCVREESPHPYGSPSQAPNPSGDCALLRAPKPSPTTSLKCP*"
+    },
+    {
+      "start": 2077,
+      "end": 1921,
+      "frame": 2,
+      "sense": "-",
+      "length": 156,
+      "trailing": false,
+      "index": 23,
+      "protein": "MAEQGDSRGRQQRWGQQQKEEQGAPSATIGPSLTGLCLDTMTGARRGEAPG*"
+    },
+    {
+      "start": 1705,
+      "end": 1552,
+      "frame": 2,
+      "sense": "-",
+      "length": 153,
+      "trailing": false,
+      "index": 24,
+      "protein": "MFSGPSSFPFLLWDWSWHHVFLCRDHVITRCSLRGLGGASGAPKPQRLAR*"
+    },
+    {
+      "start": 1803,
+      "end": 1947,
+      "frame": 3,
+      "sense": "+",
+      "length": 144,
+      "trailing": false,
+      "index": 25,
+      "protein": "MLKPLPSPSPSSMSNPRLHPKGQPPGDDLRPYLNPAPFFPSLVLLLS*"
+    },
+    {
+      "start": 3383,
+      "end": 3239,
+      "frame": 1,
+      "sense": "-",
+      "length": 144,
+      "trailing": false,
+      "index": 26,
+      "protein": "MPTGQMSLTSRKQTPATPPLDLGSEERKAVKSHEFSLIFISKQDARP*"
+    },
+    {
+      "start": 5146,
+      "end": 5005,
+      "frame": 2,
+      "sense": "-",
+      "length": 141,
+      "trailing": false,
+      "index": 27,
+      "protein": "MTDPWTLLPFFQILPLHSPLITPLFKKGDQLSLSRYTKYLESRDQG*"
+    },
+    {
+      "start": 5100,
+      "end": 5235,
+      "frame": 3,
+      "sense": "+",
+      "length": 135,
+      "trailing": false,
+      "index": 28,
+      "protein": "MARSGRMARGSKGLSSSTKVQDRTFCWVTSICQQWKMSSCGDIS*"
+    },
+    {
+      "start": 4040,
+      "end": 4172,
+      "frame": 2,
+      "sense": "+",
+      "length": 132,
+      "trailing": false,
+      "index": 29,
+      "protein": "MECRGQQWPFMGTICWSRGSVLCWESTPFWRRNPFHLNNFIVM*"
+    },
+    {
+      "start": 5084,
+      "end": 5216,
+      "frame": 2,
+      "sense": "+",
+      "length": 132,
+      "trailing": false,
+      "index": 30,
+      "protein": "MRGECNGKIWKNGKRVQGSVILHQGSRQNLLLGHLNLPAMEDE*"
+    },
+    {
+      "start": 1223,
+      "end": 1097,
+      "frame": 1,
+      "sense": "-",
+      "length": 126,
+      "trailing": false,
+      "index": 31,
+      "protein": "MPKSLMNWICSIICQVMLCKVGSSSSSSPKRPRESYWRSLM*"
+    },
+    {
+      "start": 2429,
+      "end": 2552,
+      "frame": 2,
+      "sense": "+",
+      "length": 123,
+      "trailing": false,
+      "index": 32,
+      "protein": "MGHSKEQPEPRPSGSKNLARIEEEWCGRGMMKRERACWRA*"
+    },
+    {
+      "start": 5005,
+      "end": 4885,
+      "frame": 2,
+      "sense": "-",
+      "length": 120,
+      "trailing": false,
+      "index": 33,
+      "protein": "MSTSAFQEKSLPPSLSLLIWKVGVIMSNCLPLDVKTEKL*"
+    },
+    {
+      "start": 320,
+      "end": 200,
+      "frame": 1,
+      "sense": "-",
+      "length": 120,
+      "trailing": false,
+      "index": 34,
+      "protein": "MAHRALTPRLLGALRLVPSDGDVSLPIVNTCTFSNSRVV*"
+    },
+    {
+      "start": 4520,
+      "end": 4631,
+      "frame": 2,
+      "sense": "+",
+      "length": 111,
+      "trailing": false,
+      "index": 35,
+      "protein": "MNCEIYIKQLSKRAGSHQNDPHLSVGVNVIRSCADP*"
+    },
+    {
+      "start": 4602,
+      "end": 4710,
+      "frame": 3,
+      "sense": "+",
+      "length": 108,
+      "trailing": false,
+      "index": 36,
+      "protein": "MSLGLALTPEPPSLPPDGAKKQKTFLTLLCFNKSL*"
+    },
+    {
+      "start": 4675,
+      "end": 4570,
+      "frame": 2,
+      "sense": "-",
+      "length": 105,
+      "trailing": false,
+      "index": 37,
+      "protein": "MFFVSLPHQAAVMGAQGSAQDLMTFTPTERCGSF*"
+    },
+    {
+      "start": 4400,
+      "end": 4505,
+      "frame": 2,
+      "sense": "+",
+      "length": 105,
+      "trailing": false,
+      "index": 38,
+      "protein": "MALLRVDRGEERVRNERSSISCHYQANYFCQIFL*"
+    },
+    {
+      "start": 6352,
+      "end": 6457,
+      "frame": 1,
+      "sense": "+",
+      "length": 105,
+      "trailing": false,
+      "index": 39,
+      "protein": "MFSITLQRRPCSCCRHRGQARGGGGGGQRRLFQS*"
+    },
+    {
+      "start": 3512,
+      "end": 3611,
+      "frame": 2,
+      "sense": "+",
+      "length": 99,
+      "trailing": false,
+      "index": 40,
+      "protein": "MSSMWNLGGFEDILENATDQCEQKGCVMGLEV*"
+    },
+    {
+      "start": 2841,
+      "end": 2742,
+      "frame": 3,
+      "sense": "-",
+      "length": 99,
+      "trailing": false,
+      "index": 41,
+      "protein": "MMHVRCLKTVPGSKEELETGPGSLFLLDVTLM*"
+    },
+    {
+      "start": 3959,
+      "end": 3866,
+      "frame": 1,
+      "sense": "-",
+      "length": 93,
+      "trailing": false,
+      "index": 42,
+      "protein": "MTTMPRNGSSLPALPQTRLSRLAGISGALE*"
+    },
+    {
+      "start": 4299,
+      "end": 4392,
+      "frame": 3,
+      "sense": "+",
+      "length": 93,
+      "trailing": false,
+      "index": 43,
+      "protein": "MDKQRVAGGTSVGTISPPRHPDLQAGLRSF*"
+    },
+    {
+      "start": 4720,
+      "end": 4813,
+      "frame": 1,
+      "sense": "+",
+      "length": 93,
+      "trailing": false,
+      "index": 44,
+      "protein": "MAHMFSKSLDKYLFFQVSEIRLNLLVLLGG*"
+    },
+    {
+      "start": 2834,
+      "end": 2747,
+      "frame": 1,
+      "sense": "-",
+      "length": 87,
+      "trailing": false,
+      "index": 45,
+      "protein": "MSDALRQCLGVRKSLRQALGAYSSWMSL*"
+    },
+    {
+      "start": 2550,
+      "end": 2463,
+      "frame": 3,
+      "sense": "-",
+      "length": 87,
+      "trailing": false,
+      "index": 46,
+      "protein": "MLSSRPSLSSSSLSHTILPQFLLDSYYH*"
+    },
+    {
+      "start": 2379,
+      "end": 2295,
+      "frame": 3,
+      "sense": "-",
+      "length": 84,
+      "trailing": false,
+      "index": 47,
+      "protein": "MVCLFLMLFLSTPSSCCSRQPGFVFSG*"
+    },
+    {
+      "start": 4469,
+      "end": 4388,
+      "frame": 1,
+      "sense": "-",
+      "length": 81,
+      "trailing": false,
+      "index": 48,
+      "protein": "MTRNRRAFISDPLLSSVHSQESHADF*"
+    },
+    {
+      "start": 4928,
+      "end": 5009,
+      "frame": 2,
+      "sense": "+",
+      "length": 81,
+      "trailing": false,
+      "index": 49,
+      "protein": "MITPTFQMRRLRLGGSDFSWKAEVDI*"
+    },
+    {
+      "start": 6387,
+      "end": 6468,
+      "frame": 3,
+      "sense": "+",
+      "length": 81,
+      "trailing": false,
+      "index": 50,
+      "protein": "MLPPSGTSAGGGGWRPEETISVLNCA*"
+    },
+    {
+      "start": 1677,
+      "end": 1755,
+      "frame": 3,
+      "sense": "+",
+      "length": 78,
+      "trailing": false,
+      "index": 51,
+      "protein": "MGRMKGPRTWPKGHIPLPPLTPCSG*"
+    },
+    {
+      "start": 2438,
+      "end": 2360,
+      "frame": 1,
+      "sense": "-",
+      "length": 78,
+      "trailing": false,
+      "index": 52,
+      "protein": "MSHLTCSTSQNSTLSQRPGGWSASF*"
+    },
+    {
+      "start": 6122,
+      "end": 6200,
+      "frame": 2,
+      "sense": "+",
+      "length": 78,
+      "trailing": false,
+      "index": 53,
+      "protein": "MISPSRADVRIQWNEITVTVRAPVT*"
+    },
+    {
+      "start": 4072,
+      "end": 3997,
+      "frame": 2,
+      "sense": "-",
+      "length": 75,
+      "trailing": false,
+      "index": 54,
+      "protein": "MKGHCCPRHSMGHSYLNLSPKTEV*"
+    }
+  ],
+  "NM_001754.5": [
+    {
+      "start": 195,
+      "end": 1638,
+      "frame": 3,
+      "sense": "+",
+      "length": 1443,
+      "trailing": false,
+      "index": 1,
+      "protein": "MASDSIFESFPSYPQCFMRECILGMNPSRDVHDASTSRRFTPPSTALSPGKMSEALPLGAPDAGAALAGKLRSGDRSMVEVLADHPGELVRTDSPNFLCSVLPTHWRCNKTLPIAFKVVALGDVPDGTLVTVMAGNDENYSAELRNATAAMKNQVARFNDLRFVGRSGRGKSFTLTITVFTNPPQVATYHRAIKITVDGPREPRRHRQKLDDQTKPGSLSFSERLSELEQLRRTAMRVSPHHPAPTPNPRASLNHSTAFNPQPQSQMQDTRQIQPSPPWSYDQSYQYLGSIASPSVHPATPISPGRASGMTTLSAELSSRLSTAPDLTAFSDPRQFPALPSISDPRMHYPGAFTYSPTPVTSGIGIGMSAMGSATRYHTYLPPPYPGSSQAQGGPFQASSPSYHLYYGASAGSYQFSMVGGERSPPRILPPCTNASTGSALLNPSLPNQSDVVEAEGSHSNSPTNMAPSARLEEAVWRPY*"
+    },
+    {
+      "start": 536,
+      "end": 182,
+      "frame": 1,
+      "sense": "-",
+      "length": 354,
+      "trailing": false,
+      "index": 2,
+      "protein": "MGRVLLQRQCVGSTEQRKLGLSVRTSSPGWSASTSTMLRSPLLSLPARAAPASGAPSGNASLILPGLSAVEGGVKRRLVLASWTSLEGFIPSMHSLMKHCGYEGNDSNMLSEAIASS*"
+    },
+    {
+      "start": 3047,
+      "end": 3311,
+      "frame": 2,
+      "sense": "+",
+      "length": 264,
+      "trailing": false,
+      "index": 3,
+      "protein": "MVPPVRDPLSCAAHSTTSLCCFHQAETLPYGVYGLLPVHQCDRKDSCHYCPWLQFKGIQCRCKFYGTIFIGGFGQNAVVVQLINTNC*"
+    },
+    {
+      "start": 813,
+      "end": 555,
+      "frame": 3,
+      "sense": "-",
+      "length": 258,
+      "trailing": false,
+      "index": 4,
+      "protein": "MSSRFSGPIHCDFDGSVVGGDLRWVCEDSDGQSEAFPSSTSTDKPEVIKSCNLVLHGCGSISQLSRVVFIIASHHSDQSAIWNIP*"
+    },
+    {
+      "start": 5525,
+      "end": 5738,
+      "frame": 2,
+      "sense": "+",
+      "length": 213,
+      "trailing": false,
+      "index": 5,
+      "protein": "MWSYLSQPPPRVYLCGSYWVWSQNILKIRAWASFSLVQTYGMLLKGELSSWCLQPDDMREYPRTLSPRCF*"
+    },
+    {
+      "start": 1235,
+      "end": 1046,
+      "frame": 1,
+      "sense": "-",
+      "length": 189,
+      "trailing": false,
+      "index": 6,
+      "protein": "MRGSEMEGSAGNWRGSLNAVRSGAVESRLESSAERVVMPLARPGEMGVAGCTEGEAMDPRYW*"
+    },
+    {
+      "start": 2154,
+      "end": 2340,
+      "frame": 3,
+      "sense": "+",
+      "length": 186,
+      "trailing": false,
+      "index": 7,
+      "protein": "MRICIWVVFIFIYVYINIYKLSLLLSCFDHGKKYDSLFFKFYLTFLLDFWVVVFFCFVLFF*"
+    },
+    {
+      "start": 4531,
+      "end": 4357,
+      "frame": 2,
+      "sense": "-",
+      "length": 174,
+      "trailing": false,
+      "index": 8,
+      "protein": "MCYLLKRTQEKEEGESGVWKIEEERKKGRYWGEEREGNVFSDSEKKKELKYVSMLKS*"
+    },
+    {
+      "start": 4347,
+      "end": 4518,
+      "frame": 3,
+      "sense": "+",
+      "length": 171,
+      "trailing": false,
+      "index": 9,
+      "protein": "MSLFMISTWIHISVLSFSHYLKIHFPPSLPPNISLFFSLPLSSKPHFLPPPFPVFS*"
+    },
+    {
+      "start": 5820,
+      "end": 5655,
+      "frame": 3,
+      "sense": "-",
+      "length": 165,
+      "trailing": false,
+      "index": 10,
+      "protein": "MLPGEGRRPTRLCTVDCGQCSACSPVLSRNTLERGFWDILSCHLAEDTSLTVPL*"
+    },
+    {
+      "start": 3186,
+      "end": 3024,
+      "frame": 3,
+      "sense": "-",
+      "length": 162,
+      "trailing": false,
+      "index": 11,
+      "protein": "MNLSCHTGAQVKAHIPHRVGSQPGESNTKMLLSEQHRTGGLAQVGPCFPTCLH*"
+    },
+    {
+      "start": 3135,
+      "end": 3297,
+      "frame": 3,
+      "sense": "+",
+      "length": 162,
+      "trailing": false,
+      "index": 12,
+      "protein": "MGYMGFYLCTSVTGKIHVTTVRGYNSKVSNVAVNFMALFLLEDLVRMQLLYNS*"
+    },
+    {
+      "start": 1592,
+      "end": 1433,
+      "frame": 1,
+      "sense": "-",
+      "length": 159,
+      "trailing": false,
+      "index": 13,
+      "protein": "MLVGELLWLPSASTTSLWFGRLGLSSAEPVEALVQGGRMRGGERSPPTMENW*"
+    },
+    {
+      "start": 4370,
+      "end": 4526,
+      "frame": 2,
+      "sense": "+",
+      "length": 156,
+      "trailing": false,
+      "index": 14,
+      "protein": "MDTYFSSFFFSLSENTFPSLSSPQYLPFFLSSSIFQTPLSPSSFSCVLLSR*"
+    },
+    {
+      "start": 5349,
+      "end": 5499,
+      "frame": 3,
+      "sense": "+",
+      "length": 150,
+      "trailing": false,
+      "index": 15,
+      "protein": "MVPIFFKFTFFVLGEMNVQKKKKNCWLFVLFWMYKNQWKKINFQIEMTV*"
+    },
+    {
+      "start": 109,
+      "end": 250,
+      "frame": 1,
+      "sense": "+",
+      "length": 141,
+      "trailing": false,
+      "index": 16,
+      "protein": "MQTTGFRSVVKEIIESPAFRRGCIFRRKRWLQTAYLSHFLRTHSAS*"
+    },
+    {
+      "start": 4199,
+      "end": 4067,
+      "frame": 1,
+      "sense": "-",
+      "length": 132,
+      "trailing": false,
+      "index": 17,
+      "protein": "MQFFTHTHTHAHTHTYKNVLRETYRQNNYSLIFFETIKYYICW*"
+    },
+    {
+      "start": 5128,
+      "end": 5005,
+      "frame": 2,
+      "sense": "-",
+      "length": 123,
+      "trailing": false,
+      "index": 18,
+      "protein": "MQLFWKEKKSQMISLINTDLAKNKIPNKHTKIPKQMYTLR*"
+    },
+    {
+      "start": 4598,
+      "end": 4721,
+      "frame": 2,
+      "sense": "+",
+      "length": 123,
+      "trailing": false,
+      "index": 19,
+      "protein": "MVCQPFSCLWVSSSRTETLPTILDLLAVQTSKLSWANHNQ*"
+    },
+    {
+      "start": 223,
+      "end": 100,
+      "frame": 2,
+      "sense": "-",
+      "length": 123,
+      "trailing": false,
+      "index": 20,
+      "protein": "MTQICCLKPSLPPENAPSSEGGGLNDFFYHAAKPCGLHSV*"
+    },
+    {
+      "start": 180,
+      "end": 57,
+      "frame": 3,
+      "sense": "-",
+      "length": 123,
+      "trailing": false,
+      "index": 21,
+      "protein": "MHPLLKAGDSMISFTTLRNPVVCIQCDSSCLLTTMLGSDF*"
+    },
+    {
+      "start": 2557,
+      "end": 2677,
+      "frame": 1,
+      "sense": "+",
+      "length": 120,
+      "trailing": false,
+      "index": 22,
+      "protein": "MSNVIAWLSRSIVYIKLPFMLIKQVSSSRSNVFNRIFRH*"
+    },
+    {
+      "start": 2244,
+      "end": 2124,
+      "frame": 3,
+      "sense": "-",
+      "length": 120,
+      "trailing": false,
+      "index": 23,
+      "protein": "MVKARKKQAQFIYIYINVYKNKNHPNANTHFAIDKVRKN*"
+    },
+    {
+      "start": 4923,
+      "end": 4806,
+      "frame": 3,
+      "sense": "-",
+      "length": 117,
+      "trailing": false,
+      "index": 24,
+      "protein": "MSFPPKIKTNKNKNHQDGMSQRNRYFKAEICNPKLQDI*"
+    },
+    {
+      "start": 3853,
+      "end": 3970,
+      "frame": 1,
+      "sense": "+",
+      "length": 117,
+      "trailing": false,
+      "index": 25,
+      "protein": "MSDLQKCWRKMKEKIMFFSLILLTEDIPTQNQPHALIR*"
+    },
+    {
+      "start": 725,
+      "end": 611,
+      "frame": 1,
+      "sense": "-",
+      "length": 114,
+      "trailing": false,
+      "index": 26,
+      "protein": "MVRVKLFPLPLRPTNLRSLNLATWFFMAAVAFLSSAE*"
+    },
+    {
+      "start": 3717,
+      "end": 3606,
+      "frame": 3,
+      "sense": "-",
+      "length": 111,
+      "trailing": false,
+      "index": 27,
+      "protein": "MKLSCGGNPVKNESEYILSLSEICYSSSLDKNDLTT*"
+    },
+    {
+      "start": 4624,
+      "end": 4729,
+      "frame": 1,
+      "sense": "+",
+      "length": 105,
+      "trailing": false,
+      "index": 28,
+      "protein": "MGFFQQNRDIANHIGSACCPNQQTFLGKSQSVSK*"
+    },
+    {
+      "start": 5964,
+      "end": 5862,
+      "frame": 3,
+      "sense": "-",
+      "length": 102,
+      "trailing": false,
+      "index": 29,
+      "protein": "MYLSNCLFAIHTDCNTGFTEETVVQREEGSGGS*"
+    },
+    {
+      "start": 3855,
+      "end": 3762,
+      "frame": 3,
+      "sense": "-",
+      "length": 93,
+      "trailing": false,
+      "index": 30,
+      "protein": "MVTCAEKKHLRLIWGKWANGAFQKLNFYIC*"
+    },
+    {
+      "start": 4921,
+      "end": 5014,
+      "frame": 1,
+      "sense": "+",
+      "length": 93,
+      "trailing": false,
+      "index": 31,
+      "protein": "MFGSFIHENLFDNNLTKHILHLNKMPFCLP*"
+    },
+    {
+      "start": 4975,
+      "end": 4885,
+      "frame": 2,
+      "sense": "-",
+      "length": 90,
+      "trailing": false,
+      "index": 32,
+      "protein": "MFCEIIVKQIFMYKRPKHVIPPKNKNQQK*"
+    },
+    {
+      "start": 2700,
+      "end": 2787,
+      "frame": 3,
+      "sense": "+",
+      "length": 87,
+      "trailing": false,
+      "index": 33,
+      "protein": "MEFSARLNKGLISNFLLKTEKVNLVPEG*"
+    },
+    {
+      "start": 4792,
+      "end": 4879,
+      "frame": 1,
+      "sense": "+",
+      "length": 87,
+      "trailing": false,
+      "index": 34,
+      "protein": "MNGSTQMSCNLGLQISALKYLFLWDIPS*"
+    },
+    {
+      "start": 4077,
+      "end": 3993,
+      "frame": 3,
+      "sense": "-",
+      "length": 84,
+      "trailing": false,
+      "index": 35,
+      "protein": "MLVRVCETLNDQSSEPTIVTSPLHTWL*"
+    },
+    {
+      "start": 4003,
+      "end": 3919,
+      "frame": 2,
+      "sense": "-",
+      "length": 84,
+      "trailing": false,
+      "index": 36,
+      "protein": "MALRVKVQCKRLSNQSMRLVLSWNIFS*"
+    },
+    {
+      "start": 2364,
+      "end": 2280,
+      "frame": 3,
+      "sense": "-",
+      "length": 84,
+      "trailing": false,
+      "index": 37,
+      "protein": "MTQSCSCFSKKQNKTKKNNYPKVQKKS*"
+    },
+    {
+      "start": 2111,
+      "end": 2027,
+      "frame": 1,
+      "sense": "-",
+      "length": 84,
+      "trailing": false,
+      "index": 38,
+      "protein": "MPNRASCIPPLPPPQPKFHTLWNKQLG*"
+    },
+    {
+      "start": 4298,
+      "end": 4217,
+      "frame": 1,
+      "sense": "-",
+      "length": 81,
+      "trailing": false,
+      "index": 39,
+      "protein": "MQLLHDWLKGLIDTLTFLRAMNKKIP*"
+    },
+    {
+      "start": 3608,
+      "end": 3689,
+      "frame": 2,
+      "sense": "+",
+      "length": 81,
+      "trailing": false,
+      "index": 40,
+      "protein": "MLSGRSYLEKSYSRSRTNSEYIHFHF*"
+    },
+    {
+      "start": 5081,
+      "end": 5162,
+      "frame": 2,
+      "sense": "+",
+      "length": 81,
+      "trailing": false,
+      "index": 41,
+      "protein": "MRLIIWLFFSFQKSCINKVNCIYVCK*"
+    },
+    {
+      "start": 826,
+      "end": 904,
+      "frame": 1,
+      "sense": "+",
+      "length": 78,
+      "trailing": false,
+      "index": 42,
+      "protein": "MIRPSPGACPFPSGSVNWSSCGAQP*"
+    },
+    {
+      "start": 5398,
+      "end": 5473,
+      "frame": 1,
+      "sense": "+",
+      "length": 75,
+      "trailing": false,
+      "index": 43,
+      "protein": "MCKKRKRTVGYLCYSGCIKINGKK*"
+    }
+  ],
+  "NM_152739.4": [
+    {
+      "start": 906,
+      "end": 1,
+      "frame": 2,
+      "sense": "-",
+      "length": 904,
+      "trailing": true,
+      "index": 1,
+      "protein": "MASLVFCSVFVDFLHFHPAVLEPDLDLPLGEVEQSSHLVPAVPGEVHVEQKLFLQFQGLVFCIGAPLFPSGARMKPVGCWVIGIDGGLVSAALILSIVFREGAFAGLFFSINWRRTTSIVSQGQSVSVKRGTVTPSGRQRFRFNAIRPAGGQAREGERTGRGLQPGAHVPAVRRRRRHGRLGVHVGVVVMVVVHRSGYSVGARRVHWVPRGAKHRRLGLEAARAEVGVLGQRRRLPGRLAQGPRRIAANAQLIRGVGAQQERVHVVVAQGPSGGHHRAQRLARPARPTEIMKLQISCNNLV"
+    },
+    {
+      "start": 81,
+      "end": 900,
+      "frame": 3,
+      "sense": "+",
+      "length": 819,
+      "trailing": false,
+      "index": 2,
+      "protein": "MATTGALGNYYVDSFLLGADAADELSVGRYAPGTLGQPPRQAATLAEHPDFSPCSFQSKATVFGASWNPVHAAGANAVPAAVYHHHHHHPYVHPQAPVAAAAPDGRYMRSWLEPTPGALSFAGLPSSRPYGIKPEPLSARRGDCPTLDTHTLSLTDYACGSPPVDREKQPSEGAFSENNAENESGGDKPPIDPNNPAANWLHARSTRKKRCPYTKHQTLELEKEFLFNMYLTRDRRYEVARLLNLTERQVKIWFQNRRMKMKKINKDRAKDE*"
+    },
+    {
+      "start": 687,
+      "end": 1,
+      "frame": 2,
+      "sense": "-",
+      "length": 685,
+      "trailing": true,
+      "index": 3,
+      "protein": "MKPVGCWVIGIDGGLVSAALILSIVFREGAFAGLFFSINWRRTTSIVSQGQSVSVKRGTVTPSGRQRFRFNAIRPAGGQAREGERTGRGLQPGAHVPAVRRRRRHGRLGVHVGVVVMVVVHRSGYSVGARRVHWVPRGAKHRRLGLEAARAEVGVLGQRRRLPGRLAQGPRRIAANAQLIRGVGAQQERVHVVVAQGPSGGHHRAQRLARPARPTEIMKLQISCNNLV"
+    },
+    {
+      "start": 169,
+      "end": 544,
+      "frame": 1,
+      "sense": "+",
+      "length": 375,
+      "trailing": false,
+      "index": 4,
+      "protein": "MRRGPWASLPGRRRRWPSTPTSARAASSPRRRCLAPRGTQCTRRAPTLYPLRCTTTITTTPTCTPRRPWRRRRRTAGTCAPGWSPRPVRSPSRACPPAGLMALNLNRCRPEGVTVPRLTLTLCP*"
+    },
+    {
+      "start": 339,
+      "end": 1,
+      "frame": 2,
+      "sense": "-",
+      "length": 337,
+      "trailing": true,
+      "index": 5,
+      "protein": "MVVVHRSGYSVGARRVHWVPRGAKHRRLGLEAARAEVGVLGQRRRLPGRLAQGPRRIAANAQLIRGVGAQQERVHVVVAQGPSGGHHRAQRLARPARPTEIMKLQISCNNLV"
+    },
+    {
+      "start": 550,
+      "end": 859,
+      "frame": 1,
+      "sense": "+",
+      "length": 309,
+      "trailing": false,
+      "index": 6,
+      "protein": "MLVVLLQLIEKNNPAKAPSLKTMLRMRAAETSPPSIPITQQPTGFMRAPLGKSGAPIQNTRPWNWRKSFCSTCTSPGTAGTRWLDCSTSPRGRSRSGSRTAG*"
+    },
+    {
+      "start": 1010,
+      "end": 716,
+      "frame": 3,
+      "sense": "-",
+      "length": 294,
+      "trailing": false,
+      "index": 7,
+      "protein": "MVEARVGVREGRRRKGDGQFFLFLSSLPFFLNKPKWHHSSFARSLLIFFIFILRFWNQILTCLSVRLSSRATSYLRSLVRYMLNRNSFSSSRVWCFV*"
+    },
+    {
+      "start": 1419,
+      "end": 1242,
+      "frame": 2,
+      "sense": "-",
+      "length": 177,
+      "trailing": false,
+      "index": 8,
+      "protein": "MGASPSTQKFESQNIITTIKHSVQVSWQSNLPHKLQIKLTTQTKNYTAYHQQLCIIKR*"
+    },
+    {
+      "start": 1604,
+      "end": 1769,
+      "frame": 2,
+      "sense": "+",
+      "length": 165,
+      "trailing": false,
+      "index": 9,
+      "protein": "MHRFIIFSTLKMRAFKSVHYLYSPVLSIVYIIYMIKENMHNQTSLNIVFAPDEQ*"
+    },
+    {
+      "start": 1122,
+      "end": 996,
+      "frame": 2,
+      "sense": "-",
+      "length": 126,
+      "trailing": false,
+      "index": 10,
+      "protein": "MESLQYLLHQSGRPTSQPEQGLPWKRCGLRFRAALCGDGGG*"
+    },
+    {
+      "start": 1375,
+      "end": 1495,
+      "frame": 1,
+      "sense": "+",
+      "length": 120,
+      "trailing": false,
+      "index": 11,
+      "protein": "MFCDSNFCVLGDAPIVIVEDRIQFELRLFMRGKKQLHRV*"
+    },
+    {
+      "start": 1840,
+      "end": 1957,
+      "frame": 1,
+      "sense": "+",
+      "length": 117,
+      "trailing": false,
+      "index": 12,
+      "protein": "MNADCNGVNFIDNKLYTMKPPLGYCRFVSLMNLGFPSD*"
+    },
+    {
+      "start": 653,
+      "end": 548,
+      "frame": 3,
+      "sense": "-",
+      "length": 105,
+      "trailing": false,
+      "index": 13,
+      "protein": "MGGLSPPLSFSALFSEKAPSLGCFSLSTGGEPQA*"
+    },
+    {
+      "start": 1486,
+      "end": 1387,
+      "frame": 1,
+      "sense": "-",
+      "length": 99,
+      "trailing": false,
+      "index": 14,
+      "protein": "MQLFFSPHKQPEFKLNSIFHNHNGCITQYTEV*"
+    },
+    {
+      "start": 1159,
+      "end": 1066,
+      "frame": 1,
+      "sense": "-",
+      "length": 93,
+      "trailing": false,
+      "index": 15,
+      "protein": "MPPPQLFLFLIENGKLTIPPPSKRQAYEPA*"
+    },
+    {
+      "start": 1610,
+      "end": 1532,
+      "frame": 3,
+      "sense": "-",
+      "length": 78,
+      "trailing": false,
+      "index": 16,
+      "protein": "MHPREHLKFFFISLGNSYSYFTIIG*"
+    }
+  ]
+}
