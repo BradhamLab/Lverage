@@ -1,0 +1,32 @@
+#!/bin/bash -l
+
+# SCC SGE project is supplied at submission with: qsub -P "$SCC_PROJECT" ...
+# Do not infer it from the paxlab Unix group or project-directory name.
+#$ -N lverage_assigned_orfs
+#$ -cwd
+#$ -j y
+#$ -l h_rt=02:00:00
+#$ -pe omp 1
+
+set -euo pipefail
+
+CONDA_ENV="${CONDA_ENV:-/projectnb/paxlab/thomas/envs/lverage-v2}"
+ORFFINDER_EXECUTABLE="${ORFFINDER_EXECUTABLE:-/projectnb/paxlab/thomas/tools/orffinder/ORFfinder}"
+REPO_ROOT="${REPO_ROOT:-/projectnb/paxlab/thomas/Lverage}"
+
+module load miniconda/25.3.1
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "$CONDA_ENV"
+
+if [[ ! -x "$ORFFINDER_EXECUTABLE" ]]; then
+    echo "ORFfinder executable is not executable: $ORFFINDER_EXECUTABLE" >&2
+    exit 2
+fi
+
+cd "$REPO_ROOT"
+export ORFFINDER_EXECUTABLE
+printf 'Host: %s\n' "$(hostname)"
+printf 'Conda environment: %s\n' "$CONDA_PREFIX"
+printf 'ORFfinder: %s\n' "$ORFFINDER_EXECUTABLE"
+printf 'Assigned input FASTAs: %s\n' "$REPO_ROOT/benchmarks/orf_finder/data/test_inputs"
+python -m benchmarks.orf_finder.benchmark run --executable "$ORFFINDER_EXECUTABLE"
