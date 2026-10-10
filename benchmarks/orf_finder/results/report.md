@@ -1,6 +1,6 @@
 # ORFfinder benchmark results
 
-Completed comparison of the three assigned genomic RefSeqGene FASTA records using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder. ORF scanning on genomic sequence does not perform splicing or establish the protein annotated for the named gene.
+Completed comparison of the 3 assigned genomic RefSeqGene FASTA records using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder. ORF scanning on genomic sequence does not perform splicing or establish the protein annotated for the named gene.
 
 ## Results per assigned input
 
@@ -12,9 +12,9 @@ Completed comparison of the three assigned genomic RefSeqGene FASTA records usin
 
 ## Findings
 
-- Across the three assigned inputs, the corrected adapter returned 1,913 candidates and NCBI returned 1,784; there were 1,784 exact interval-and-strand matches.
-- Every NCBI candidate had an exact adapter match. The adapter returned 129 additional candidates.
-- All three inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI.
+- Across the 3 assigned inputs, the corrected adapter returned 1,913 candidates and NCBI returned 1,784; there were 1,784 exact interval-and-strand matches.
+- Every NCBI candidate had an exact adapter match. The corrected adapter had 129 candidates without an exact NCBI match; NCBI had 0 candidates without an exact adapter match.
+- All 3 assigned inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI.
 - Raw-package/adapter protein-string differences include terminal stop-symbol removal. Their counts do not indicate incorrect proteins.
 - These findings apply only to the assigned genomic sequences and recorded settings. ORF scanning does not perform splicing or establish the annotated protein for the named gene.
 

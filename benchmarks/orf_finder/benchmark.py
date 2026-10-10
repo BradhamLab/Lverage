@@ -229,7 +229,11 @@ def parse_ncbi_outputs(cds_fasta: Path, protein_fasta: Path, records: dict[str, 
         protein, encoded_coords = protein_by_tag[tag]
         # NCBI protein headers encode zero-based inclusive endpoints in either
         # orientation; the CDS FASTA's 1-based inclusive range is authoritative.
-        if {encoded_coords[0], encoded_coords[1]} != {start0, end0 - 1}:
+        if strand == "+":
+            expected_coords = (start0, end0 - 1)
+        else:
+            expected_coords = (end0 - 1, start0)
+        if encoded_coords != expected_coords:
             raise ValueError(f"NCBI protein/CDS coordinate encodings disagree for {tag}")
         translated_cds = str(Seq(cds_sequence).translate(table=GENETIC_CODE)).rstrip("*")
         if protein != translated_cds:
@@ -637,7 +641,7 @@ def run_benchmark(executable: str) -> None:
         "biological_scope": "ORF scanning does not perform splicing and does not establish the protein annotated for the named gene",
         "coordinate_system": "zero-based half-open on original input; strand separate",
         "ncbi_terminal_stop_normalization": "CDS FASTA sequence/location includes stop; protein excludes translated terminal stop; normalized interval retains the terminal stop nucleotide",
-        "overlap_rule": "All same-strand positive non-exact interval intersections are emitted with IoU. Exact interval-and-strand matches are separate.",
+        "overlap_rule": "All same-strand pairs with positive intersection are emitted in overlaps.tsv, including exact interval-and-strand matches. Exact pairs are flagged and also listed in matches.tsv.",
         "pairing_rule": "Reserve exact matches one-to-one in ascending stable candidate-ID order. Among remaining candidates, sort positive-overlap edges with IoU >= 0.5 by descending IoU then ascending left/right candidate IDs; greedily accept an edge if neither endpoint is already paired. Report unmatched candidates after these pairings.",
     }
     write_json(RESULTS / "metadata.json", metadata)
@@ -645,10 +649,12 @@ def run_benchmark(executable: str) -> None:
 
 
 def write_report(comparisons: list[dict], input_provenance: list[dict]) -> None:
+    input_count = len(comparisons)
+    input_label = "record" if input_count == 1 else "records"
     lines = [
         "# ORFfinder benchmark results",
         "",
-        "Completed comparison of the three assigned genomic RefSeqGene FASTA records using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder. ORF scanning on genomic sequence does not perform splicing or establish the protein annotated for the named gene.",
+        f"Completed comparison of the {input_count} assigned genomic RefSeqGene FASTA {input_label} using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder. ORF scanning on genomic sequence does not perform splicing or establish the protein annotated for the named gene.",
         "",
         "## Results per assigned input",
         "",
@@ -659,19 +665,51 @@ def write_report(comparisons: list[dict], input_provenance: list[dict]) -> None:
     adapter_total = sum(int(row["adapter_corrected_count"]) for row in comparisons)
     ncbi_total = sum(int(row["ncbi_count"]) for row in comparisons)
     exact_total = sum(int(row["adapter_corrected_vs_ncbi_exact_count"]) for row in comparisons)
+    adapter_unmatched = max(0, adapter_total - exact_total)
+    ncbi_unmatched = max(0, ncbi_total - exact_total)
+    same_longest_inputs = sum(
+        1
+        for row in comparisons
+        if set(json.loads(row["adapter_corrected_longest_locations"])) & set(json.loads(row["ncbi_longest_locations"]))
+    )
+    input_word = "input" if input_count == 1 else "inputs"
     for item in input_provenance:
         record_id = item["accession_version"]
         row = by_record[record_id]
         exact = row["adapter_corrected_vs_ncbi_exact_count"]
         same_longest = bool(set(json.loads(row["adapter_corrected_longest_locations"])) & set(json.loads(row["ncbi_longest_locations"])))
         lines.append(f"| {item['filename']} | {record_id} | {row['python_raw_count']} | {row['adapter_corrected_count']} | {row['ncbi_count']} | {row['raw_adapter_exact_translation_difference_count']} | {exact} | {row['adapter_corrected_vs_ncbi_positive_overlap_pair_count']} | {'yes' if same_longest else 'no'} |")
+
+    if input_count == 1:
+        if same_longest_inputs:
+            longest_summary = "The assigned input shares at least one exact longest-ORF interval and strand between the adapter and NCBI."
+        else:
+            longest_summary = "The assigned input does not share an exact longest-ORF interval and strand between the adapter and NCBI."
+    elif same_longest_inputs == input_count:
+        longest_summary = f"All {input_count} assigned inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI."
+    else:
+        longest_summary = f"{same_longest_inputs} of {input_count} assigned inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI."
+
+    if ncbi_unmatched == 0:
+        unmatched_summary = (
+            "Every NCBI candidate had an exact adapter match. "
+            f"The corrected adapter had {adapter_unmatched:,} candidates without an exact NCBI match; "
+            f"NCBI had {ncbi_unmatched:,} candidates without an exact adapter match."
+        )
+    else:
+        unmatched_summary = (
+            "Not every NCBI candidate had an exact adapter match: "
+            f"the corrected adapter had {adapter_unmatched:,} candidates without an exact NCBI match, "
+            f"and NCBI had {ncbi_unmatched:,} candidates without an exact adapter match."
+        )
+
     lines.extend([
         "",
         "## Findings",
         "",
-        f"- Across the three assigned inputs, the corrected adapter returned {adapter_total:,} candidates and NCBI returned {ncbi_total:,}; there were {exact_total:,} exact interval-and-strand matches.",
-        f"- Every NCBI candidate had an exact adapter match. The adapter returned {adapter_total - ncbi_total:,} additional candidates.",
-        "- All three inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI.",
+        f"- Across the {input_count} assigned {input_word}, the corrected adapter returned {adapter_total:,} candidates and NCBI returned {ncbi_total:,}; there were {exact_total:,} exact interval-and-strand matches.",
+        f"- {unmatched_summary}",
+        f"- {longest_summary}",
         "- Raw-package/adapter protein-string differences include terminal stop-symbol removal. Their counts do not indicate incorrect proteins.",
         "- These findings apply only to the assigned genomic sequences and recorded settings. ORF scanning does not perform splicing or establish the annotated protein for the named gene.",
         "",

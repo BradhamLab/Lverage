@@ -193,6 +193,6 @@
   "biological_scope": "ORF scanning does not perform splicing and does not establish the protein annotated for the named gene",
   "coordinate_system": "zero-based half-open on original input; strand separate",
   "ncbi_terminal_stop_normalization": "CDS FASTA sequence/location includes stop; protein excludes translated terminal stop; normalized interval retains the terminal stop nucleotide",
-  "overlap_rule": "All same-strand positive non-exact interval intersections are emitted with IoU. Exact interval-and-strand matches are separate.",
+  "overlap_rule": "All same-strand pairs with positive intersection are emitted in overlaps.tsv, including exact interval-and-strand matches. Exact pairs are flagged and also listed in matches.tsv.",
   "pairing_rule": "Reserve exact matches one-to-one in ascending stable candidate-ID order. Among remaining candidates, sort positive-overlap edges with IoU >= 0.5 by descending IoU then ascending left/right candidate IDs; greedily accept an edge if neither endpoint is already paired. Report unmatched candidates after these pairings."
 }

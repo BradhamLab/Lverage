@@ -45,8 +45,9 @@ Setup notes:
 	sequences under `data/controls.fasta` are validation fixtures kept separate
 	from assigned-input results.
 - The runner, parser/coordinate tests, SCC job script, input provenance/checksums,
-	and generated outputs are under `benchmarks/orf_finder/`. New assigned-input
-	results remain pending until the compute-node benchmark runs.
+	and generated outputs are under `benchmarks/orf_finder/`. The assigned-input
+	benchmark completed on SCC, and its saved results are under
+	`benchmarks/orf_finder/results/`.
 - The standalone binary is not installed by Conda or pip. Confirm its version
 	and executable path before running. The benchmark job script initializes
 	`/projectnb/paxlab/thomas/envs/lverage-v2` explicitly.

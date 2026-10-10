@@ -104,13 +104,31 @@ class BenchmarkNcbiParserTests(unittest.TestCase):
         self.assertTrue(candidates[0].terminal_stop_in_nt)
         self.assertEqual(candidates[0].protein, protein)
 
-    def test_minus_strand_location_normalizes_on_original_input(self):
+    def test_plus_strand_location_requires_start_to_end_endpoint_order(self):
+        cds = "ATG" + "GCT" * 9 + "TAA"
+        protein = "M" + "A" * 9
+        candidates = self.parse("TX.1", "1-33", "ORF1_TX.1:0:32", cds, protein, cds)
+
+        self.assertEqual(candidates[0].interval, (0, 33, "+"))
+
+    def test_minus_strand_location_requires_end_to_start_endpoint_order(self):
         oriented_cds = "ATG" + "GCT" * 9 + "TAA"
         input_sequence = str(Seq(oriented_cds).reverse_complement())
         protein = "M" + "A" * 9
         candidates = self.parse("TX.1", "c33-1", "ORF1_TX.1:32:0", oriented_cds, protein, input_sequence)
 
         self.assertEqual(candidates[0].interval, (0, 33, "-"))
+
+    def test_reversed_endpoint_order_is_rejected_on_both_strands(self):
+        cds = "ATG" + "GCT" * 9 + "TAA"
+        protein = "M" + "A" * 9
+        with self.assertRaisesRegex(ValueError, "coordinate encodings disagree"):
+            self.parse("TX.1", "1-33", "ORF1_TX.1:32:0", cds, protein, cds)
+
+        oriented_cds = "ATG" + "GCT" * 9 + "TAA"
+        input_sequence = str(Seq(oriented_cds).reverse_complement())
+        with self.assertRaisesRegex(ValueError, "coordinate encodings disagree"):
+            self.parse("TX.1", "c33-1", "ORF1_TX.1:0:32", oriented_cds, protein, input_sequence)
 
     def test_mismatched_ncbi_cds_and_protein_is_rejected(self):
         cds = "ATG" + "GCT" * 9 + "TAA"
@@ -194,6 +212,119 @@ class AssignedInputValidationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "exactly one FASTA record"):
                 benchmark.load_assigned_inputs(directory)
 
+    @staticmethod
+    def report_for(rows, provenance):
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(benchmark, "RESULTS", Path(temp_dir)):
+            benchmark.write_report(rows, provenance)
+            return (Path(temp_dir) / "report.md").read_text(encoding="utf-8")
+
+    def test_report_current_all_ncbi_match_case_uses_row_counts(self):
+        rows = [
+            {
+                "record_id": "NG_008181.2",
+                "python_raw_count": 2,
+                "adapter_corrected_count": 3,
+                "ncbi_count": 3,
+                "raw_adapter_exact_translation_difference_count": 1,
+                "adapter_corrected_vs_ncbi_exact_count": 3,
+                "adapter_corrected_vs_ncbi_positive_overlap_pair_count": 5,
+                "adapter_corrected_longest_locations": '["0:99:+"]',
+                "ncbi_longest_locations": '["0:99:+"]',
+            },
+            {
+                "record_id": "NG_047027.2",
+                "python_raw_count": 2,
+                "adapter_corrected_count": 3,
+                "ncbi_count": 3,
+                "raw_adapter_exact_translation_difference_count": 1,
+                "adapter_corrected_vs_ncbi_exact_count": 3,
+                "adapter_corrected_vs_ncbi_positive_overlap_pair_count": 4,
+                "adapter_corrected_longest_locations": '["10:20:+"]',
+                "ncbi_longest_locations": '["10:20:+"]',
+            },
+            {
+                "record_id": "NG_011631.1",
+                "python_raw_count": 2,
+                "adapter_corrected_count": 3,
+                "ncbi_count": 3,
+                "raw_adapter_exact_translation_difference_count": 1,
+                "adapter_corrected_vs_ncbi_exact_count": 3,
+                "adapter_corrected_vs_ncbi_positive_overlap_pair_count": 4,
+                "adapter_corrected_longest_locations": '["20:30:+"]',
+                "ncbi_longest_locations": '["20:30:+"]',
+            },
+        ]
+        provenance = [
+            {"filename": "HoxA13.fa", "accession_version": "NG_008181.2"},
+            {"filename": "Jun.fa", "accession_version": "NG_047027.2"},
+            {"filename": "MITF.fa", "accession_version": "NG_011631.1"},
+        ]
+
+        report = self.report_for(rows, provenance)
+
+        self.assertIn("Across the 3 assigned inputs, the corrected adapter returned 9 candidates and NCBI returned 9; there were 9 exact interval-and-strand matches.", report)
+        self.assertIn("Every NCBI candidate had an exact adapter match.", report)
+        self.assertIn("The corrected adapter had 0 candidates without an exact NCBI match; NCBI had 0 candidates without an exact adapter match.", report)
+        self.assertIn("All 3 assigned inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI.", report)
+
+    def test_report_marks_unmatched_candidates_on_both_sides_with_more_ncbi_candidates(self):
+        rows = [{
+            "record_id": "NG_008181.2",
+            "python_raw_count": 2,
+            "adapter_corrected_count": 5,
+            "ncbi_count": 7,
+            "raw_adapter_exact_translation_difference_count": 1,
+            "adapter_corrected_vs_ncbi_exact_count": 3,
+            "adapter_corrected_vs_ncbi_positive_overlap_pair_count": 5,
+            "adapter_corrected_longest_locations": '["0:99:+"]',
+            "ncbi_longest_locations": '["0:99:+"]',
+        }]
+        provenance = [{"filename": "HoxA13.fa", "accession_version": "NG_008181.2"}]
+
+        report = self.report_for(rows, provenance)
+
+        self.assertIn("Across the 1 assigned input", report)
+        self.assertIn("Not every NCBI candidate had an exact adapter match:", report)
+        self.assertIn("the corrected adapter had 2 candidates without an exact NCBI match, and NCBI had 4 candidates without an exact adapter match.", report)
+
+    def test_report_reports_longest_orf_disagreement(self):
+        rows = [{
+            "record_id": "NG_008181.2",
+            "python_raw_count": 2,
+            "adapter_corrected_count": 3,
+            "ncbi_count": 3,
+            "raw_adapter_exact_translation_difference_count": 1,
+            "adapter_corrected_vs_ncbi_exact_count": 3,
+            "adapter_corrected_vs_ncbi_positive_overlap_pair_count": 5,
+            "adapter_corrected_longest_locations": '["0:99:+"]',
+            "ncbi_longest_locations": '["1:100:+"]',
+        }]
+        provenance = [{"filename": "HoxA13.fa", "accession_version": "NG_008181.2"}]
+
+        report = self.report_for(rows, provenance)
+
+        self.assertIn("The assigned input does not share an exact longest-ORF interval and strand between the adapter and NCBI.", report)
+
+    def test_report_uses_single_input_pluralization_for_one_input(self):
+        rows = [{
+            "record_id": "NG_008181.2",
+            "python_raw_count": 1,
+            "adapter_corrected_count": 4,
+            "ncbi_count": 2,
+            "raw_adapter_exact_translation_difference_count": 1,
+            "adapter_corrected_vs_ncbi_exact_count": 2,
+            "adapter_corrected_vs_ncbi_positive_overlap_pair_count": 3,
+            "adapter_corrected_longest_locations": '["0:99:+"]',
+            "ncbi_longest_locations": '["0:99:+"]',
+        }]
+        provenance = [{"filename": "HoxA13.fa", "accession_version": "NG_008181.2"}]
+
+        report = self.report_for(rows, provenance)
+
+        self.assertIn("Completed comparison of the 1 assigned genomic RefSeqGene FASTA record using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder.", report)
+        self.assertIn("Across the 1 assigned input, the corrected adapter returned 4 candidates and NCBI returned 2; there were 2 exact interval-and-strand matches.", report)
+        self.assertIn("The assigned input shares at least one exact longest-ORF interval and strand between the adapter and NCBI.", report)
+
     def test_completed_report_uses_assigned_input_labels_and_clean_markdown_spacing(self):
         row = {
             "record_id": "NG_008181.2",
@@ -208,9 +339,7 @@ class AssignedInputValidationTests(unittest.TestCase):
         }
         provenance = [{"filename": "HoxA13.fa", "accession_version": "NG_008181.2"}]
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch.object(benchmark, "RESULTS", Path(temp_dir)):
-            benchmark.write_report([row], provenance)
-            report = (Path(temp_dir) / "report.md").read_text(encoding="utf-8")
+        report = self.report_for([row], provenance)
 
         self.assertIn("HoxA13.fa | NG_008181.2 | 2 | 3 | 4", report)
         self.assertIn("does not perform splicing", report)
