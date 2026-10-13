@@ -1,7 +1,21 @@
 #!/bin/bash -l
 
 # SCC SGE project is supplied at submission with: qsub -P "$SCC_PROJECT" ...
-# Do not infer it from the paxlab Unix group or project-directory name.
+# Nothing machine- or user-specific is stored in this script. Configure it
+# through environment variables (qsub -v NAME=value, or export before qsub):
+#
+#   ORFFINDER_EXECUTABLE   path to the NCBI ORFfinder binary (required unless
+#                          an "ORFfinder" command is already on PATH)
+#   ORF_BENCHMARK_INPUTS   directory holding HoxA13.fa, Jun.fa, MITF.fa
+#                          (default: benchmarks/orf_finder/data/test_inputs)
+#   CONDA_ENV              conda environment name or prefix to activate
+#                          (default: none; the job uses whatever "python"
+#                          resolves to after module loads)
+#   MINICONDA_MODULE       module to load before activating CONDA_ENV
+#                          (default: miniconda)
+#
+# The job runs from the directory it was submitted from (-cwd), which must be
+# the repository root of the checkout you want to benchmark.
 #$ -N lverage_assigned_orfs
 #$ -cwd
 #$ -j y
@@ -10,23 +24,36 @@
 
 set -euo pipefail
 
-CONDA_ENV="${CONDA_ENV:-/projectnb/paxlab/thomas/envs/lverage-v2}"
-ORFFINDER_EXECUTABLE="${ORFFINDER_EXECUTABLE:-/projectnb/paxlab/thomas/tools/orffinder/ORFfinder}"
-REPO_ROOT="${REPO_ROOT:-/projectnb/paxlab/thomas/Lverage}"
-
-module load miniconda/25.3.1
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate "$CONDA_ENV"
-
-if [[ ! -x "$ORFFINDER_EXECUTABLE" ]]; then
-    echo "ORFfinder executable is not executable: $ORFFINDER_EXECUTABLE" >&2
+REPO_ROOT="${SGE_O_WORKDIR:-$PWD}"
+cd "$REPO_ROOT"
+if [[ ! -f pyproject.toml || ! -f benchmarks/orf_finder/benchmark.py ]]; then
+    echo "Submit this job from the Lverage repository root (got: $REPO_ROOT)" >&2
     exit 2
 fi
 
-cd "$REPO_ROOT"
+if [[ -n "${CONDA_ENV:-}" ]]; then
+    module load "${MINICONDA_MODULE:-miniconda}"
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+    conda activate "$CONDA_ENV"
+fi
+
+# Import the checkout being benchmarked, not whatever lverage happens to be
+# installed in the environment (for example another clone in editable mode).
+export PYTHONPATH="$REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+
+ORFFINDER_EXECUTABLE="${ORFFINDER_EXECUTABLE:-$(command -v ORFfinder || true)}"
+if [[ -z "$ORFFINDER_EXECUTABLE" || ! -x "$ORFFINDER_EXECUTABLE" ]]; then
+    echo "Set ORFFINDER_EXECUTABLE to the NCBI ORFfinder binary (got: '${ORFFINDER_EXECUTABLE}')" >&2
+    exit 2
+fi
 export ORFFINDER_EXECUTABLE
+INPUT_DIR="${ORF_BENCHMARK_INPUTS:-$REPO_ROOT/benchmarks/orf_finder/data/test_inputs}"
+
 printf 'Host: %s\n' "$(hostname)"
-printf 'Conda environment: %s\n' "$CONDA_PREFIX"
+printf 'Repository: %s\n' "$REPO_ROOT"
+printf 'Python: %s\n' "$(command -v python)"
 printf 'ORFfinder: %s\n' "$ORFFINDER_EXECUTABLE"
-printf 'Assigned input FASTAs: %s\n' "$REPO_ROOT/benchmarks/orf_finder/data/test_inputs"
-python -m benchmarks.orf_finder.benchmark run --executable "$ORFFINDER_EXECUTABLE"
+printf 'Assigned input FASTAs: %s\n' "$INPUT_DIR"
+python -m benchmarks.orf_finder.benchmark run \
+    --executable "$ORFFINDER_EXECUTABLE" \
+    --input-dir "$INPUT_DIR"

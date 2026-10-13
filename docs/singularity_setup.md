@@ -33,24 +33,27 @@ Setup notes:
 ## ORFfinder comparison benchmark
 
 - The benchmark compares Python `orffinder==1.8` with NCBI standalone ORFfinder.
-- NCBI ORFfinder 0.4.3 executable used on the SCC:
-	`/projectnb/paxlab/thomas/tools/orffinder/ORFfinder`.
+- NCBI ORFfinder 0.4.3 was used for the recorded run. Download the standalone
+	binary from NCBI and point the benchmark at it with `ORFFINDER_EXECUTABLE`
+	(or put an `ORFfinder` command on `PATH`).
 - The production Lverage adapter continues to use the Python package; the NCBI
 	executable is required only for the optional benchmark.
 - The benchmark uses only the three professor-provided genomic RefSeqGene FASTA
-	files under `benchmarks/orf_finder/data/test_inputs/`; it does not fetch
-	replacement sequences or require GenBank records/CDS annotations.
+	files (HoxA13.fa, Jun.fa, MITF.fa). They are not versioned; supply a local
+	directory via `--input-dir` or `LVERAGE_ORF_BENCHMARK_INPUTS`. It does not
+	fetch replacement sequences or require GenBank records/CDS annotations.
 - These are genomic sequences: ORF scanning does not splice exons and cannot
 	establish the named gene's mature transcript or annotated protein. Synthetic
 	sequences under `data/controls.fasta` are validation fixtures kept separate
 	from assigned-input results.
-- The runner, parser/coordinate tests, SCC job script, input provenance/checksums,
-	and generated outputs are under `benchmarks/orf_finder/`. The assigned-input
-	benchmark completed on SCC, and its saved results are under
-	`benchmarks/orf_finder/results/`.
+- The runner, parser/coordinate tests, SCC job script, and input
+	provenance/checksums are under `benchmarks/orf_finder/`. Generated outputs
+	are written to `benchmarks/orf_finder/results/` and are not versioned; the
+	summary of the recorded run is in the benchmark README.
 - The standalone binary is not installed by Conda or pip. Confirm its version
-	and executable path before running. The benchmark job script initializes
-	`/projectnb/paxlab/thomas/envs/lverage-v2` explicitly.
+	and executable path before running. The benchmark job script activates the
+	Conda environment named in `CONDA_ENV` if that variable is set, and runs
+	from the repository root it was submitted from.
 - SCC SGE requires an account scheduler project via `qsub -P`; this repository
 	does not infer that identifier from a Unix group or directory name. Set the
 	confirmed project at submission time as documented in the benchmark README.

@@ -10,6 +10,7 @@ import itertools
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -29,10 +30,18 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 DATA = HERE / "data"
 RESULTS = HERE / "results"
-DEFAULT_EXECUTABLE = "/projectnb/paxlab/thomas/tools/orffinder/ORFfinder"
+# The NCBI standalone binary is not installed by Conda or pip. It is located
+# from, in order: --executable, the ORFFINDER_EXECUTABLE environment variable,
+# then an ``ORFfinder`` command on PATH. No machine-specific default is kept
+# in the repository.
+EXECUTABLE_ENV_VAR = "ORFFINDER_EXECUTABLE"
+EXECUTABLE_NAME = "ORFfinder"
 MINIMUM_NT = 75
 GENETIC_CODE = 1
+# Assigned FASTA inputs are not versioned; point --input-dir (or
+# LVERAGE_ORF_BENCHMARK_INPUTS) at a local copy of the three files.
 ASSIGNED_INPUT_DIR = DATA / "test_inputs"
+INPUT_DIR_ENV_VAR = "LVERAGE_ORF_BENCHMARK_INPUTS"
 ASSIGNED_INPUT_MANIFEST = DATA / "assigned_input_manifest.tsv"
 ASSIGNED_INPUT_FILES = ("HoxA13.fa", "Jun.fa", "MITF.fa")
 ASSIGNED_ACCESSIONS = {
@@ -362,7 +371,7 @@ def load_assigned_inputs(input_dir: Path = ASSIGNED_INPUT_DIR) -> tuple[dict[str
             "file_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "sequence_sha256": sha256_text(sequence),
         })
-    if input_dir.resolve() == ASSIGNED_INPUT_DIR.resolve():
+    if ASSIGNED_INPUT_MANIFEST.is_file():
         with ASSIGNED_INPUT_MANIFEST.open(encoding="utf-8", newline="") as handle:
             saved_manifest = list(csv.DictReader(handle, delimiter="\t"))
         normalized_manifest = [
@@ -510,8 +519,26 @@ def run_control_probes(executable: str) -> dict:
     }
 
 
-def run_benchmark(executable: str) -> None:
-    records, input_provenance = load_assigned_inputs()
+def resolve_executable(executable: str | None = None) -> str:
+    """Locate the NCBI ORFfinder binary without any repository-stored default."""
+    candidate = executable or os.environ.get(EXECUTABLE_ENV_VAR) or shutil.which(EXECUTABLE_NAME)
+    if not candidate:
+        raise FileNotFoundError(
+            f"NCBI ORFfinder not found. Pass --executable, set {EXECUTABLE_ENV_VAR}, "
+            f"or put an {EXECUTABLE_NAME!r} command on PATH."
+        )
+    path = Path(candidate)
+    if not path.is_file() or not os.access(path, os.X_OK):
+        raise FileNotFoundError(f"NCBI ORFfinder is not an executable file: {path}")
+    return str(path.resolve())
+
+
+def run_benchmark(executable: str, input_dir: Path = ASSIGNED_INPUT_DIR) -> None:
+    executable = resolve_executable(executable)
+    ncbi_version = subprocess.run(
+        [executable, "-version-full"], check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    records, input_provenance = load_assigned_inputs(input_dir)
     RESULTS.mkdir(parents=True, exist_ok=True)
     raw_dir = RESULTS / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
@@ -628,8 +655,8 @@ def run_benchmark(executable: str) -> None:
         "python_version": sys.version,
         "biopython_version": biopython_version,
         "orffinder_version": importlib.metadata.version("orffinder"),
-        "ncbi_orffinder_executable": str(Path(executable).resolve()),
-        "ncbi_orffinder_version": subprocess.run([executable, "-version-full"], check=True, capture_output=True, text=True).stdout.strip(),
+        "ncbi_orffinder_executable": executable,
+        "ncbi_orffinder_version": ncbi_version,
         "parameters": {"start_codons": ["ATG"], "ncbi_start_option": "-s 0", "genetic_code": GENETIC_CODE,
                        "minimum_orf_length_nt": MINIMUM_NT, "nested_filter": False, "strand": "both",
                        "ncbi_minimum_floor_nt": 30},
@@ -730,12 +757,26 @@ def write_report(comparisons: list[dict], input_provenance: list[dict]) -> None:
 
 
 def main() -> None:
+    global RESULTS
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     run_parser = subparsers.add_parser("run", help="compare the three assigned genomic RefSeqGene FASTAs")
-    run_parser.add_argument("--executable", default=os.environ.get("ORFFINDER_EXECUTABLE", DEFAULT_EXECUTABLE))
+    run_parser.add_argument(
+        "--executable", default=None,
+        help=f"NCBI ORFfinder binary (default: ${EXECUTABLE_ENV_VAR}, then {EXECUTABLE_NAME!r} on PATH)",
+    )
+    run_parser.add_argument(
+        "--input-dir", type=Path,
+        default=Path(os.environ.get(INPUT_DIR_ENV_VAR, ASSIGNED_INPUT_DIR)),
+        help=f"directory holding {', '.join(ASSIGNED_INPUT_FILES)} (default: ${INPUT_DIR_ENV_VAR} or {ASSIGNED_INPUT_DIR})",
+    )
+    run_parser.add_argument(
+        "--results-dir", type=Path, default=RESULTS,
+        help=f"where to write generated outputs (default: {RESULTS}); not versioned",
+    )
     args = parser.parse_args()
-    run_benchmark(args.executable)
+    RESULTS = args.results_dir
+    run_benchmark(args.executable, args.input_dir)
 
 
 _RAW_PACKAGE_OUTPUTS: dict[str, list[dict]] = {}

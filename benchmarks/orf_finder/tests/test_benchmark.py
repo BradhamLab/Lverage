@@ -183,6 +183,10 @@ class AssignedInputValidationTests(unittest.TestCase):
             sequence = replacement if filename == "HoxA13.fa" and replacement is not None else "ATGAAATAG"
             (directory / filename).write_text(f">{accession} supplied test record\n{sequence}\n", encoding="ascii")
 
+    @unittest.skipUnless(
+        benchmark.ASSIGNED_INPUT_DIR.is_dir(),
+        "assigned FASTA inputs are not versioned; place them under data/test_inputs to run",
+    )
     def test_supplied_inputs_are_single_versioned_dna_records_with_checksums(self):
         records, provenance = benchmark.load_assigned_inputs()
 
@@ -201,6 +205,24 @@ class AssignedInputValidationTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "Invalid DNA symbols"):
                 benchmark.load_assigned_inputs(directory)
+
+    def test_external_input_directory_is_checked_against_saved_manifest(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            self.write_assigned_files(directory)
+
+            with self.assertRaisesRegex(ValueError, "saved provenance manifest"):
+                benchmark.load_assigned_inputs(directory)
+
+    def test_executable_resolution_requires_an_explicit_or_discoverable_binary(self):
+        with patch.dict(benchmark.os.environ, {benchmark.EXECUTABLE_ENV_VAR: ""}), \
+                patch.object(benchmark.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(FileNotFoundError, benchmark.EXECUTABLE_ENV_VAR):
+                benchmark.resolve_executable(None)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing = Path(temp_dir) / "ORFfinder"
+            with self.assertRaisesRegex(FileNotFoundError, "not an executable file"):
+                benchmark.resolve_executable(str(missing))
 
     def test_dataset_validation_rejects_multiple_records_in_one_input(self):
         with tempfile.TemporaryDirectory() as temp_dir:

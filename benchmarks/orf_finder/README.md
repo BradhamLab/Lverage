@@ -8,7 +8,7 @@ This issue-scoped benchmark compares three ORF-finding paths without changing th
 
 ## Assigned inputs and scope
 
-The only benchmark dataset is the three professor-provided files under `data/test_inputs/`:
+The only benchmark dataset is the three professor-provided files:
 
 | File | RefSeqGene record |
 |---|---|
@@ -16,7 +16,7 @@ The only benchmark dataset is the three professor-provided files under `data/tes
 | `Jun.fa` | `NG_047027.2` |
 | `MITF.fa` | `NG_011631.1` |
 
-Each file must contain exactly one versioned RefSeqGene FASTA record with a non-empty DNA sequence. The runner checks the accession in the original header, record identifier, DNA alphabet, uniqueness, and exact filename-to-accession assignment. `data/assigned_input_manifest.tsv` records each original header, accession version, sequence length, SHA-256 of the untouched input file, and SHA-256 of the upper-case sequence; the runner verifies the supplied files against this manifest. A run repeats this provenance in `results/metadata.json` and records a checksum for the combined FASTA passed to NCBI. Inputs are consumed locally; no replacement sequences or GenBank annotations are fetched or required.
+The FASTA files themselves are **not versioned** (the repository holds code, not data). Place a local copy of the three files in a directory and pass it with `--input-dir` or the `LVERAGE_ORF_BENCHMARK_INPUTS` environment variable; `data/test_inputs/` is the git-ignored default location. Each file must contain exactly one versioned RefSeqGene FASTA record with a non-empty DNA sequence. The runner checks the accession in the original header, record identifier, DNA alphabet, uniqueness, and exact filename-to-accession assignment. `data/assigned_input_manifest.tsv` records each original header, accession version, sequence length, SHA-256 of the untouched input file, and SHA-256 of the upper-case sequence; whenever that manifest is present the runner verifies the supplied files against it, so a run on different bytes fails loudly. A run repeats this provenance in `results/metadata.json` and records a checksum for the combined FASTA passed to NCBI. Inputs are consumed locally; no replacement sequences or GenBank annotations are fetched or required.
 
 These are **genomic RefSeqGene sequences**, not spliced mRNA sequences. ORF scanning does not perform exon joining or splicing and cannot establish the mature transcript, the annotated protein, or whether an ORF is the named gene's protein. Results describe the scan of the supplied genomic strings under the recorded settings only.
 
@@ -45,7 +45,7 @@ Every NCBI candidate had an exact adapter match; the adapter returned 129 additi
 
 ## Results and outputs
 
-On completion, the runner writes:
+Generated outputs are written under `results/` (override with `--results-dir`). That directory is git-ignored; the summary of the recorded run is the Findings section above. The runner writes:
 
 - `results/candidates.tsv`: candidate-level coordinates and proteins from the three tools.
 - `results/overlaps.tsv`: all positive same-strand overlap pairs and IoUs.
@@ -59,21 +59,35 @@ On completion, the runner writes:
 
 ## Setup and execution
 
-The SCC Miniconda module, existing Conda environment, and installed standalone executable are required. From the repository root, run focused tests on the login node:
+Nothing in this directory refers to a particular user's environment, clone, or tool install. You need:
+
+1. A Python 3.11+ environment with this checkout installed, so that the adapter under test is the one that gets imported. From the repository root: `pip install -e .` (installs `orffinder==1.8` and `biopython`). If the environment already has another Lverage clone installed in editable mode, either reinstall from this checkout or prefix commands with `PYTHONPATH=src` as below.
+2. The NCBI standalone ORFfinder binary (0.4.3 was used for the recorded run). It is not installed by Conda or pip; download it from NCBI. Tell the benchmark where it is with `--executable`, the `ORFFINDER_EXECUTABLE` environment variable, or by putting an `ORFfinder` command on `PATH`.
+3. A local directory containing `HoxA13.fa`, `Jun.fa`, and `MITF.fa` (see above).
+
+Run the focused tests from the repository root:
 
 ```bash
-module load miniconda/25.3.1
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate /projectnb/paxlab/thomas/envs/lverage-v2
-python -m unittest discover -s benchmarks/orf_finder/tests -v
+PYTHONPATH=src python -m unittest discover -s benchmarks/orf_finder/tests -v
 bash -n benchmarks/orf_finder/run.qsub
-git diff --check
 ```
 
-Run the complete assigned-input benchmark on a compute node using `run.qsub`. SCC SGE requires the confirmed account project ID via `-P`; do not infer it from a Unix group or directory name:
+Run the benchmark directly:
 
 ```bash
-qsub -P "$SCC_PROJECT" benchmarks/orf_finder/run.qsub
+PYTHONPATH=src python -m benchmarks.orf_finder.benchmark run \
+    --executable /path/to/ORFfinder \
+    --input-dir /path/to/assigned_fastas
 ```
 
-Do not submit until `SCC_PROJECT` has been confirmed with the SCC account/project tools or the SCC administrator. The job initializes the configured Conda environment, verifies the executable, and runs only the three assigned inputs plus separate synthetic validation fixtures.
+Or on the BU SCC, submit `run.qsub` **from the repository root** of the checkout you want to benchmark. SGE requires the confirmed account project ID via `-P`; do not infer it from a Unix group or directory name. The job script reads its configuration from environment variables (see the header of `run.qsub`):
+
+```bash
+qsub -P "$SCC_PROJECT" \
+    -v ORFFINDER_EXECUTABLE=/path/to/ORFfinder \
+    -v ORF_BENCHMARK_INPUTS=/path/to/assigned_fastas \
+    -v CONDA_ENV=my-lverage-env \
+    benchmarks/orf_finder/run.qsub
+```
+
+Do not submit until `SCC_PROJECT` has been confirmed with the SCC account/project tools or the SCC administrator. The job verifies it was submitted from a repository root, verifies the executable, and runs only the three assigned inputs plus separate synthetic validation fixtures.
