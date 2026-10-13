@@ -98,8 +98,13 @@ def interval_iou(left: tuple[int, int], right: tuple[int, int]) -> float:
     return intersection / union if union else 0.0
 
 
-def python_raw_candidates(record_id: str, sequence: str) -> list[Candidate]:
-    """Keep package-native coordinates and protein translations (including '*')."""
+def python_raw_candidates(record_id: str, sequence: str,
+                          raw_outputs: dict[str, list[dict]] | None = None) -> list[Candidate]:
+    """Keep package-native coordinates and protein translations (including '*').
+
+    When ``raw_outputs`` is given, the package's native locus dictionaries for
+    ``record_id`` are stored in it so the caller can persist them verbatim.
+    """
     # This is the direct package baseline at the requested threshold. Its
     # incomplete-terminal length behavior is intentionally not adapter-corrected.
     loci = orffinder.getORFProteins(
@@ -110,10 +115,11 @@ def python_raw_candidates(record_id: str, sequence: str) -> list[Candidate]:
         trim_trailing=False,
         return_loci=True,
     )
-    _RAW_PACKAGE_OUTPUTS[record_id] = [
-        {key: str(value) if key == "protein" else value for key, value in locus.items()}
-        for locus in loci
-    ]
+    if raw_outputs is not None:
+        raw_outputs[record_id] = [
+            {key: str(value) if key == "protein" else value for key, value in locus.items()}
+            for locus in loci
+        ]
     candidates = []
     for locus in loci:
         start0, end0, strand, nucleotide_length = _locus_interval(locus, len(sequence))
@@ -402,12 +408,23 @@ def write_json(path: Path, content) -> None:
     path.write_text(json.dumps(content, indent=2) + "\n", encoding="utf-8")
 
 
+def _run_checked(command: list[str]) -> str:
+    """Run a command and surface its stderr if it fails, instead of just the exit code."""
+    completed = subprocess.run(command, capture_output=True, text=True)
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit status {completed.returncode}: {' '.join(command)}\n"
+            f"--- stderr ---\n{completed.stderr.strip()}"
+        )
+    return completed.stdout
+
+
 def _run_ncbi(executable: str, input_fasta: Path, out: Path, fmt: int,
-                         minimum_nt: int = MINIMUM_NT, nested: bool = False) -> list[str]:
+              minimum_nt: int = MINIMUM_NT, nested: bool = False) -> list[str]:
     command = [executable, "-in", str(input_fasta), "-s", "0", "-g", str(GENETIC_CODE),
-                             "-ml", str(minimum_nt), "-n", str(nested).lower(), "-strand", "both",
+               "-ml", str(minimum_nt), "-n", str(nested).lower(), "-strand", "both",
                "-outfmt", str(fmt), "-out", str(out)]
-    subprocess.run(command, check=True, capture_output=True, text=True)
+    _run_checked(command)
     return command
 
 
@@ -467,20 +484,17 @@ def run_control_probes(executable: str) -> dict:
                                    start_codons=["ATG"], remove_nested=True, trim_trailing=False)
     if len(py_unfiltered) <= len(py_filtered):
         raise AssertionError("Python package nested-filter control did not remove a nested candidate")
-    original_raw_outputs = dict(_RAW_PACKAGE_OUTPUTS)
-    _RAW_PACKAGE_OUTPUTS.clear()
+    control_raw_outputs: dict[str, list[dict]] = {}
     control_candidate_rows = []
     control_by_tool = {"ncbi_ml30": baseline30, "ncbi_ml75": baseline75,
                        "python_raw": [], "adapter_corrected": []}
     for record_id, record in control_records.items():
         sequence = str(record.seq).upper()
-        raw_candidates = python_raw_candidates(record_id, sequence)
+        raw_candidates = python_raw_candidates(record_id, sequence, control_raw_outputs)
         adapter_candidates = corrected_adapter_candidates(record_id, sequence)
         control_by_tool["python_raw"].extend(raw_candidates)
         control_by_tool["adapter_corrected"].extend(adapter_candidates)
-    write_json(RESULTS / "raw" / "controls_python_package_loci.json", _RAW_PACKAGE_OUTPUTS)
-    _RAW_PACKAGE_OUTPUTS.clear()
-    _RAW_PACKAGE_OUTPUTS.update(original_raw_outputs)
+    write_json(RESULTS / "raw" / "controls_python_package_loci.json", control_raw_outputs)
     for tool, candidates in control_by_tool.items():
         for candidate in candidates:
             row = asdict(candidate)
@@ -535,9 +549,7 @@ def resolve_executable(executable: str | None = None) -> str:
 
 def run_benchmark(executable: str, input_dir: Path = ASSIGNED_INPUT_DIR) -> None:
     executable = resolve_executable(executable)
-    ncbi_version = subprocess.run(
-        [executable, "-version-full"], check=True, capture_output=True, text=True,
-    ).stdout.strip()
+    ncbi_version = _run_checked([executable, "-version-full"]).strip()
     records, input_provenance = load_assigned_inputs(input_dir)
     RESULTS.mkdir(parents=True, exist_ok=True)
     raw_dir = RESULTS / "raw"
@@ -546,7 +558,7 @@ def run_benchmark(executable: str, input_dir: Path = ASSIGNED_INPUT_DIR) -> None
     SeqIO.write(list(records.values()), assigned_fasta, "fasta")
 
     control_metadata = run_control_probes(executable)
-    _RAW_PACKAGE_OUTPUTS.clear()
+    raw_package_outputs: dict[str, list[dict]] = {}
     ncbi_cds_path = raw_dir / "ncbi_outfmt1_cds.fasta"
     ncbi_protein_path = raw_dir / "ncbi_outfmt0_proteins.fasta"
     command1 = _run_ncbi(executable, assigned_fasta, ncbi_protein_path, 0)
@@ -556,10 +568,10 @@ def run_benchmark(executable: str, input_dir: Path = ASSIGNED_INPUT_DIR) -> None
     candidates_by_tool: dict[str, list[Candidate]] = {"python_raw": [], "adapter_corrected": [], "ncbi": ncbi_candidates}
     for record_id, record in records.items():
         sequence = str(record.seq).upper()
-        candidates_by_tool["python_raw"].extend(python_raw_candidates(record_id, sequence))
+        candidates_by_tool["python_raw"].extend(python_raw_candidates(record_id, sequence, raw_package_outputs))
         candidates_by_tool["adapter_corrected"].extend(corrected_adapter_candidates(record_id, sequence))
 
-    write_json(raw_dir / "python_package_loci.json", _RAW_PACKAGE_OUTPUTS)
+    write_json(raw_dir / "python_package_loci.json", raw_package_outputs)
     candidate_rows = [asdict(candidate) for tool in candidates_by_tool.values() for candidate in tool]
     write_tsv(RESULTS / "candidates.tsv", candidate_rows)
     pair_rows, match_rows, unmatched_rows, translation_difference_rows = [], [], [], []
@@ -601,12 +613,15 @@ def run_benchmark(executable: str, input_dir: Path = ASSIGNED_INPUT_DIR) -> None
                 match_rows.append({"record_id": record_id, "left_tool": left_name, "right_tool": right_name,
                                    "match_type": "greedy_iou_ge_0.5", "left_candidate_id": a.candidate_id,
                                    "right_candidate_id": b.candidate_id, "iou": iou})
+            comparison_label = f"{left_name}_vs_{right_name}"
             unmatched_rows.extend(
-                {"record_id": record_id, "tool": left_name, "candidate_id": candidate_id}
+                {"record_id": record_id, "comparison": comparison_label, "tool": left_name,
+                 "unmatched_against": right_name, "candidate_id": candidate_id}
                 for candidate_id in result["unmatched_left"]
             )
             unmatched_rows.extend(
-                {"record_id": record_id, "tool": right_name, "candidate_id": candidate_id}
+                {"record_id": record_id, "comparison": comparison_label, "tool": right_name,
+                 "unmatched_against": left_name, "candidate_id": candidate_id}
                 for candidate_id in result["unmatched_right"]
             )
 
@@ -778,8 +793,6 @@ def main() -> None:
     RESULTS = args.results_dir
     run_benchmark(args.executable, args.input_dir)
 
-
-_RAW_PACKAGE_OUTPUTS: dict[str, list[dict]] = {}
 
 if __name__ == "__main__":
     main()

@@ -18,6 +18,8 @@ The only benchmark dataset is the three professor-provided files:
 
 The FASTA files themselves are **not versioned** (the repository holds code, not data). Place a local copy of the three files in a directory and pass it with `--input-dir` or the `LVERAGE_ORF_BENCHMARK_INPUTS` environment variable; `data/test_inputs/` is the git-ignored default location. Each file must contain exactly one versioned RefSeqGene FASTA record with a non-empty DNA sequence. The runner checks the accession in the original header, record identifier, DNA alphabet, uniqueness, and exact filename-to-accession assignment. `data/assigned_input_manifest.tsv` records each original header, accession version, sequence length, SHA-256 of the untouched input file, and SHA-256 of the upper-case sequence; whenever that manifest is present the runner verifies the supplied files against it, so a run on different bytes fails loudly. A run repeats this provenance in `results/metadata.json` and records a checksum for the combined FASTA passed to NCBI. Inputs are consumed locally; no replacement sequences or GenBank annotations are fetched or required.
 
+This runner is deliberately **not a general ORF benchmark**: it accepts only these three filenames and accessions and refuses anything else. That is so the recorded numbers can only ever be reproduced against the same bytes. Generalizing it to arbitrary inputs would mean dropping the manifest and accession checks, which is a different tool.
+
 These are **genomic RefSeqGene sequences**, not spliced mRNA sequences. ORF scanning does not perform exon joining or splicing and cannot establish the mature transcript, the annotated protein, or whether an ORF is the named gene's protein. Results describe the scan of the supplied genomic strings under the recorded settings only.
 
 `data/controls.fasta` contains synthetic **validation fixtures** for strand coordinates, stop handling, nested filtering, and terminal incomplete ORFs. The controls are run and reported separately; they are never included in assigned-input candidate counts or comparisons.
@@ -50,7 +52,7 @@ Generated outputs are written under `results/` (override with `--results-dir`). 
 - `results/candidates.tsv`: candidate-level coordinates and proteins from the three tools.
 - `results/overlaps.tsv`: all positive same-strand overlap pairs and IoUs.
 - `results/matches.tsv`: exact and deterministic IoU-threshold pairs.
-- `results/unmatched.tsv`: candidates left unmatched by those summaries.
+- `results/unmatched.tsv`: candidates left unmatched by those summaries, one row per pairwise comparison (`comparison` and `unmatched_against` columns say which), so a candidate may legitimately appear up to twice.
 - `results/translation_differences.tsv`: raw-package/adapter protein comparisons only for exact same-region pairs.
 - `results/comparisons.tsv`: per-input counts, tied longest calls, overlaps, matches, and protein multiplicities.
 - `results/metadata.json`: tool versions, settings, commands, input provenance/checksums, and separate synthetic-control validation metadata.
