@@ -3,10 +3,10 @@ Gene and transcription-factor FASTA inputs
 
 Use nucleotide FASTA input to provide the gene or transcription-factor (TF)
 sequence from which Lverage infers a protein and its DNA-binding domain.
-Prepare one FASTA file per gene/TF, and give each file a clear name that
-identifies that gene, for example ``geneX_homeobox.fa`` or
-``geneY_transcription_factor.fasta``. Keep records for different genes in
-separate files.
+Prepare one FASTA file per gene/TF and name the file after the gene, for
+example ``geneX.fa``. Keep records for different genes in separate files. The
+command-line workflow requires this layout; for the Python API it is a
+convention, since the caller reads the file.
 
 FASTA format
 ------------
@@ -16,23 +16,22 @@ Sequence data follows on one or more lines, up to the next header or end of
 file. Sequence lines may be wrapped across lines for readability; wrapping does
 not create additional records.
 
-The following is an illustrative single-record DNA file:
+A single-record DNA file:
 
 .. code-block:: text
 
-   >illustrative_geneX single illustrative sequence
+   >geneX
    ATGCGTACGTAGCTAGCTACGATCG
 
 A file may instead contain multiple records when they are fragments of the
-same gene/TF. This illustrative multi-record example has two fragments of
-``illustrative_geneX``:
+same gene/TF, for example several scaffolds or contigs:
 
 .. code-block:: text
 
-   >illustrative_geneX_fragment_1 first illustrative fragment
+   >geneX_fragment_1
    ATGCGTACGTAGCTAG
    CTACGATCG
-   >illustrative_geneX_fragment_2 second illustrative fragment
+   >geneX_fragment_2
    GCTAGCATCGATCGTA
 
 The record headers identify fragments of the same gene in that one file. Do
@@ -41,10 +40,8 @@ separate FASTA file for each one.
 
 The V2 ORF adapter accepts nonempty, case-insensitive DNA strings using the
 IUPAC symbols ``A C G T R Y S W K M B D H V N``. It does not accept RNA ``U``,
-gaps, or other characters. FASTA line wrapping is normal formatting; it is not
-whitespace within the sequence data. Keep sequence lines free of spaces and
-tabs. Any whitespace that remains in a DNA string passed directly to the ORF
-adapter is rejected rather than removed or converted.
+gaps, or other characters. Wrapped sequence lines are fine; a DNA string passed
+directly to the adapter must not contain whitespace.
 
 Fragments are independent inputs
 --------------------------------
@@ -103,7 +100,4 @@ file may contain one record or multiple records for fragments of that same
 gene. The legacy implementation reads all FASTA records in each file.
 
 For V2, configure the Python pipeline and call ``Lverage.run()`` with a DNA
-string or list of DNA strings as shown above. This guide does not define or
-imply a V2 command-line interface. A single-record constraint stated for a
-particular benchmark is specific to that benchmark setup; it is not a general
-single-record restriction on the V2 pipeline.
+string or list of DNA strings as shown above.
