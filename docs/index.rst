@@ -9,4 +9,5 @@ This documentation describes the version 2 package under active development.
    :maxdepth: 2
    :caption: Contents:
 
+   user_guide
    api/index

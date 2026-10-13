@@ -47,6 +47,10 @@ blastp -version
 blastdbcmd -version
 ```
 
+For the distinction between nucleotide FASTA inputs for motif inference and
+protein FASTA inputs for local BLAST, plus single-gene and fragment examples,
+see the [V2 gene/TF FASTA user guide](docs/user_guide.rst).
+
 The source FASTA must contain complete protein sequences. Each record must have
 a unique sequence identifier immediately after `>`, followed by a description
 containing the scientific name in square brackets. For example:
