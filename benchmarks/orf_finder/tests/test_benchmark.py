@@ -170,10 +170,10 @@ class BenchmarkAdapterAssociationTests(unittest.TestCase):
         self.assertGreaterEqual(Counter(proteins).most_common(1)[0][1], 2)
 
 
-class AssignedInputValidationTests(unittest.TestCase):
+class TestInputValidationTests(unittest.TestCase):
 
     @staticmethod
-    def write_assigned_files(directory, replacement=None):
+    def write_test_files(directory, replacement=None):
         accessions = {
             "HoxA13.fa": "NG_008181.2",
             "Jun.fa": "NG_047027.2",
@@ -181,16 +181,16 @@ class AssignedInputValidationTests(unittest.TestCase):
         }
         for filename, accession in accessions.items():
             sequence = replacement if filename == "HoxA13.fa" and replacement is not None else "ATGAAATAG"
-            (directory / filename).write_text(f">{accession} supplied test record\n{sequence}\n", encoding="ascii")
+            (directory / filename).write_text(f">{accession} test record\n{sequence}\n", encoding="ascii")
 
     @unittest.skipUnless(
-        benchmark.ASSIGNED_INPUT_DIR.is_dir(),
-        "assigned FASTA inputs are not versioned; place them under data/test_inputs to run",
+        benchmark.TEST_INPUT_DIR.is_dir(),
+        "test FASTA inputs are not versioned; place them under data/test_inputs to run",
     )
-    def test_supplied_inputs_are_single_versioned_dna_records_with_checksums(self):
-        records, provenance = benchmark.load_assigned_inputs()
+    def test_local_inputs_are_single_versioned_dna_records_with_checksums(self):
+        records, provenance = benchmark.load_test_inputs()
 
-        self.assertEqual([entry["filename"] for entry in provenance], list(benchmark.ASSIGNED_INPUT_FILES))
+        self.assertEqual([entry["filename"] for entry in provenance], list(benchmark.TEST_INPUT_FILES))
         self.assertEqual(len(records), 3)
         for entry in provenance:
             self.assertEqual(entry["sequence_length"], len(records[entry["accession_version"]].seq))
@@ -201,18 +201,18 @@ class AssignedInputValidationTests(unittest.TestCase):
     def test_dataset_validation_rejects_invalid_dna_symbols(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             directory = Path(temp_dir)
-            self.write_assigned_files(directory, replacement="ATG-UAA")
+            self.write_test_files(directory, replacement="ATG-UAA")
 
             with self.assertRaisesRegex(ValueError, "Invalid DNA symbols"):
-                benchmark.load_assigned_inputs(directory)
+                benchmark.load_test_inputs(directory)
 
     def test_external_input_directory_is_checked_against_saved_manifest(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             directory = Path(temp_dir)
-            self.write_assigned_files(directory)
+            self.write_test_files(directory)
 
             with self.assertRaisesRegex(ValueError, "saved provenance manifest"):
-                benchmark.load_assigned_inputs(directory)
+                benchmark.load_test_inputs(directory)
 
     def test_executable_resolution_requires_an_explicit_or_discoverable_binary(self):
         with patch.dict(benchmark.os.environ, {benchmark.EXECUTABLE_ENV_VAR: ""}), \
@@ -227,12 +227,12 @@ class AssignedInputValidationTests(unittest.TestCase):
     def test_dataset_validation_rejects_multiple_records_in_one_input(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             directory = Path(temp_dir)
-            self.write_assigned_files(directory)
+            self.write_test_files(directory)
             path = directory / "HoxA13.fa"
             path.write_text(path.read_text(encoding="ascii") + ">extra\nATGAAATAG\n", encoding="ascii")
 
             with self.assertRaisesRegex(ValueError, "exactly one FASTA record"):
-                benchmark.load_assigned_inputs(directory)
+                benchmark.load_test_inputs(directory)
 
     @staticmethod
     def report_for(rows, provenance):
@@ -284,10 +284,10 @@ class AssignedInputValidationTests(unittest.TestCase):
 
         report = self.report_for(rows, provenance)
 
-        self.assertIn("Across the 3 assigned inputs, the corrected adapter returned 9 candidates and NCBI returned 9; there were 9 exact interval-and-strand matches.", report)
+        self.assertIn("Across the 3 test inputs, the corrected adapter returned 9 candidates and NCBI returned 9; there were 9 exact interval-and-strand matches.", report)
         self.assertIn("Every NCBI candidate had an exact adapter match.", report)
         self.assertIn("The corrected adapter had 0 candidates without an exact NCBI match; NCBI had 0 candidates without an exact adapter match.", report)
-        self.assertIn("All 3 assigned inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI.", report)
+        self.assertIn("All 3 test inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI.", report)
 
     def test_report_marks_unmatched_candidates_on_both_sides_with_more_ncbi_candidates(self):
         rows = [{
@@ -305,7 +305,7 @@ class AssignedInputValidationTests(unittest.TestCase):
 
         report = self.report_for(rows, provenance)
 
-        self.assertIn("Across the 1 assigned input", report)
+        self.assertIn("Across the 1 test input", report)
         self.assertIn("Not every NCBI candidate had an exact adapter match:", report)
         self.assertIn("the corrected adapter had 2 candidates without an exact NCBI match, and NCBI had 4 candidates without an exact adapter match.", report)
 
@@ -325,7 +325,7 @@ class AssignedInputValidationTests(unittest.TestCase):
 
         report = self.report_for(rows, provenance)
 
-        self.assertIn("The assigned input does not share an exact longest-ORF interval and strand between the adapter and NCBI.", report)
+        self.assertIn("The test input does not share an exact longest-ORF interval and strand between the adapter and NCBI.", report)
 
     def test_report_uses_single_input_pluralization_for_one_input(self):
         rows = [{
@@ -343,11 +343,11 @@ class AssignedInputValidationTests(unittest.TestCase):
 
         report = self.report_for(rows, provenance)
 
-        self.assertIn("Completed comparison of the 1 assigned genomic RefSeqGene FASTA record using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder.", report)
-        self.assertIn("Across the 1 assigned input, the corrected adapter returned 4 candidates and NCBI returned 2; there were 2 exact interval-and-strand matches.", report)
-        self.assertIn("The assigned input shares at least one exact longest-ORF interval and strand between the adapter and NCBI.", report)
+        self.assertIn("Completed comparison of the 1 genomic RefSeqGene FASTA test record using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder.", report)
+        self.assertIn("Across the 1 test input, the corrected adapter returned 4 candidates and NCBI returned 2; there were 2 exact interval-and-strand matches.", report)
+        self.assertIn("The test input shares at least one exact longest-ORF interval and strand between the adapter and NCBI.", report)
 
-    def test_completed_report_uses_assigned_input_labels_and_clean_markdown_spacing(self):
+    def test_completed_report_uses_input_labels_and_clean_markdown_spacing(self):
         row = {
             "record_id": "NG_008181.2",
             "python_raw_count": 2,

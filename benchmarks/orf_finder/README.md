@@ -1,14 +1,14 @@
-# Assigned-input ORFfinder benchmark
+# ORFfinder benchmark
 
-This issue-scoped benchmark compares three ORF-finding paths without changing the production adapter or pipeline:
+This benchmark compares three ORF-finding paths without changing the production adapter or pipeline:
 
 1. **Raw Python package** — `orffinder==1.8` `getORFProteins(..., return_loci=True)` at its direct minimum-length threshold. Native loci are retained, and protein strings are preserved verbatim, including terminal `*` symbols.
 2. **Corrected adapter** — benchmark-side reconstruction of `OrffinderOrfSearcher` locus discovery, length filtering, translation, and ordering. Proteins are checked against the production adapter as an ordered list; candidate coordinates come from locus dictionaries.
 3. **NCBI standalone** — ORFfinder 0.4.3 CDS FASTA (outfmt 1) and protein FASTA (outfmt 0), joined by ORF identifiers and cross-checked against each other and the original input interval.
 
-## Assigned inputs and scope
+## Test inputs and scope
 
-The only benchmark dataset is the three professor-provided files:
+The only benchmark dataset is three test files:
 
 | File | RefSeqGene record |
 |---|---|
@@ -16,13 +16,13 @@ The only benchmark dataset is the three professor-provided files:
 | `Jun.fa` | `NG_047027.2` |
 | `MITF.fa` | `NG_011631.1` |
 
-The FASTA files themselves are **not versioned** (the repository holds code, not data). Place a local copy of the three files in a directory and pass it with `--input-dir` or the `LVERAGE_ORF_BENCHMARK_INPUTS` environment variable; `data/test_inputs/` is the git-ignored default location. Each file must contain exactly one versioned RefSeqGene FASTA record with a non-empty DNA sequence. The runner checks the accession in the original header, record identifier, DNA alphabet, uniqueness, and exact filename-to-accession assignment. `data/assigned_input_manifest.tsv` records each original header, accession version, sequence length, SHA-256 of the untouched input file, and SHA-256 of the upper-case sequence; whenever that manifest is present the runner verifies the supplied files against it, so a run on different bytes fails loudly. A run repeats this provenance in `results/metadata.json` and records a checksum for the combined FASTA passed to NCBI. Inputs are consumed locally; no replacement sequences or GenBank annotations are fetched or required.
+The FASTA files themselves are **not versioned** (the repository holds code, not data). Place a local copy of the three files in a directory and pass it with `--input-dir` or the `LVERAGE_ORF_BENCHMARK_INPUTS` environment variable; `data/test_inputs/` is the git-ignored default location. Each file must contain exactly one versioned RefSeqGene FASTA record with a non-empty DNA sequence. The runner checks the accession in the original header, record identifier, DNA alphabet, uniqueness, and exact filename-to-accession assignment. `data/test_input_manifest.tsv` records each original header, accession version, sequence length, SHA-256 of the untouched input file, and SHA-256 of the upper-case sequence; whenever that manifest is present the runner verifies the files against it, so a run on different bytes fails loudly. A run repeats this provenance in `results/metadata.json` and records a checksum for the combined FASTA passed to NCBI. Inputs are consumed locally; no replacement sequences or GenBank annotations are fetched or required.
 
 This runner is deliberately **not a general ORF benchmark**: it accepts only these three filenames and accessions and refuses anything else. That is so the recorded numbers can only ever be reproduced against the same bytes. Generalizing it to arbitrary inputs would mean dropping the manifest and accession checks, which is a different tool.
 
-These are **genomic RefSeqGene sequences**, not spliced mRNA sequences. ORF scanning does not perform exon joining or splicing and cannot establish the mature transcript, the annotated protein, or whether an ORF is the named gene's protein. Results describe the scan of the supplied genomic strings under the recorded settings only.
+These are **genomic RefSeqGene sequences**, not spliced mRNA sequences. ORF scanning does not perform exon joining or splicing and cannot establish the mature transcript, the annotated protein, or whether an ORF is the named gene's protein. Results describe the scan of the genomic strings under the recorded settings only.
 
-`data/controls.fasta` contains synthetic **validation fixtures** for strand coordinates, stop handling, nested filtering, and terminal incomplete ORFs. The controls are run and reported separately; they are never included in assigned-input candidate counts or comparisons.
+`data/controls.fasta` contains synthetic **validation fixtures** for strand coordinates, stop handling, nested filtering, and terminal incomplete ORFs. The controls are run and reported separately; they are never included in test-input candidate counts or comparisons.
 
 ## Settings and comparison semantics
 
@@ -34,7 +34,7 @@ Exact interval-and-strand matches are paired one-to-one by stable candidate ID. 
 
 ## Findings
 
-For these three assigned genomic RefSeqGene inputs at the recorded settings, the corrected adapter returned 1,913 candidates and NCBI returned 1,784. There were 1,784 exact interval-and-strand matches in total:
+For these three genomic RefSeqGene test inputs at the recorded settings, the corrected adapter returned 1,913 candidates and NCBI returned 1,784. There were 1,784 exact interval-and-strand matches in total:
 
 | Input | Adapter candidates | NCBI candidates | Exact matches |
 |---|---:|---:|---:|
@@ -43,7 +43,7 @@ For these three assigned genomic RefSeqGene inputs at the recorded settings, the
 | MITF (`NG_011631.1`) | 1,761 | 1,645 | 1,645 |
 | **Total** | **1,913** | **1,784** | **1,784** |
 
-Every NCBI candidate had an exact adapter match; the adapter returned 129 additional candidates. Each of the three inputs had at least one exact longest-ORF interval-and-strand match between the adapter and NCBI. Raw-package/adapter protein-string differences include terminal stop-symbol removal; their counts are not counts of incorrect proteins. These conclusions apply only to these supplied genomic sequences and the recorded settings. ORF scanning does not perform splicing or establish the annotated protein for any named gene.
+Every NCBI candidate had an exact adapter match; the adapter returned 129 additional candidates. Each of the three inputs had at least one exact longest-ORF interval-and-strand match between the adapter and NCBI. Raw-package/adapter protein-string differences include terminal stop-symbol removal; their counts are not counts of incorrect proteins. These conclusions apply only to these genomic sequences and the recorded settings. ORF scanning does not perform splicing or establish the annotated protein for any named gene.
 
 ## Results and outputs
 
@@ -56,8 +56,8 @@ Generated outputs are written under `results/` (override with `--results-dir`). 
 - `results/translation_differences.tsv`: raw-package/adapter protein comparisons only for exact same-region pairs.
 - `results/comparisons.tsv`: per-input counts, tied longest calls, overlaps, matches, and protein multiplicities.
 - `results/metadata.json`: tool versions, settings, commands, input provenance/checksums, and separate synthetic-control validation metadata.
-- `results/raw/`: NCBI outputs, combined input FASTA, and raw Python package loci for the assigned inputs and controls.
-- `results/report.md`: generated summary of completed assigned-input results and their genomic-sequence limitations.
+- `results/raw/`: NCBI outputs, combined input FASTA, and raw Python package loci for the test inputs and controls.
+- `results/report.md`: generated summary of completed test-input results and their genomic-sequence limitations.
 
 ## Setup and execution
 
@@ -79,17 +79,17 @@ Run the benchmark directly:
 ```bash
 PYTHONPATH=src python -m benchmarks.orf_finder.benchmark run \
     --executable /path/to/ORFfinder \
-    --input-dir /path/to/assigned_fastas
+    --input-dir /path/to/combined_fastas
 ```
 
-Or on the BU SCC, submit `run.qsub` **from the repository root** of the checkout you want to benchmark. SGE requires the confirmed account project ID via `-P`; do not infer it from a Unix group or directory name. The job script reads its configuration from environment variables (see the header of `run.qsub`):
+Or on a cluster that uses Grid Engine (SGE/UGE), submit `run.qsub` **from the repository root** of the checkout you want to benchmark. The job script reads its configuration from environment variables (see the header of `run.qsub`); add whatever scheduler options your site requires, such as `-P <project>`:
 
 ```bash
-qsub -P "$SCC_PROJECT" \
+qsub \
     -v ORFFINDER_EXECUTABLE=/path/to/ORFfinder \
-    -v ORF_BENCHMARK_INPUTS=/path/to/assigned_fastas \
+    -v ORF_BENCHMARK_INPUTS=/path/to/test_fastas \
     -v CONDA_ENV=my-lverage-env \
     benchmarks/orf_finder/run.qsub
 ```
 
-Do not submit until `SCC_PROJECT` has been confirmed with the SCC account/project tools or the SCC administrator. The job verifies it was submitted from a repository root, verifies the executable, and runs only the three assigned inputs plus separate synthetic validation fixtures.
+The job verifies it was submitted from a repository root, verifies the executable, and runs only the three test inputs plus separate synthetic validation fixtures. On a workstation, just run the `python -m` command above instead.

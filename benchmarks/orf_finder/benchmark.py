@@ -38,13 +38,13 @@ EXECUTABLE_ENV_VAR = "ORFFINDER_EXECUTABLE"
 EXECUTABLE_NAME = "ORFfinder"
 MINIMUM_NT = 75
 GENETIC_CODE = 1
-# Assigned FASTA inputs are not versioned; point --input-dir (or
+# Test FASTA inputs are not versioned; point --input-dir (or
 # LVERAGE_ORF_BENCHMARK_INPUTS) at a local copy of the three files.
-ASSIGNED_INPUT_DIR = DATA / "test_inputs"
+TEST_INPUT_DIR = DATA / "test_inputs"
 INPUT_DIR_ENV_VAR = "LVERAGE_ORF_BENCHMARK_INPUTS"
-ASSIGNED_INPUT_MANIFEST = DATA / "assigned_input_manifest.tsv"
-ASSIGNED_INPUT_FILES = ("HoxA13.fa", "Jun.fa", "MITF.fa")
-ASSIGNED_ACCESSIONS = {
+TEST_INPUT_MANIFEST = DATA / "test_input_manifest.tsv"
+TEST_INPUT_FILES = ("HoxA13.fa", "Jun.fa", "MITF.fa")
+TEST_INPUT_ACCESSIONS = {
     "HoxA13.fa": "NG_008181.2",
     "Jun.fa": "NG_047027.2",
     "MITF.fa": "NG_011631.1",
@@ -325,20 +325,20 @@ def compare_candidates(left: list[Candidate], right: list[Candidate]) -> dict:
     }
 
 
-def load_assigned_inputs(input_dir: Path = ASSIGNED_INPUT_DIR) -> tuple[dict[str, SeqRecord], list[dict]]:
-    """Load and validate the professor-provided genomic RefSeqGene FASTAs."""
+def load_test_inputs(input_dir: Path = TEST_INPUT_DIR) -> tuple[dict[str, SeqRecord], list[dict]]:
+    """Load and validate the test genomic RefSeqGene FASTAs."""
     fasta_paths = sorted(
         path.name for path in input_dir.iterdir()
         if path.is_file() and path.suffix.lower() in {".fa", ".fasta"}
     )
-    if tuple(fasta_paths) != tuple(sorted(ASSIGNED_INPUT_FILES)):
+    if tuple(fasta_paths) != tuple(sorted(TEST_INPUT_FILES)):
         raise ValueError(
-            f"Expected exactly {sorted(ASSIGNED_INPUT_FILES)} in {input_dir}, got {fasta_paths}"
+            f"Expected exactly {sorted(TEST_INPUT_FILES)} in {input_dir}, got {fasta_paths}"
         )
 
     records: dict[str, SeqRecord] = {}
     provenance = []
-    for filename in ASSIGNED_INPUT_FILES:
+    for filename in TEST_INPUT_FILES:
         path = input_dir / filename
         with path.open(encoding="utf-8") as handle:
             parsed = list(SeqIO.parse(handle, "fasta"))
@@ -351,9 +351,9 @@ def load_assigned_inputs(input_dir: Path = ASSIGNED_INPUT_DIR) -> tuple[dict[str
         if accession_match is None:
             raise ValueError(f"No versioned RefSeqGene accession in FASTA header: {record.description}")
         accession_version = accession_match.group(1)
-        if accession_version != ASSIGNED_ACCESSIONS[filename]:
+        if accession_version != TEST_INPUT_ACCESSIONS[filename]:
             raise ValueError(
-                f"{filename} expected RefSeqGene accession {ASSIGNED_ACCESSIONS[filename]}, "
+                f"{filename} expected RefSeqGene accession {TEST_INPUT_ACCESSIONS[filename]}, "
                 f"found {accession_version}"
             )
         if record.id != accession_version:
@@ -377,8 +377,8 @@ def load_assigned_inputs(input_dir: Path = ASSIGNED_INPUT_DIR) -> tuple[dict[str
             "file_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "sequence_sha256": sha256_text(sequence),
         })
-    if ASSIGNED_INPUT_MANIFEST.is_file():
-        with ASSIGNED_INPUT_MANIFEST.open(encoding="utf-8", newline="") as handle:
+    if TEST_INPUT_MANIFEST.is_file():
+        with TEST_INPUT_MANIFEST.open(encoding="utf-8", newline="") as handle:
             saved_manifest = list(csv.DictReader(handle, delimiter="\t"))
         normalized_manifest = [
             {**entry, "sequence_length": int(entry["sequence_length"])}
@@ -386,8 +386,8 @@ def load_assigned_inputs(input_dir: Path = ASSIGNED_INPUT_DIR) -> tuple[dict[str
         ]
         if normalized_manifest != provenance:
             raise ValueError(
-                f"Assigned FASTA files do not match their saved provenance manifest: "
-                f"{ASSIGNED_INPUT_MANIFEST}"
+                f"Test FASTA files do not match their saved provenance manifest: "
+                f"{TEST_INPUT_MANIFEST}"
             )
     return records, provenance
 
@@ -547,22 +547,22 @@ def resolve_executable(executable: str | None = None) -> str:
     return str(path.resolve())
 
 
-def run_benchmark(executable: str, input_dir: Path = ASSIGNED_INPUT_DIR) -> None:
+def run_benchmark(executable: str, input_dir: Path = TEST_INPUT_DIR) -> None:
     executable = resolve_executable(executable)
     ncbi_version = _run_checked([executable, "-version-full"]).strip()
-    records, input_provenance = load_assigned_inputs(input_dir)
+    records, input_provenance = load_test_inputs(input_dir)
     RESULTS.mkdir(parents=True, exist_ok=True)
     raw_dir = RESULTS / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    assigned_fasta = raw_dir / "assigned_inputs.fasta"
-    SeqIO.write(list(records.values()), assigned_fasta, "fasta")
+    combined_fasta = raw_dir / "test_inputs.fasta"
+    SeqIO.write(list(records.values()), combined_fasta, "fasta")
 
     control_metadata = run_control_probes(executable)
     raw_package_outputs: dict[str, list[dict]] = {}
     ncbi_cds_path = raw_dir / "ncbi_outfmt1_cds.fasta"
     ncbi_protein_path = raw_dir / "ncbi_outfmt0_proteins.fasta"
-    command1 = _run_ncbi(executable, assigned_fasta, ncbi_protein_path, 0)
-    command2 = _run_ncbi(executable, assigned_fasta, ncbi_cds_path, 1)
+    command1 = _run_ncbi(executable, combined_fasta, ncbi_protein_path, 0)
+    command2 = _run_ncbi(executable, combined_fasta, ncbi_cds_path, 1)
     ncbi_candidates = parse_ncbi_outputs(ncbi_cds_path, ncbi_protein_path, records)
 
     candidates_by_tool: dict[str, list[Candidate]] = {"python_raw": [], "adapter_corrected": [], "ncbi": ncbi_candidates}
@@ -676,10 +676,10 @@ def run_benchmark(executable: str, input_dir: Path = ASSIGNED_INPUT_DIR) -> None
                        "minimum_orf_length_nt": MINIMUM_NT, "nested_filter": False, "strand": "both",
                        "ncbi_minimum_floor_nt": 30},
         "commands": [command1, command2],
-        "assigned_inputs": input_provenance,
-        "combined_input_fasta_sha256": hashlib.sha256(assigned_fasta.read_bytes()).hexdigest(),
+        "test_inputs": input_provenance,
+        "combined_input_fasta_sha256": hashlib.sha256(combined_fasta.read_bytes()).hexdigest(),
         "synthetic_control_results": control_metadata,
-        "dataset_type": "three professor-provided genomic RefSeqGene FASTA records; no sequence download or GenBank annotation",
+        "dataset_type": "three genomic RefSeqGene FASTA test records; no sequence download or GenBank annotation",
         "biological_scope": "ORF scanning does not perform splicing and does not establish the protein annotated for the named gene",
         "coordinate_system": "zero-based half-open on original input; strand separate",
         "ncbi_terminal_stop_normalization": "CDS FASTA sequence/location includes stop; protein excludes translated terminal stop; normalized interval retains the terminal stop nucleotide",
@@ -696,9 +696,9 @@ def write_report(comparisons: list[dict], input_provenance: list[dict]) -> None:
     lines = [
         "# ORFfinder benchmark results",
         "",
-        f"Completed comparison of the {input_count} assigned genomic RefSeqGene FASTA {input_label} using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder. ORF scanning on genomic sequence does not perform splicing or establish the protein annotated for the named gene.",
+        f"Completed comparison of the {input_count} genomic RefSeqGene FASTA test {input_label} using raw `orffinder`, Lverage's corrected adapter, and NCBI standalone ORFfinder. ORF scanning on genomic sequence does not perform splicing or establish the protein annotated for the named gene.",
         "",
-        "## Results per assigned input",
+        "## Results per test input",
         "",
         "| Input file | RefSeqGene accession.version | Raw package ORFs | Corrected adapter ORFs | NCBI ORFs | Raw/adapter exact-region translation differences | Adapter/NCBI exact matches | Adapter/NCBI positive overlaps | Same longest interval? |",
         "|---|---|---:|---:|---:|---:|---:|---:|---|",
@@ -724,13 +724,13 @@ def write_report(comparisons: list[dict], input_provenance: list[dict]) -> None:
 
     if input_count == 1:
         if same_longest_inputs:
-            longest_summary = "The assigned input shares at least one exact longest-ORF interval and strand between the adapter and NCBI."
+            longest_summary = "The test input shares at least one exact longest-ORF interval and strand between the adapter and NCBI."
         else:
-            longest_summary = "The assigned input does not share an exact longest-ORF interval and strand between the adapter and NCBI."
+            longest_summary = "The test input does not share an exact longest-ORF interval and strand between the adapter and NCBI."
     elif same_longest_inputs == input_count:
-        longest_summary = f"All {input_count} assigned inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI."
+        longest_summary = f"All {input_count} test inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI."
     else:
-        longest_summary = f"{same_longest_inputs} of {input_count} assigned inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI."
+        longest_summary = f"{same_longest_inputs} of {input_count} test inputs share at least one exact longest-ORF interval and strand between the adapter and NCBI."
 
     if ncbi_unmatched == 0:
         unmatched_summary = (
@@ -749,11 +749,11 @@ def write_report(comparisons: list[dict], input_provenance: list[dict]) -> None:
         "",
         "## Findings",
         "",
-        f"- Across the {input_count} assigned {input_word}, the corrected adapter returned {adapter_total:,} candidates and NCBI returned {ncbi_total:,}; there were {exact_total:,} exact interval-and-strand matches.",
+        f"- Across the {input_count} test {input_word}, the corrected adapter returned {adapter_total:,} candidates and NCBI returned {ncbi_total:,}; there were {exact_total:,} exact interval-and-strand matches.",
         f"- {unmatched_summary}",
         f"- {longest_summary}",
         "- Raw-package/adapter protein-string differences include terminal stop-symbol removal. Their counts do not indicate incorrect proteins.",
-        "- These findings apply only to the assigned genomic sequences and recorded settings. ORF scanning does not perform splicing or establish the annotated protein for the named gene.",
+        "- These findings apply only to the test genomic sequences and recorded settings. ORF scanning does not perform splicing or establish the annotated protein for the named gene.",
         "",
         "## Interpretation",
         "",
@@ -762,7 +762,7 @@ def write_report(comparisons: list[dict], input_provenance: list[dict]) -> None:
         "- Longest ORFs are ranked by normalized nucleotide span. All tied longest locations and proteins are retained in `comparisons.tsv`; same-longest means the tied sets share at least one exact interval-and-strand location.",
         "- Raw package translation differences are counted only for exact same-region raw/adapter candidate pairs in `translation_differences.tsv`; candidates found by only one discovery path remain region differences. The corrected adapter candidate reconstruction is checked against production `OrffinderOrfSearcher.get_orfs()` as an ordered protein list and `Counter`, preserving duplicate counts.",
         "- Tool settings and exact commands are in `metadata.json`. NCBI outfmt 1 locations are 1-based inclusive; they are normalized to half-open intervals while retaining stop codons. Outfmt 0 supplies proteins and is cross-checked against the matching CDS record.",
-        "- `metadata.json` records each input filename, original FASTA header, accession version, sequence length, and file/sequence SHA-256 checksums. Synthetic controls are validation fixtures and are not part of these assigned-input results.",
+        "- `metadata.json` records each input filename, original FASTA header, accession version, sequence length, and file/sequence SHA-256 checksums. Synthetic controls are validation fixtures and are not part of these test-input results.",
         "",
     ])
     # Keep generated Markdown sections separated and normalize the file ending
@@ -775,15 +775,15 @@ def main() -> None:
     global RESULTS
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    run_parser = subparsers.add_parser("run", help="compare the three assigned genomic RefSeqGene FASTAs")
+    run_parser = subparsers.add_parser("run", help="compare the three genomic RefSeqGene test FASTAs")
     run_parser.add_argument(
         "--executable", default=None,
         help=f"NCBI ORFfinder binary (default: ${EXECUTABLE_ENV_VAR}, then {EXECUTABLE_NAME!r} on PATH)",
     )
     run_parser.add_argument(
         "--input-dir", type=Path,
-        default=Path(os.environ.get(INPUT_DIR_ENV_VAR, ASSIGNED_INPUT_DIR)),
-        help=f"directory holding {', '.join(ASSIGNED_INPUT_FILES)} (default: ${INPUT_DIR_ENV_VAR} or {ASSIGNED_INPUT_DIR})",
+        default=Path(os.environ.get(INPUT_DIR_ENV_VAR, TEST_INPUT_DIR)),
+        help=f"directory holding {', '.join(TEST_INPUT_FILES)} (default: ${INPUT_DIR_ENV_VAR} or {TEST_INPUT_DIR})",
     )
     run_parser.add_argument(
         "--results-dir", type=Path, default=RESULTS,
