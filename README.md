@@ -166,7 +166,7 @@ ATGGCTAGCTAGCTAGGCTAGCTAGC...
 GGCTAGCATCGATCGTAGCTAGCTAG...
 ```
 
-These are nucleotide sequences. They are separate from the protein FASTA used to build the local BLAST database described above. For more detail, including how to pass fragments to the V2 Python API, see the [FASTA input guide](docs/user_guide.rst).
+These are nucleotide sequences. They are separate from the protein FASTA used to build the local BLAST database described above. For more detail, see the [FASTA input guide](docs/user_guide.rst).
 
 
 
