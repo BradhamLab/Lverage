@@ -80,24 +80,15 @@ If you have a taxonomy-enabled BLAST database such as NCBI `nr` on disk, add
 `-n /path/to/nr` to extract the species from it rather than downloading. Run
 `scripts/make_blast_db.sh -h` for all options.
 
-### 3. Point Lverage at it
+### 3. Keep the output for Lverage
 
-Pass the database prefix and the species names printed by the script, mapped
-to their taxonomy IDs, to `LocalBlastSearcher`:
-
-```python
-from lverage.blast import LocalBlastSearcher
-
-
-ortholog_searcher = LocalBlastSearcher(
-    database_path="databases/orthologs",
-    species_map={
-        "Homo sapiens": 9606,
-        "Mus musculus": 10090,
-        "Drosophila melanogaster": 7227,
-    },
-)
-```
+Note the database prefix you chose and the species names the script prints
+at the end. Lverage needs both: the prefix says where to search, and the
+species names, mapped to their taxonomy IDs, tell it which hits count as
+orthologs. The names must match the headers exactly, including any strain
+suffix such as `Saccharomyces cerevisiae S288C`. See the
+[API documentation](docs/api/index.rst) for how to pass them to the V2
+pipeline.
 
 ## How to Use
 We warn against moving any file within the directory anywhere else as this will create errors. If you wish to access from other places, we suggest appending the directory to your PATH environment variable, creating an alias, or creating a shortcut.
