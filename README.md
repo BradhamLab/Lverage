@@ -153,6 +153,21 @@ The following table shows all arguments for Lverage.
 |-it/--identity_threshold| According to <insert paper here>, 70% similarity with an ortholog sequence means that the motif is conserved in the ortholog. This parameter asks that any ortholog sequence must be 70% similar to a provided gene's sequence.
 |-v/--verbose|If provided, will print out every step along the way as well as intermittent reuslts|
 
+### Input FASTA files
+
+Lverage takes a folder of FASTA files, one file per gene or transcription factor. Name each file after its gene, since that name is used to label the output. Do not put different genes in the same file.
+
+A file normally holds one record. If a gene's sequence is only available as fragments (for example several scaffolds or contigs), put all of the fragments in that gene's file as a multi-FASTA. Every record in the file is run through the pipeline for that gene: each fragment is searched for open reading frames on its own, the candidates from all fragments are pooled, and the best one is used. Fragments are not assembled or joined together.
+
+```text
+>geneX_fragment_1
+ATGGCTAGCTAGCTAGGCTAGCTAGC...
+>geneX_fragment_2
+GGCTAGCATCGATCGTAGCTAGCTAG...
+```
+
+These are nucleotide sequences. They are separate from the protein FASTA used to build the local BLAST database described above. For more detail, including how to pass fragments to the V2 Python API, see the [FASTA input guide](docs/user_guide.rst).
+
 
 
 ### Examples
