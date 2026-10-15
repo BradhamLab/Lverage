@@ -38,101 +38,62 @@ python3 -m pip install -r requirements.txt
 
 ## Local BLAST Database Setup for V2
 
-Lverage V2 can search a local protein database with BLAST+. BLAST+ is an
-external requirement and is not installed with the Python package. Confirm that
-both required programs are available:
+Lverage finds orthologs by running BLAST against a local protein database that
+you build once. The database holds the proteins of the species you want
+orthologs from. If you study species A and want orthologs from B, C, and D,
+the database contains the proteomes of B, C, and D; A is the query, not part
+of the database.
+
+### 1. Install the tools
+
+BLAST+ and the NCBI datasets CLI are external requirements and are not
+installed with the Python package. With conda:
 
 ```bash
-blastp -version
-blastdbcmd -version
+conda install -c conda-forge -c bioconda blast ncbi-datasets-cli unzip
 ```
 
-The source FASTA must contain complete protein sequences. Each record must have
-a unique sequence identifier immediately after `>`, followed by a description
-containing the scientific name in square brackets. For example:
+### 2. Build the database
+
+Look up the NCBI taxonomy ID of each ortholog species at
+<https://www.ncbi.nlm.nih.gov/taxonomy> and pass them to the script. This
+example builds a human, mouse, and fruit fly database:
+
+```bash
+scripts/make_blast_db.sh -t 9606,10090,7227 -o databases/orthologs
+```
+
+The script downloads each species' RefSeq reference proteome, combines them,
+builds the database with `-parse_seqids` (Lverage needs this to retrieve each
+hit's complete protein), and checks that retrieval works. It finishes by
+printing the species names found in the headers.
+
+If you already have a protein FASTA, build from it with `-i proteins.fasta`
+instead. Headers must carry a unique identifier and the species in brackets:
 
 ```text
 >NP_000001.1 Homeobox protein [Homo sapiens]
 MPEPTIDESEQUENCE
->NP_000002.1 Homeobox protein [Mus musculus]
-MSEQUENCE
 ```
 
-Build the protein database with `-parse_seqids`. This option is required because
-Lverage retrieves the complete sequence of each BLAST hit with `blastdbcmd`.
-The value passed to `-out` is a database prefix, not a directory or an
-individual database file. See the
-[NCBI BLAST+ documentation](https://www.ncbi.nlm.nih.gov/books/NBK52637/table/blast_setup_pc.T.programs_and_utilities/)
-for the specific-retrieval requirement.
+If you have a taxonomy-enabled BLAST database such as NCBI `nr` on disk, add
+`-n /path/to/nr` to extract the species from it rather than downloading. Run
+`scripts/make_blast_db.sh -h` for all options.
 
-```bash
-mkdir -p databases
+### 3. Keep the output for Lverage
 
-makeblastdb \
-    -in proteins.fasta \
-    -dbtype prot \
-    -parse_seqids \
-    -out databases/lverage_proteins
-```
-
-Do not omit `-parse_seqids`. A database without parsed sequence identifiers can
-be searched by `blastp`, but Lverage will be unable to retrieve complete subject
-proteins from it.
-
-Validate both the database and accession retrieval before using it:
-
-```bash
-blastdbcmd -db databases/lverage_proteins -info
-
-blastdbcmd \
-    -db databases/lverage_proteins \
-    -entry NP_000001.1 \
-    -outfmt '%f'
-```
-
-The second command should print the expected FASTA record. If it reports that
-the database contains no accession information, rebuild the database from its
-source FASTA with `-parse_seqids`. Use a new output prefix rather than
-overwriting a database that may be in use.
-
-If a taxonomy-enabled source database such as NCBI `nr` is already installed,
-a smaller FASTA can first be extracted. The following example selects human and
-mouse proteins:
-
-```bash
-blastdbcmd \
-    -db /path/to/nr \
-    -taxids 9606,10090 \
-    -target_only \
-    -outfmt '%f' \
-    -out human_mouse.fasta
-
-makeblastdb \
-    -in human_mouse.fasta \
-    -dbtype prot \
-    -parse_seqids \
-    -out databases/human_mouse_nr
-```
-
-Taxonomic extraction requires the taxonomy files associated with the source
-BLAST database. Check the resulting FASTA headers and sequence count before
-building the new database.
-
-Pass the database prefix and a mapping of the scientific names used in its
-FASTA headers to `LocalBlastSearcher`:
-
-```python
-from lverage.blast import LocalBlastSearcher
-
-
-ortholog_searcher = LocalBlastSearcher(
-    database_path="databases/human_mouse_nr",
-    species_map={
-        "Homo sapiens": 9606,
-        "Mus musculus": 10090,
-    },
-)
-```
+Note the database prefix you chose and the species names the script prints
+at the end. Lverage needs both: the prefix says where to search, and the
+species names, mapped to their taxonomy IDs, tell it which hits count as
+orthologs. The names must match the headers exactly, including any strain
+suffix such as `Saccharomyces cerevisiae S288C`. Bacterial proteomes label
+many records with only a genus or group name, such as `Bacillus`, so map
+every printed name you want to count, not just the species. Two species of
+the same genus cannot be told apart by such a label, so expect their shared
+proteins to be attributed to whichever taxonomy ID you map that name to. See
+the
+[API documentation](docs/api/index.rst) for how to pass them to the V2
+pipeline.
 
 ## How to Use
 We warn against moving any file within the directory anywhere else as this will create errors. If you wish to access from other places, we suggest appending the directory to your PATH environment variable, creating an alias, or creating a shortcut.
