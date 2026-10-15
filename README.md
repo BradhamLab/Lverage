@@ -86,7 +86,9 @@ Note the database prefix you chose and the species names the script prints
 at the end. Lverage needs both: the prefix says where to search, and the
 species names, mapped to their taxonomy IDs, tell it which hits count as
 orthologs. The names must match the headers exactly, including any strain
-suffix such as `Saccharomyces cerevisiae S288C`. See the
+suffix such as `Saccharomyces cerevisiae S288C`. Bacterial proteomes label
+many records with only a genus or group name, such as `Bacillus`, so map
+every printed name you want to count, not just the species. See the
 [API documentation](docs/api/index.rst) for how to pass them to the V2
 pipeline.
 
