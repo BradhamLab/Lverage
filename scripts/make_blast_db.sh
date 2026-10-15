@@ -91,10 +91,15 @@ elif [[ -n "$taxids" ]]; then
         awk -v taxid="$taxid" -v seen="$workdir/seen_ids" '
             BEGIN { while ((getline id < seen) > 0) have[id] = 1 }
             /^>/ { id = substr($1, 2)
-                   if (id in have) { $1 = ">" id "_" taxid; renamed++ }
+                   if (id in have) {
+                       new_id = id "_" taxid; n = 1
+                       while (new_id in have) new_id = id "_" taxid "_" (++n)
+                       $1 = ">" new_id; id = new_id; renamed++
+                   }
+                   have[id] = 1
                    print; next }
             { print }
-            END { if (renamed) printf("  %d ids were already present from another species and were suffixed with _%s\n", renamed, taxid) > "/dev/stderr" }
+            END { if (renamed) printf("  %d ids collided with records already added and were made unique with a _%s suffix\n", renamed, taxid) > "/dev/stderr" }
         ' "$faa" >> "$input"
     done
     echo "Combined proteome written to $input"
