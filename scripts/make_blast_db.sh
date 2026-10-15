@@ -104,6 +104,6 @@ echo
 blastdbcmd -db "$prefix" -info | head -2
 echo
 echo "Species found in headers (use these exact names as species_map keys):"
-grep '^>' "$input" | sed -n 's/.*\[\([^]]*\)\].*/\1/p' | sort | uniq -c | sort -rn | head -20
+grep '^>' "$input" | sed -n 's/.*\[\([^]]*\)\].*/\1/p' | sort | uniq -c | sort -rn
 echo
 echo "Database ready. Pass database_path=\"$prefix\" to LocalBlastSearcher."
