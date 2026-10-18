@@ -1,5 +1,6 @@
 import unittest
 
+from lverage.alignment import AlignmentTemplate
 from lverage.domain_scanner import DomainRecord, DomainScannerTemplate
 from lverage.motif_database import MotifDBRecordTemplate, MotifDBTemplate
 from lverage.orf_searcher import OrfSearcherTemplate
@@ -69,6 +70,19 @@ class StubOrthologSearcher(OrthologSearcherTemplate):
         return list(self.orthologs)
 
 
+class RecordingAlignment(AlignmentTemplate):
+
+    def __init__(self, identities=None):
+        self.identities = identities
+        self.calls = []
+
+    def calc_identities(self, query_dbd, ortholog_dbds):
+        self.calls.append((query_dbd, list(ortholog_dbds)))
+        if self.identities is None:
+            return [1.0] * len(ortholog_dbds)
+        return list(self.identities[len(self.calls) - 1])
+
+
 def make_ortholog(sequence="AAAA", species_tax_id=9606):
     return OrthologRecord(
         "NP_000001.1",
@@ -90,7 +104,8 @@ class LveragePipelineTests(unittest.TestCase):
                       orthologs=None,
                       databases=None,
                       valid_pfam_list=None,
-                      threshold=0.7):
+                      threshold=0.7,
+                      alignment_component=None):
         if orfs is None:
             orfs = ["AAAA"]
         if domains is None:
@@ -108,6 +123,7 @@ class LveragePipelineTests(unittest.TestCase):
             StubOrthologSearcher(orthologs),
             valid_pfam_list=valid_pfam_list,
             dbd_identity_thresh=threshold,
+            alignment_component=alignment_component,
         )
 
     def test_no_orf_code(self):
@@ -152,10 +168,101 @@ class LveragePipelineTests(unittest.TestCase):
         self.assertEqual(records[0].motif_database_name, "ExampleDB")
         self.assertEqual(records[0].domain_identity, 1.0)
 
+    def test_default_alignment_components_are_independent_per_pipeline(self):
+        first_pipeline = self.make_pipeline()
+        second_pipeline = self.make_pipeline()
+
+        first_pipeline.alignment_component.match_score = 7
+
+        self.assertIsNot(first_pipeline.alignment_component, second_pipeline.alignment_component)
+        self.assertEqual(first_pipeline.alignment_component.match_score, 7)
+        self.assertEqual(second_pipeline.alignment_component.match_score, 2)
+
     def test_identity_threshold_is_inclusive(self):
         pipeline = self.make_pipeline(threshold=1.0)
 
         self.assertEqual(len(pipeline.run("QUERY")), 1)
+
+    def test_injected_alignment_preserves_occurrences_and_output_order(self):
+        query_sequence = "AAAAAAAA"
+        first_ortholog = make_ortholog("CCCCCCCC")
+        second_ortholog = make_ortholog("GGGGGGGG", species_tax_id=10090)
+        query_domains = [
+            DomainRecord("Query first", "PF00046.1", 0, 2),
+            DomainRecord("Query second", "PF00046.2", 2, 4),
+        ]
+        repeated_ortholog_domains = [
+            DomainRecord("Ortholog first", "PF00046.3", 0, 2),
+            DomainRecord("Ortholog second", "PF00046.4", 2, 4),
+        ]
+        alignment = RecordingAlignment([
+            [0.80, 0.81, 0.82, 0.83],
+            [0.84, 0.85, 0.86, 0.87],
+        ])
+        pipeline = self.make_pipeline(
+            orfs=[query_sequence],
+            domains={
+                query_sequence: query_domains,
+                first_ortholog.sequence: repeated_ortholog_domains,
+                second_ortholog.sequence: repeated_ortholog_domains,
+            },
+            orthologs=[first_ortholog, second_ortholog],
+            alignment_component=alignment,
+        )
+
+        records = pipeline.run("QUERY")
+
+        self.assertEqual(
+            alignment.calls,
+            [("AA", ["CC", "CC", "GG", "GG"])] * 2,
+        )
+        self.assertEqual(
+            [
+                (record.ortholog.sequence, record.query_domain.start, record.ortholog_domain.start)
+                for record in records
+            ],
+            [
+                (ortholog.sequence, query_start, ortholog_start)
+                for ortholog in (first_ortholog, second_ortholog)
+                for query_start in (0, 2)
+                for ortholog_start in (0, 2)
+            ],
+        )
+        self.assertEqual(
+            [record.domain_identity for record in records],
+            [0.80, 0.81, 0.84, 0.85, 0.82, 0.83, 0.86, 0.87],
+        )
+
+    def test_alignment_component_must_return_one_score_per_candidate(self):
+        alignment = RecordingAlignment([[]])
+        pipeline = self.make_pipeline(alignment_component=alignment)
+
+        with self.assertRaises(ValueError):
+            pipeline.run("QUERY")
+
+    def test_type_error_from_alignment_component_propagates_unchanged(self):
+        original_error = TypeError("alignment implementation failed")
+
+        class FailingAlignment(AlignmentTemplate):
+
+            def calc_identities(self, query_dbd, ortholog_dbds):
+                raise original_error
+
+        pipeline = self.make_pipeline(alignment_component=FailingAlignment())
+
+        with self.assertRaises(TypeError) as raised:
+            pipeline.run("QUERY")
+
+        self.assertIs(raised.exception, original_error)
+
+    def test_alignment_component_scores_must_be_finite_ratios(self):
+        for invalid_score in [float("nan"), -0.1, 1.1, "1.0", True]:
+            with self.subTest(score=invalid_score):
+                pipeline = self.make_pipeline(
+                    alignment_component=RecordingAlignment([[invalid_score]])
+                )
+                with self.assertRaises(ValueError):
+                    pipeline.run("QUERY")
 
     def test_longest_distinct_orf_with_an_accepted_domain_is_selected(self):
         pipeline = self.make_pipeline(
