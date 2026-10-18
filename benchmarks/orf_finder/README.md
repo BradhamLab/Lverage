@@ -26,7 +26,9 @@ These are **genomic RefSeqGene sequences**, not spliced mRNA sequences. ORF scan
 
 ## Settings and comparison semantics
 
-All three tools use ATG starts, standard genetic code (NCBI `-g 1`), minimum 75 nt, no nested filtering, and both strands (`-strand both`). NCBI has a 30-nt minimum floor; the benchmark threshold is above it. The Python adapter requests loci at 74 nt then enforces the actual 75-nt span because the package reports incomplete terminal loci one nucleotide short. The raw-package path is not threshold-corrected.
+The preserved baseline uses ATG starts, standard genetic code (NCBI `-g 1`), no nested filtering, and both strands (`-strand both`). Its raw Python package and NCBI settings request 75 nt; the adapter requests loci at 74 nt, then enforces an actual 75-nt span because the package reports incomplete terminal loci one nucleotide short. The raw-package path is not threshold-corrected. NCBI has a 30-nt minimum floor.
+
+Equal numeric thresholds do not imply equivalent length filtering across tools. In this baseline, NCBI ORFfinder 0.4.3 at `-ml 75` returned 1,784 candidates, while the adapter's 75-nt filter returned 1,913; 129 adapter candidates had no exact NCBI interval-and-strand match. All 129 were complete 75-nt ORFs whose intervals included a terminal stop codon. A separate validation reran NCBI ORFfinder with `-ml 72` and all other baseline options unchanged. Against the adapter at 75 nt, this produced 1,913 exact interval-and-strand matches across these inputs, preserving candidate multiplicities; all paired protein strings were identical, and the longest intervals matched for all three inputs. This follow-up does not change the benchmark runner's baseline settings or default.
 
 Candidate coordinates use zero-based, half-open bounds on the original input with strand stored separately. NCBI CDS output includes the terminal stop in the interval while protein output excludes it; the parser checks the outputs pairwise, verifies translation, and checks the CDS sequence against the corresponding input interval. The adapter retains stop codons in genomic intervals but excludes them from protein strings. The adapter's incomplete-terminal translation uses complete codons only.
 
@@ -34,7 +36,7 @@ Exact interval-and-strand matches are paired one-to-one by stable candidate ID. 
 
 ## Findings
 
-For these three genomic RefSeqGene test inputs at the recorded settings, the corrected adapter returned 1,913 candidates and NCBI returned 1,784. There were 1,784 exact interval-and-strand matches in total:
+For these three genomic RefSeqGene test inputs, the preserved `-ml 75` baseline comparison returned 1,913 corrected-adapter candidates and 1,784 NCBI candidates, with 1,784 exact interval-and-strand matches:
 
 | Input | Adapter candidates | NCBI candidates | Exact matches |
 |---|---:|---:|---:|
@@ -43,7 +45,16 @@ For these three genomic RefSeqGene test inputs at the recorded settings, the cor
 | MITF (`NG_011631.1`) | 1,761 | 1,645 | 1,645 |
 | **Total** | **1,913** | **1,784** | **1,784** |
 
-Every NCBI candidate had an exact adapter match; the adapter returned 129 additional candidates. Each of the three inputs had at least one exact longest-ORF interval-and-strand match between the adapter and NCBI. Raw-package/adapter protein-string differences include terminal stop-symbol removal; their counts are not counts of incorrect proteins. These conclusions apply only to these genomic sequences and the recorded settings. ORF scanning does not perform splicing or establish the annotated protein for any named gene.
+Every baseline NCBI candidate had an exact adapter match; the adapter returned 129 additional candidates, all complete 75-nt ORFs with an interval-terminal stop codon. Separately, the NCBI ORFfinder 0.4.3 `-ml 72` validation matched all 1,913 adapter interval-and-strand occurrences, with identical protein strings and matching longest intervals for each input. The Counter-based comparison preserved multiplicities. Raw-package/adapter protein-string differences include terminal stop-symbol removal; their counts are not counts of incorrect proteins. These conclusions apply only to these three genomic sequences and the stated settings. ORF scanning does not perform splicing or establish the annotated protein for any named gene.
+
+The separate lower-threshold check can be reproduced by running NCBI ORFfinder 0.4.3 on the same combined FASTA used in the baseline run, changing only `-ml` from 75 to 72, and saving both output formats:
+
+```bash
+ORFfinder -in /path/to/combined_input.fasta -s 0 -g 1 -ml 72 -n false -strand both -outfmt 0 -out /path/to/results/ncbi_min72_proteins.fasta
+ORFfinder -in /path/to/combined_input.fasta -s 0 -g 1 -ml 72 -n false -strand both -outfmt 1 -out /path/to/results/ncbi_min72_cds.fasta
+```
+
+These commands describe a follow-up validation only; they do not change the benchmark runner's default `-ml 75` comparison.
 
 ## Results and outputs
 
