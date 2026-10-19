@@ -153,6 +153,13 @@ class Jaspar2024MotifDBTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Jaspar2024MotifDB().search(make_request())
 
+    @patch("lverage.jaspar.requests.get")
+    def test_search_treats_null_results_as_no_hits(self, mock_get):
+        # The live API answers {"count": 0, "results": null} when nothing is inferred.
+        mock_get.return_value = make_response({"count": 0, "results": None})
+
+        self.assertEqual(Jaspar2024MotifDB().search(make_request()), [])
+
     def test_search_validates_request_contract(self):
         with self.assertRaises(TypeError):
             Jaspar2024MotifDB().search(object())

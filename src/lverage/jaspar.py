@@ -271,9 +271,15 @@ class Jaspar2024MotifDB(MotifDBTemplate):
 
     @staticmethod
     def __get_results(payload, service_name):
-        if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+        if not isinstance(payload, dict) or "results" not in payload:
             raise ValueError(f"{service_name} returned a malformed response")
-        return payload["results"]
+        results = payload["results"]
+        if results is None:
+            # JASPAR reports "no hits" as {"count": 0, "results": null}.
+            return []
+        if not isinstance(results, list):
+            raise ValueError(f"{service_name} returned a malformed response")
+        return results
 
     @staticmethod
     def _window_ortholog_sequence(sequence, ortholog_domain):

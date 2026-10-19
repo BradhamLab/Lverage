@@ -183,6 +183,17 @@ class LocalBlastSearcherTests(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].species_name, "Homo sapiens")
 
+    def test_isoform_hits_are_kept_by_default(self):
+        searcher = self.make_searcher()
+        alignment = make_alignment("ALX homeobox protein 1 isoform X1 [Homo sapiens]")
+        self.mock_run.side_effect = [SimpleNamespace(stdout="<xml>"), SimpleNamespace(stdout="SEQUENCE")]
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([SimpleNamespace(alignments=[alignment])])):
+            records = searcher.get_orthologs("QUERY")
+
+        self.assertEqual(len(records), 1)
+        self.assertNotIn("isoform", DEFAULT_EXCLUDED_TERMS)
+
     def test_excluded_and_unresolved_hits_are_skipped(self):
         searcher = self.make_searcher()
         alignments = [

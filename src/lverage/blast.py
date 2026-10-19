@@ -13,13 +13,16 @@ from .ortholog_searcher import OrthologRecord, OrthologSearcherTemplate
 
 
 LOGGER = logging.getLogger(__name__)
+# Terms that mark a hit as not a usable, named protein. "isoform" is not in
+# this list: RefSeq names most eukaryotic proteins "<name> isoform N", so
+# excluding it would discard the majority of orthologs in a RefSeq-built
+# database.
 DEFAULT_EXCLUDED_TERMS = (
     "hypothetical",
     "unnamed",
     "uncharacterized",
     "unknown",
     "partial",
-    "isoform",
 )
 
 
