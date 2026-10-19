@@ -1,0 +1,4 @@
+filename	original_header	accession_version	sequence_length	file_sha256	sequence_sha256
+HoxA13.fa	NG_008181.2 Homo sapiens homeobox A13 (HOXA13), RefSeqGene (LRG_1349) on chromosome 7	NG_008181.2	12743	a4d037ab00e9af8d17daddc5da9b12daf400bef83428581b3f94a1270b15e9da	55df719104935ff8d6a01d3d1c1d114833e363e2051cf2569d475f75ceb6c8e0
+Jun.fa	NG_047027.2 Homo sapiens Jun proto-oncogene, AP-1 transcription factor subunit (JUN), RefSeqGene on chromosome 1	NG_047027.2	10257	1271f5cec76acf8b5e996ff8bf0a13e1e58188640f5e70674554837421f3bb64	9ddf2b109fae43b10667d4eab5b2214b2c8d35d4fcca21ea61fd6b7f80d8d323
+MITF.fa	NG_011631.1 Homo sapiens melanocyte inducing transcription factor (MITF), RefSeqGene (LRG_776) on chromosome 3	NG_011631.1	235855	2800eadff068caa44224fb79374879c47dff349f7b2789e130feae296710f5c7	9672268bbb58d07683e2b25a996200e7dd6fe02b0c79e2f3c1a277d391dec6fa
