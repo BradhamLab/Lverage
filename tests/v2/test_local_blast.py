@@ -172,6 +172,17 @@ class LocalBlastSearcherTests(unittest.TestCase):
 
         self.assertEqual(records[0].species_name, "Homo sapiens")
 
+    def test_species_is_read_from_the_last_bracketed_field(self):
+        searcher = self.make_searcher()
+        alignment = make_alignment("superoxide dismutase [Cu-Zn] [Homo sapiens]")
+        self.mock_run.side_effect = [SimpleNamespace(stdout="<xml>"), SimpleNamespace(stdout="SEQUENCE")]
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([SimpleNamespace(alignments=[alignment])])):
+            records = searcher.get_orthologs("QUERY")
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].species_name, "Homo sapiens")
+
     def test_excluded_and_unresolved_hits_are_skipped(self):
         searcher = self.make_searcher()
         alignments = [

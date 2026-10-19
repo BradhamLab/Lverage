@@ -66,11 +66,14 @@ def _parse_blast_hits(blast_xml, query_length, species_lookup, excluded_terms):
                 LOGGER.warning("Skipping excluded BLAST hit: %s", description)
                 continue
 
-            species_match = re.search(r"\[([^\]]+)\]", description)
-            if species_match is None:
+            # RefSeq puts the organism in the last bracketed field; protein
+            # names may contain their own brackets, e.g.
+            # "superoxide dismutase [Cu-Zn] [Homo sapiens]".
+            bracketed_fields = re.findall(r"\[([^\]]+)\]", description)
+            if not bracketed_fields:
                 LOGGER.warning("Skipping BLAST hit without a bracketed species: %s", description)
                 continue
-            species = species_lookup.get(species_match.group(1).strip().casefold())
+            species = species_lookup.get(bracketed_fields[-1].strip().casefold())
             if species is None:
                 LOGGER.warning("Skipping BLAST hit with an unresolved species: %s", description)
                 continue
