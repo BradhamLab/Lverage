@@ -9,6 +9,7 @@ classes from the modules shown below.
    :maxdepth: 1
 
    domain_scanner
+   alignment
    blast
    jaspar
    motif_database
