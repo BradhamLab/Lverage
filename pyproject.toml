@@ -15,6 +15,9 @@ dependencies = [
     "requests>=2.32",
 ]
 
+[project.scripts]
+lverage = "lverage.cli:main"
+
 [project.optional-dependencies]
 docs = [
     "numpydoc>=1.10",

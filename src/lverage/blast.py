@@ -53,13 +53,15 @@ def _copy_excluded_terms(excluded_terms : Sequence[str] | None) -> list[str]:
     return list(terms)
 
 
-def _parse_blast_hits(blast_xml, query_length, species_lookup, excluded_terms):
+def _parse_blast_hits(blast_xml, query_length, species_lookup, excluded_terms,
+                      evidence_collector=None):
     blast_records = list(NCBIXML.parse(StringIO(blast_xml)))
     if len(blast_records) != 1:
         raise ValueError("BLAST output did not contain exactly one query result")
 
+    raw_alignments = blast_records[0].alignments
     hits = []
-    for alignment in blast_records[0].alignments:
+    for alignment in raw_alignments:
         try:
             description = alignment.hit_def
             if any(term.casefold() in description.casefold() for term in excluded_terms):
@@ -82,7 +84,7 @@ def _parse_blast_hits(blast_xml, query_length, species_lookup, excluded_terms):
             hits.append({
                 "accession": alignment.accession,
                 "description": description,
-                "hit_id": alignment.hit_id,
+                "hit_id": getattr(alignment, "hit_id", None),
                 "species_name": species[0],
                 "species_tax_id": species[1],
                 "evalue": best_hsp.expect,
@@ -93,6 +95,13 @@ def _parse_blast_hits(blast_xml, query_length, species_lookup, excluded_terms):
             })
         except (AttributeError, TypeError, ValueError, ZeroDivisionError):
             LOGGER.warning("Skipping malformed BLAST hit", exc_info=True)
+    if evidence_collector is not None:
+        evidence_collector.emit(
+            "blast_search",
+            status=("no-hits" if not raw_alignments else "hits-found" if hits else "no-retained-hits"),
+            hit_count=len(raw_alignments), retained_hit_count=len(hits),
+            retrieved_count=0, skipped_count=0, error="",
+        )
     return hits
 
 
@@ -106,7 +115,21 @@ def _make_ortholog(hit, sequence):
         evalue=hit["evalue"],
         identity=hit["identity"],
         query_coverage=hit["query_coverage"],
+        hit_id=hit.get("hit_id"),
     )
+
+
+def _safe_retrieval_reason(error):
+    """Return a diagnostic without echoing command arguments or credentials."""
+    detail = getattr(error, "stderr", None)
+    if isinstance(detail, bytes):
+        detail = detail.decode("utf-8", errors="replace")
+    if not isinstance(detail, str) or not detail.strip():
+        detail = f"{type(error).__name__}: sequence retrieval failed"
+    detail = re.sub(r"https?://[^\s]+", "<url-redacted>", detail)
+    detail = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "<email-redacted>", detail)
+    detail = re.sub(r"(?i)(token|password|secret|api[_-]?key)=([^\s&]+)", r"\1=<redacted>", detail)
+    return detail.strip()
 
 
 class LocalBlastSearcher(OrthologSearcherTemplate):
@@ -130,6 +153,8 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
     excluded_terms : sequence, optional
         Case-insensitive description terms to exclude; an empty sequence disables filtering
     """
+
+    supports_evidence_collector = True
 
     def __init__(self,
                  database_path,
@@ -165,7 +190,7 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
             text=True,
         )
 
-    def get_orthologs(self, sequence : str) -> list[OrthologRecord]:
+    def get_orthologs(self, sequence : str, *, evidence_collector=None) -> list[OrthologRecord]:
         """
         Search the configured local database for complete ortholog proteins.
 
@@ -182,6 +207,9 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
 
         if not isinstance(sequence, str) or not sequence.strip():
             raise ValueError("sequence must be a nonempty string")
+
+        if evidence_collector is not None:
+            evidence_collector.set_stage("blast")
 
         result = subprocess.run(
             [
@@ -203,29 +231,125 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
             len(sequence),
             self.__species_lookup,
             self.excluded_terms,
+            evidence_collector=evidence_collector,
         )
-        for hit in hits:
-            complete_sequence = ""
-            entries = [hit["hit_id"]]
-            if hit["accession"] and hit["accession"] != hit["hit_id"]:
-                entries.append(hit["accession"])
-            for entry in entries:
-                if not entry:
+
+        skipped_count = 0
+        retrieval_exception = None
+        record_exception = None
+        evidence_exception = None
+
+        def emit_evidence(event, **payload):
+            nonlocal evidence_exception
+            if evidence_collector is None:
+                return
+            try:
+                evidence_collector.emit(event, **payload)
+            except Exception as error:
+                evidence_exception = error
+                raise
+
+        try:
+            for hit in hits:
+                complete_sequence = ""
+                entries = [hit["hit_id"]]
+                if hit["accession"] and hit["accession"] != hit["hit_id"]:
+                    entries.append(hit["accession"])
+                retrieval_errors = []
+                for entry in entries:
+                    if not entry:
+                        continue
+                    try:
+                        complete_sequence = self.__get_complete_sequence(entry)
+                    except subprocess.CalledProcessError as error:
+                        LOGGER.warning("Failed to retrieve BLAST hit: %s", entry)
+                        reason = _safe_retrieval_reason(error)
+                        retrieval_errors.append(f"{entry}: {reason}")
+                        emit_evidence(
+                            "ortholog_retrieval", status="attempt-failed",
+                            hit_id=hit.get("hit_id"), accession=hit.get("accession"),
+                            attempted_identifier=entry, error=reason,
+                        )
+                        continue
+                    except Exception as error:
+                        retrieval_exception = error
+                        try:
+                            emit_evidence(
+                                "ortholog_retrieval", status="failed",
+                                hit_id=hit.get("hit_id"), accession=hit.get("accession"),
+                                attempted_identifier=entry,
+                                error=_safe_retrieval_reason(error),
+                            )
+                        except Exception:
+                            LOGGER.exception("Failed to emit BLAST retrieval diagnostic")
+                        raise
+                    if complete_sequence:
+                        break
+                    retrieval_errors.append(f"{entry}: empty sequence returned")
+                    emit_evidence(
+                        "ortholog_retrieval", status="attempt-failed",
+                        hit_id=hit.get("hit_id"), accession=hit.get("accession"),
+                        attempted_identifier=entry,
+                        error="empty sequence returned",
+                    )
+                if not complete_sequence:
+                    LOGGER.warning(
+                        "Skipping BLAST hit whose complete protein could not be retrieved: %s",
+                        hit.get("hit_id") or hit.get("accession"),
+                    )
+                    skipped_count += 1
+                    reason = "; ".join(retrieval_errors) or "no usable hit identifier was available"
+                    emit_evidence(
+                        "ortholog_retrieval", status="skipped",
+                        hit_id=hit.get("hit_id"), accession=hit.get("accession"),
+                        attempted_identifier="", error=reason,
+                    )
                     continue
                 try:
-                    complete_sequence = self.__get_complete_sequence(entry)
-                except subprocess.CalledProcessError:
-                    LOGGER.warning("Failed to retrieve BLAST hit: %s", entry)
-                    continue
-                if complete_sequence:
-                    break
-            if not complete_sequence:
-                LOGGER.warning(
-                    "Skipping BLAST hit whose complete protein could not be retrieved: %s",
-                    hit["hit_id"],
-                )
-                continue
-            orthologs.append(_make_ortholog(hit, complete_sequence))
+                    ortholog = _make_ortholog(hit, complete_sequence)
+                except Exception as error:
+                    record_exception = error
+                    raise
+                orthologs.append(ortholog)
+                emit_evidence("ortholog", ortholog=ortholog, status="retained", error="")
+        except Exception:
+            if evidence_collector is not None:
+                try:
+                    if retrieval_exception is not None:
+                        failure_status = "retrieval-failed"
+                        failure_detail = _safe_retrieval_reason(retrieval_exception)
+                    elif record_exception is not None:
+                        failure_status = "record-construction-failed"
+                        failure_detail = _safe_retrieval_reason(record_exception)
+                    elif evidence_exception is not None:
+                        failure_status = "evidence-write-failed"
+                        failure_detail = "evidence callback failed while reporting BLAST results"
+                    else:
+                        failure_status = "processing-failed"
+                        failure_detail = "unexpected BLAST hit-processing failure"
+                    evidence_collector.emit(
+                        "blast_search_summary",
+                        status=failure_status,
+                        hit_count=len(hits), retrieved_count=len(orthologs),
+                        skipped_count=skipped_count,
+                        error=failure_detail,
+                    )
+                except Exception:
+                    LOGGER.exception("Failed to emit BLAST failure summary")
+            raise
+
+        if evidence_collector is not None and hits:
+            retrieved_count = len(orthologs)
+            search_status = (
+                "retrieval-failed" if retrieved_count == 0
+                else "partial-retrieval-failure" if skipped_count
+                else "completed"
+            )
+            evidence_collector.emit(
+                "blast_search_summary", status=search_status,
+                hit_count=len(hits), retrieved_count=retrieved_count,
+                skipped_count=skipped_count, error="",
+            )
         return orthologs
 
     def __get_complete_sequence(self, entry):
