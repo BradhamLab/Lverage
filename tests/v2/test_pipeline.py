@@ -1,6 +1,7 @@
 import unittest
 
 from lverage.domain_scanner import DomainRecord, DomainScannerTemplate
+from lverage.evidence import EvidenceCollector
 from lverage.motif_database import MotifDBRecordTemplate, MotifDBTemplate
 from lverage.orf_searcher import OrfSearcherTemplate
 from lverage.ortholog_searcher import OrthologRecord, OrthologSearcherTemplate
@@ -227,6 +228,100 @@ class LveragePipelineTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             pipeline.run("QUERY")
         self.assertEqual(pipeline.lverage_code, LverageCode.NOT_SET)
+
+    def test_no_orfs_and_below_threshold_emit_distinct_completed_evidence(self):
+        no_orfs = self.make_pipeline(orfs=[])
+        no_orf_evidence = EvidenceCollector()
+        self.assertEqual(no_orfs.run("QUERY", evidence_collector=no_orf_evidence), [])
+        self.assertIn(
+            ("gene_outcome", "biological-no-hit"),
+            [(event["event"], event["status"]) for event in no_orf_evidence.events],
+        )
+
+        below_threshold = self.make_pipeline(
+            orthologs=[make_ortholog("TTTT")], threshold=0.75,
+        )
+        below_threshold.domain_scanner.domains["TTTT"] = [
+            DomainRecord("Homeobox", "PF00046.2", 0, 4),
+        ]
+        evidence = EvidenceCollector()
+        self.assertEqual(below_threshold.run("QUERY", evidence_collector=evidence), [])
+        comparisons = [event for event in evidence.events if event["event"] == "domain_comparison"]
+        self.assertEqual(len(comparisons), 1)
+        self.assertEqual(comparisons[0]["status"], "below-threshold")
+        self.assertEqual(comparisons[0]["domain_identity"], 0.0)
+        self.assertTrue(any(
+            event["event"] == "gene_outcome" and event["status"] == "biological-no-hit"
+            for event in evidence.events
+        ))
+
+    def test_later_ortholog_domain_failure_keeps_earlier_events(self):
+        first = make_ortholog("AAAA")
+        second = make_ortholog("TTTT")
+        second.accession = "NP_000002.1"
+
+        class FailingScanner(StubDomainScanner):
+            def get_domains(self, sequence):
+                if sequence == "TTTT":
+                    raise RuntimeError("later ortholog Pfam failed")
+                return super().get_domains(sequence)
+
+        pipeline = self.make_pipeline(orthologs=[first, second])
+        pipeline.domain_scanner = FailingScanner({
+            "AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)],
+        })
+        evidence = EvidenceCollector()
+        with self.assertRaisesRegex(RuntimeError, "later ortholog Pfam failed"):
+            pipeline.run("QUERY", evidence_collector=evidence)
+        retained = [event for event in evidence.events if event["event"] == "ortholog"]
+        domains = [event for event in evidence.events if event["event"] == "ortholog_domain"]
+        comparisons = [event for event in evidence.events if event["event"] == "domain_comparison"]
+        self.assertEqual(len(retained), 2)
+        self.assertEqual(len(domains), 1)
+        self.assertEqual(len(comparisons), 1)
+
+    def test_later_motif_failure_keeps_earlier_motif_event(self):
+        first_record = ExampleMotifRecord("MA0001.1")
+
+        class FailsOnSecondSearch(StubMotifDB):
+            def search(self, request):
+                self.requests.append(request)
+                if len(self.requests) == 2:
+                    raise RuntimeError("later JASPAR request failed")
+                return [first_record]
+
+        database = FailsOnSecondSearch(motifs=[])
+        sequence = "AAAAAAAA"
+        pipeline = self.make_pipeline(
+            orfs=[sequence],
+            domains={sequence: [
+                DomainRecord("First", "PF00046.1", 0, 4),
+                DomainRecord("Second", "PF00046.2", 4, 8),
+            ]},
+            orthologs=[make_ortholog(sequence)],
+            databases=[database],
+        )
+        evidence = EvidenceCollector()
+        with self.assertRaisesRegex(RuntimeError, "later JASPAR request failed"):
+            pipeline.run("QUERY", evidence_collector=evidence)
+        motifs = [event for event in evidence.events if event["event"] == "motif"]
+        comparisons = [event for event in evidence.events if event["event"] == "domain_comparison"]
+        self.assertEqual(len(motifs), 1)
+        self.assertEqual(len(comparisons), 2)
+
+    def test_stop_after_alignment_does_not_call_motif_database(self):
+        database = StubMotifDB(motifs=[ExampleMotifRecord("MA0001.1")])
+        pipeline = self.make_pipeline(databases=[database])
+        evidence = EvidenceCollector()
+
+        self.assertEqual(pipeline.run("QUERY", evidence_collector=evidence, stop_after="alignment"), [])
+
+        self.assertEqual(pipeline.lverage_code, LverageCode.STOPPED_AFTER_ALIGNMENT)
+        self.assertEqual(database.requests, [])
+        self.assertTrue(any(
+            event["event"] == "gene_outcome" and event["status"] == "intentional-stop"
+            for event in evidence.events
+        ))
 
     def test_run_requires_nonempty_sequences(self):
         pipeline = self.make_pipeline()

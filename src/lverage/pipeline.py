@@ -45,6 +45,7 @@ class LverageCode(Enum):
     NO_ORTHOLOGS = 3
     NO_VALID_DBD = 4
     NO_MOTIF = 5
+    STOPPED_AFTER_ALIGNMENT = 6
 
 
 class Lverage:
@@ -75,6 +76,7 @@ class Lverage:
         LverageCode.NO_ORTHOLOGS: "No orthologs were found",
         LverageCode.NO_VALID_DBD: "No valid DNA-binding domain was found in the orthologs",
         LverageCode.NO_MOTIF: "No motif was found in the orthologs",
+        LverageCode.STOPPED_AFTER_ALIGNMENT: "Intentionally stopped after alignment",
     }
 
     def __init__(self,
@@ -127,18 +129,28 @@ class Lverage:
     def _select_query_orf(self, tf_sequences):
         return self._select_orf_from_candidates(self._get_sorted_orfs(tf_sequences))
 
-    def _get_sorted_orfs(self, tf_sequences):
+    def _get_sorted_orfs(self, tf_sequences, evidence_collector=None):
         orf_list = []
+        seen_orfs = set()
         for sequence in tf_sequences:
-            orf_list.extend(self.orf_searcher.get_orfs(sequence))
+            for orf in self.orf_searcher.get_orfs(sequence):
+                if orf in seen_orfs:
+                    continue
+                seen_orfs.add(orf)
+                orf_list.append(orf)
+                if evidence_collector is not None:
+                    evidence_collector.emit(
+                        "orf_candidate", orf_sequence=orf,
+                        orf_index=len(orf_list), status="candidate", error="",
+                    )
 
-        orf_list = list(dict.fromkeys(orf_list))
         orf_list.sort(key=len, reverse=True)
         return orf_list
 
-    def _select_orf_from_candidates(self, orf_list):
-        for orf in orf_list:
+    def _select_orf_from_candidates(self, orf_list, evidence_collector=None):
+        for orf_index, orf in enumerate(orf_list, start=1):
             domains = self.domain_scanner.get_domains(orf)
+            detected_domains = list(domains)
             if self.valid_pfam_list:
                 domains = [
                     domain for domain in domains
@@ -148,8 +160,26 @@ class Lverage:
                         for valid_pfam in self.valid_pfam_list
                     )
                 ]
+            if evidence_collector is not None:
+                for domain in detected_domains:
+                    accepted = domain in domains
+                    evidence_collector.emit(
+                        "query_domain", orf_sequence=orf, orf_index=orf_index,
+                        domain=domain, status="accepted" if accepted else "not-selected",
+                        error="",
+                    )
             if domains:
+                if evidence_collector is not None:
+                    evidence_collector.emit(
+                        "orf_selection", orf_sequence=orf, orf_index=orf_index,
+                        status="selected", error="",
+                    )
                 return orf, domains
+            if evidence_collector is not None:
+                evidence_collector.emit(
+                    "orf_selection", orf_sequence=orf, orf_index=orf_index,
+                        status="biological-no-hit", detail="no accepted query domain",
+                )
         return None, []
 
     @staticmethod
@@ -218,7 +248,8 @@ class Lverage:
             raise ValueError("domain bounds must define a nonempty slice within the sequence")
         return sequence[start:end]
 
-    def run(self, tf_sequence : str | list[str]) -> list[LverageRecord]:
+    def run(self, tf_sequence : str | list[str], *, evidence_collector=None,
+            stop_after=None) -> list[LverageRecord]:
         """
         Run motif inference for one transcription factor.
 
@@ -234,27 +265,78 @@ class Lverage:
         """
 
         self.lverage_code = LverageCode.NOT_SET
+        if stop_after not in (None, "alignment"):
+            raise ValueError("stop_after must be None or 'alignment'")
         tf_sequences = self._validate_run_input(tf_sequence)
 
-        orf_list = self._get_sorted_orfs(tf_sequences)
+        if evidence_collector is not None:
+            evidence_collector.set_stage("orf")
+        orf_list = self._get_sorted_orfs(tf_sequences, evidence_collector)
         if not orf_list:
             self.lverage_code = LverageCode.NO_ORF
+            if evidence_collector is not None:
+                evidence_collector.emit("gene_outcome", status="biological-no-hit", detail="no ORF")
             return []
 
-        query_orf, query_domains = self._select_orf_from_candidates(orf_list)
+        if evidence_collector is not None:
+            evidence_collector.set_stage("query_pfam")
+        query_orf, query_domains = self._select_orf_from_candidates(orf_list, evidence_collector)
         if query_orf is None:
             self.lverage_code = LverageCode.NO_VALID_DOMAIN
+            if evidence_collector is not None:
+                evidence_collector.emit("gene_outcome", status="biological-no-hit", detail="no accepted query domain")
             return []
 
-        orthologs = self.ortholog_searcher.get_orthologs(query_orf)
+        if evidence_collector is not None:
+            evidence_collector.set_stage("blast")
+            if hasattr(evidence_collector, "set_context"):
+                evidence_collector.set_context(orf_sequence=query_orf)
+        supports_evidence = getattr(
+            self.ortholog_searcher, "supports_evidence_collector", False
+        )
+        if evidence_collector is not None and supports_evidence:
+            orthologs = self.ortholog_searcher.get_orthologs(
+                query_orf, evidence_collector=evidence_collector
+            )
+        else:
+            orthologs = self.ortholog_searcher.get_orthologs(query_orf)
+        if evidence_collector is not None and not supports_evidence:
+            for ortholog_index, ortholog in enumerate(orthologs, start=1):
+                evidence_collector.emit(
+                    "ortholog", orf_sequence=query_orf, ortholog=ortholog,
+                    ortholog_index=ortholog_index, status="retained", error="",
+                )
         if not orthologs:
             self.lverage_code = LverageCode.NO_ORTHOLOGS
+            if evidence_collector is not None:
+                retrieval_failed = any(
+                    event.get("event") == "blast_search_summary"
+                    and event.get("status") == "retrieval-failed"
+                    for event in getattr(evidence_collector, "events", [])
+                )
+                evidence_collector.emit(
+                    "gene_outcome",
+                    status="failed" if retrieval_failed else "biological-no-hit",
+                    detail=("all BLAST hits failed sequence retrieval" if retrieval_failed
+                            else "no retained ortholog"),
+                )
             return []
 
         records = []
         has_valid_domain_pair = False
         for ortholog in orthologs:
+            if evidence_collector is not None:
+                evidence_collector.set_stage("ortholog_pfam")
             ortholog_domains = self.domain_scanner.get_domains(ortholog.sequence)
+            if evidence_collector is not None:
+                for domain_index, domain in enumerate(ortholog_domains, start=1):
+                    evidence_collector.emit(
+                        "ortholog_domain", orf_sequence=query_orf, ortholog=ortholog,
+                        domain=domain, domain_index=domain_index,
+                        status="retained", error="",
+                    )
+            if evidence_collector is not None:
+                evidence_collector.set_stage("alignment")
             for query_domain in query_domains:
                 for ortholog_domain in ortholog_domains:
                     if self._base_accession(query_domain.accession) != self._base_accession(ortholog_domain.accession):
@@ -265,6 +347,17 @@ class Lverage:
                         ortholog.sequence,
                         ortholog_domain,
                     )
+                    passes_threshold = domain_identity >= self.dbd_identity_thresh
+                    if evidence_collector is not None:
+                        evidence_collector.set_stage("alignment")
+                        evidence_collector.emit(
+                            "domain_comparison", orf_sequence=query_orf, ortholog=ortholog,
+                            query_domain=query_domain, ortholog_domain=ortholog_domain,
+                            domain_identity=domain_identity,
+                            threshold=self.dbd_identity_thresh,
+                            status="accepted" if passes_threshold else "below-threshold",
+                            error="",
+                        )
                     if domain_identity < self.dbd_identity_thresh:
                         continue
 
@@ -276,6 +369,10 @@ class Lverage:
                         ortholog_domain=ortholog_domain,
                         ortholog_species_tax_id=ortholog.species_tax_id,
                     )
+                    if stop_after == "alignment":
+                        continue
+                    if evidence_collector is not None:
+                        evidence_collector.set_stage("motif")
                     for motif_database in self.motif_database_list:
                         if not motif_database.check_species_validity(ortholog.species_tax_id):
                             LOGGER.info(
@@ -293,6 +390,22 @@ class Lverage:
                                 motif_database_name=motif_database.name,
                                 motif_record=motif_record,
                             ))
+                            if evidence_collector is not None:
+                                evidence_collector.emit(
+                                    "motif", orf_sequence=query_orf, ortholog=ortholog,
+                                    query_domain=query_domain, ortholog_domain=ortholog_domain,
+                                    domain_identity=domain_identity,
+                                    threshold=self.dbd_identity_thresh,
+                                    motif_database_name=motif_database.name,
+                                    motif_record=motif_record, status="retained", error="",
+                                )
+
+        if stop_after == "alignment":
+            self.lverage_code = LverageCode.STOPPED_AFTER_ALIGNMENT
+            if evidence_collector is not None:
+                evidence_collector.set_stage("alignment")
+                evidence_collector.emit("gene_outcome", status="intentional-stop", error="")
+            return []
 
         if records:
             self.lverage_code = LverageCode.SUCCESS
@@ -300,6 +413,11 @@ class Lverage:
             self.lverage_code = LverageCode.NO_MOTIF
         else:
             self.lverage_code = LverageCode.NO_VALID_DBD
+        if evidence_collector is not None and self.lverage_code in (LverageCode.NO_MOTIF, LverageCode.NO_VALID_DBD):
+            evidence_collector.emit(
+                "gene_outcome", status="biological-no-hit",
+                detail=self.lverage_code.name,
+            )
         return records
 
     @staticmethod

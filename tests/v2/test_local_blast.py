@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from lverage.blast import DEFAULT_EXCLUDED_TERMS, LocalBlastSearcher, _parse_blast_hits
+from lverage.evidence import EvidenceCollector
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
@@ -161,6 +162,168 @@ class LocalBlastSearcherTests(unittest.TestCase):
             records = searcher.get_orthologs("QUERY")
 
         self.assertEqual(records, [])
+
+    def test_incremental_hits_remain_when_later_hit_retrieval_raises(self):
+        searcher = self.make_searcher()
+        alignments = []
+        for index in range(1, 5):
+            alignment = make_alignment()
+            alignment.accession = f"NP_{index:06d}.1"
+            alignment.hit_id = f"ref|NP_{index:06d}.1|"
+            alignments.append(alignment)
+        original_error = RuntimeError("unexpected retrieval failure")
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout="<xml>"),
+            SimpleNamespace(stdout="SEQUENCE1"),
+            SimpleNamespace(stdout="SEQUENCE2"),
+            SimpleNamespace(stdout="SEQUENCE3"),
+            original_error,
+        ]
+        evidence = EvidenceCollector()
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=alignments)
+        ])):
+            try:
+                searcher.get_orthologs("QUERY", evidence_collector=evidence)
+            except RuntimeError as error:
+                self.assertIs(error, original_error)
+                traceback_names = []
+                traceback = error.__traceback__
+                while traceback is not None:
+                    traceback_names.append(traceback.tb_frame.f_code.co_name)
+                    traceback = traceback.tb_next
+                self.assertIn("_execute_mock_call", traceback_names)
+                self.assertIn("__get_complete_sequence", traceback_names)
+            else:
+                self.fail("expected the injected BLAST retrieval exception")
+
+        retained = [event for event in evidence.events if event["event"] == "ortholog"]
+        failures = [event for event in evidence.events if event["event"] == "ortholog_retrieval" and event["status"] == "failed"]
+        summaries = [event for event in evidence.events if event["event"] == "blast_search_summary"]
+        self.assertEqual([event["ortholog"].accession for event in retained], [
+            "NP_000001.1", "NP_000002.1", "NP_000003.1",
+        ])
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(failures[0]["hit_id"], "ref|NP_000004.1|")
+        self.assertEqual(len(summaries), 1)
+        self.assertEqual(summaries[0]["status"], "retrieval-failed")
+        self.assertEqual(summaries[0]["retrieved_count"], 3)
+
+    def test_fourth_hit_skip_keeps_first_three_and_reports_partial_retrieval(self):
+        searcher = self.make_searcher()
+        alignments = []
+        for index in range(1, 5):
+            alignment = make_alignment()
+            alignment.accession = f"NP_{index:06d}.1"
+            alignment.hit_id = f"ref|NP_{index:06d}.1|"
+            alignments.append(alignment)
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout="<xml>"),
+            SimpleNamespace(stdout="SEQUENCE1"),
+            SimpleNamespace(stdout="SEQUENCE2"),
+            SimpleNamespace(stdout="SEQUENCE3"),
+            subprocess.CalledProcessError(1, "blastdbcmd", stderr="missing hit 4"),
+            subprocess.CalledProcessError(1, "blastdbcmd", stderr="missing accession 4"),
+        ]
+        evidence = EvidenceCollector()
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=alignments)
+        ])):
+            records = searcher.get_orthologs("QUERY", evidence_collector=evidence)
+
+        self.assertEqual([record.accession for record in records], [
+            "NP_000001.1", "NP_000002.1", "NP_000003.1",
+        ])
+        ortholog_events = [event for event in evidence.events if event["event"] == "ortholog"]
+        skipped = [event for event in evidence.events if event["event"] == "ortholog_retrieval" and event["status"] == "skipped"]
+        summaries = [event for event in evidence.events if event["event"] == "blast_search_summary"]
+        self.assertEqual(len(ortholog_events), 3)
+        self.assertEqual(len(skipped), 1)
+        self.assertEqual(skipped[0]["hit_id"], "ref|NP_000004.1|")
+        self.assertEqual(len(summaries), 1)
+        self.assertEqual(summaries[0]["status"], "partial-retrieval-failure")
+
+    def test_evidence_callback_failure_is_not_a_retrieval_failure(self):
+        searcher = self.make_searcher()
+        alignment = make_alignment()
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout="<xml>"),
+            SimpleNamespace(stdout="SEQUENCE"),
+        ]
+
+        def fail_ortholog_row(event):
+            if event["event"] == "ortholog":
+                raise OSError("bundle write failed")
+
+        evidence = EvidenceCollector(callback=fail_ortholog_row)
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=[alignment])
+        ])):
+            with self.assertRaisesRegex(OSError, "bundle write failed"):
+                searcher.get_orthologs("QUERY", evidence_collector=evidence)
+
+        self.assertFalse(any(
+            event["event"] == "ortholog_retrieval"
+            and event["status"] in {"failed", "skipped"}
+            for event in evidence.events
+        ))
+        summaries = [event for event in evidence.events if event["event"] == "blast_search_summary"]
+        self.assertEqual(len(summaries), 1)
+        self.assertEqual(summaries[0]["status"], "evidence-write-failed")
+
+    def test_ortholog_record_construction_failure_has_distinct_summary(self):
+        searcher = self.make_searcher()
+        original_error = ValueError("invalid ortholog record")
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout="<xml>"),
+            SimpleNamespace(stdout="SEQUENCE"),
+        ]
+        evidence = EvidenceCollector()
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=[make_alignment()])
+        ])), patch("lverage.blast._make_ortholog", side_effect=original_error):
+            with self.assertRaises(ValueError) as raised:
+                searcher.get_orthologs("QUERY", evidence_collector=evidence)
+
+        self.assertIs(raised.exception, original_error)
+        summaries = [event for event in evidence.events if event["event"] == "blast_search_summary"]
+        self.assertEqual(len(summaries), 1)
+        self.assertEqual(summaries[0]["status"], "record-construction-failed")
+        self.assertFalse(any(
+            event["event"] == "blast_search_summary"
+            and event["status"] == "evidence-write-failed"
+            for event in evidence.events
+        ))
+
+    def test_no_alignments_emit_explicit_no_hits_with_reporting(self):
+        searcher = self.make_searcher()
+        self.mock_run.return_value = SimpleNamespace(stdout="<xml>")
+        evidence = EvidenceCollector()
+
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=[])
+        ])):
+            self.assertEqual(searcher.get_orthologs("QUERY", evidence_collector=evidence), [])
+
+        searches = [event for event in evidence.events if event["event"] == "blast_search"]
+        self.assertEqual(len(searches), 1)
+        self.assertEqual(searches[0]["status"], "no-hits")
+
+    def test_callers_without_evidence_reporting_keep_existing_signature_behavior(self):
+        searcher = self.make_searcher()
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout="<xml>"),
+            SimpleNamespace(stdout="SEQUENCE"),
+        ]
+        with patch("lverage.blast.NCBIXML.parse", return_value=iter([
+            SimpleNamespace(alignments=[make_alignment()])
+        ])):
+            records = searcher.get_orthologs("QUERY")
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].hit_id, "ref|NP_000001.1|")
 
     def test_species_resolution_is_case_insensitive(self):
         searcher = self.make_searcher()

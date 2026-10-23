@@ -27,6 +27,8 @@ class OrthologRecord:
         Exact identity ratio from zero to one
     query_coverage : float
         Query coverage ratio from zero to one
+    hit_id : str, optional
+        Native identifier returned by the search backend, when available
     """
 
     accession : str
@@ -37,6 +39,7 @@ class OrthologRecord:
     evalue : float
     identity : float
     query_coverage : float
+    hit_id : str | None = None
 
 
 class OrthologSearcherTemplate(ABC):
