@@ -1,4 +1,5 @@
 selenium
 biopython
+orffinder==1.8
 six
 ete3
