@@ -100,88 +100,14 @@ pipeline.
 
 ## V2 Command-Line Interface
 
-The V2 CLI is a new interface to the modular V2 package. It does not reuse or
-extend the legacy CLI below. From the repository root, install the package in
-your Python environment with `python -m pip install .` to get the `lverage`
-command, or run it directly from a source checkout with
-`PYTHONPATH=src python -m lverage.cli`. The CLI's `--help` works without
-BLAST+, PfamScan, databases, or network access.
-
-### Prerequisites
-
-- Python 3.11+ and the package dependencies from this repository.
-- Local BLAST+ `blastp` and `blastdbcmd` executables.
-- A local protein BLAST database suitable for complete sequence retrieval.
-- A local PfamScan installation and database.
-- Network access when running motif inference: JASPAR2024 is queried online.
-
-The local BLAST database setup above describes how to build a usable protein
-database. Build and configure PfamScan separately according to its
-distribution's instructions.
-
-### Input mapping and example
-
-Create a JSON file mapping bracketed scientific species names in BLAST hit
-descriptions to positive NCBI taxonomy IDs, for example
-`config/species-taxids.json`:
-
-```json
-{
-	"Homo sapiens": 9606,
-	"Mus musculus": 10090,
-	"Drosophila melanogaster": 7227
-}
-```
-
-Put one nucleotide FASTA file per gene/TF under `inputs/`. Supported suffixes
-are `.fa`, `.fasta`, and `.fna`, matched case-insensitively. Multiple records
-in one file are passed as independent fragments for that filename's gene;
-they are never assembled, and headers are not used to verify that records
-belong to the same gene. See the [V2 FASTA and CLI guide](docs/user_guide.rst)
-for details.
-
-```bash
-lverage --input-dir ./inputs --blast-db ./db/proteins \
-	--species-map ./config/species-taxids.json --pfam-db ./db/pfam \
-	--output-dir ./results
-```
-
-The required options are `--input-dir`, `--blast-db`, `--species-map`,
-`--pfam-db`, and `--output-dir`. The output path must not already exist; the
-CLI creates it and writes `results.tsv`, `orfs.fasta`, and `metadata.json`.
-Optional executable overrides are
-`--blastp` (default `blastp`), `--blastdbcmd` (default `blastdbcmd`), and
-`--pfamscan` (default `pfam_scan.pl`). `--identity-threshold` defaults to
-`0.7`. Repeat `--valid-pfam ACCESSION` to limit accepted domains; when omitted,
-any detected domain is accepted. JASPAR defaults to 10 hits and E-value
-threshold `1e-6`; the existing ORF and BLAST component defaults are retained
-(75-nt minimum ORF; BLAST E-value `1e-6`, top 20 hits, and standard description
-filters).
-
-The TSV contains explicit stage/status/error/outcome-detail fields, one motif
-per motif row plus typed evidence rows for inputs, ORFs, query domains,
-orthologs, ortholog domains, comparisons, stage statuses, and gene errors.
-Earlier-stage rows are not motif or
-ortholog hits; stage-status rows distinguish biological no-hits, below-
-threshold completion, failure, and not-reached stages. Missing fields are blank. Rows retain BLAST accession,
-description and native hit ID when returned, E-value, identity and query
-coverage ratios and percentages, Pfam names/IDs, and each computed domain-pair
-identity whether or not it meets the threshold. Candidate ORFs are uniquely
-stored once in the FASTA by full-sequence SHA-256 ID; the TSV retains per-gene
-associations and selected/not-selected/not-reached state. The existing
-longest-first ORF-selection algorithm remains unchanged; downstream stages
-run only on the selected ORF. `metadata.json` records settings, input
-checksums, timestamps, tool versions when established (otherwise `unknown`),
-errors, and completion counts. Bundle files are flushed as evidence arrives;
-this is not checkpoint/resume or arbitrary-crash recovery.
-
-Use `--stop-after alignment` for pre-JASPAR validation. This intentional stop
-does not contact JASPAR and exits 0. Exit 0 also means full completion,
-including biological no-hits; exit 2 means preflight validation failure; exit
-1 means one or more execution failures. Per-gene errors are recorded and
-processing continues to other genes, preserving completed partial evidence.
-Diagnostics go to stderr. The output directory is not removed after execution
-starts, including when a downstream operation fails.
+The V2 CLI is separate from the legacy workflow below. Run the installed
+`lverage` command or use `PYTHONPATH=src python -m lverage.cli` from a source
+checkout. It requires Python 3.11+, local BLAST+ and PfamScan tools/data, and a
+local protein database; full motif lookup uses the online JASPAR2024 service.
+See the [V2 FASTA and CLI guide](docs/user_guide.rst) for input mapping,
+portable examples (including local runs stopped after alignment), output
+formats, selection behavior, and status codes. See the local BLAST database
+instructions above for database setup.
 
 ## Legacy Command-Line Workflow
 

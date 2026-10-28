@@ -20,9 +20,11 @@ it does not construct adapters, inspect external tools, or access a network.
 Prerequisites are the Python package dependencies, local BLAST+ executables
 (``blastp`` and ``blastdbcmd``), a usable local protein database, and a local
 PfamScan installation/database. JASPAR2024 is queried through its online
-service, so each actual run also requires network access. The local BLAST
-database must support complete protein retrieval with ``blastdbcmd``. See the
-README's V2 local BLAST database instructions for building one.
+service, so a full run that reaches motif lookup requires network access. A
+local run stopped after alignment does not contact JASPAR and can run without
+network access. The local BLAST database must support complete protein
+retrieval with ``blastdbcmd``. See the README's V2 local BLAST database
+instructions for building one.
 
 Create a JSON species-name-to-NCBI-tax-ID map. Species names must match the
 bracketed names in BLAST descriptions (case-insensitive), and tax IDs must be
@@ -43,13 +45,26 @@ Example using portable placeholder paths:
        --species-map ./config/species-taxids.json --pfam-db ./db/pfam \
        --output-dir ./results
 
+For a local pre-JASPAR run that stops after domain alignment:
+
+.. code-block:: console
+
+   lverage --input-dir ./inputs --blast-db ./db/proteins \
+       --species-map ./config/species-taxids.json --pfam-db ./db/pfam \
+       --output-dir ./alignment-results --stop-after alignment
+
 Required options are ``--input-dir``, ``--blast-db``, ``--species-map``,
 ``--pfam-db``, and ``--output-dir``. The output directory must be new. It
-contains ``results.tsv``, ``orfs.fasta``, and ``metadata.json``. Optional
-executable overrides are ``--blastp`` (``blastp``),
+contains three files: ``results.tsv`` contains typed pipeline evidence,
+``orfs.fasta`` stores each unique candidate protein sequence once, and
+``metadata.json`` records run settings and summaries. Optional executable
+overrides are ``--blastp`` (``blastp``),
 ``--blastdbcmd`` (``blastdbcmd``), and ``--pfamscan`` (``pfam_scan.pl``).
 ``--identity-threshold`` defaults to ``0.7``. Repeat ``--valid-pfam`` to
-restrict accepted domains; if it is omitted, any detected domain is accepted.
+restrict accepted domains; if it is omitted, every detected Pfam domain is
+accepted. The pipeline selects at most one query ORF per gene: candidates from
+the input fragments are deduplicated and sorted longest-first, then the first
+candidate with an accepted domain is selected for downstream analysis.
 JASPAR options default to 10 hits and an inference E-value threshold of
 ``1e-6``. Other component options retain their V2 defaults: ORF minimum length
 75 nucleotides; BLAST E-value ``1e-6``, at most 20 hits, and the standard
@@ -74,19 +89,29 @@ intentional stops, and stages not reached.
 ``ortholog_retrieval`` rows retain failed retrieval attempts and skipped hits,
 including available native hit IDs/accessions, the attempted identifier, and a
 diagnostic reason. A BLAST no-hit status is distinct from retrieval failure.
-Earlier-stage rows are not ortholog or motif hits; missing values are blank.
-Each motif has one row and identifies its input gene, query ORF ID, ortholog,
-and matching query/ortholog domains. Multiple hits, domain occurrences, and
-motifs remain distinct. ORF rows retain candidates even when no accepted
-domain exists, and an input row records a gene with no ORF. ``orfs.fasta``
-stores each unique discovered candidate protein once under a deterministic
-full-sequence SHA-256 identifier referenced by the TSV; gene associations and
-selection status remain in the TSV. Candidate export does not change the
-longest-first selection algorithm or run downstream analysis on unselected
-candidates. BLAST fields include accession, native hit ID when returned, full
-description, E-value, identity, and query coverage. Ratios and percentages are
-separately labeled. Pfam IDs/names and every computed domain-pair identity are
-kept, including values below the configured threshold.
+``results.tsv`` has multiple evidence row types; a row is not necessarily a
+separate ORF or a final motif result. For example, an ORF may have candidate,
+domain, selection, ortholog, comparison, and stage-status rows, while a motif
+row is emitted only for a returned motif. Each motif has one row identifying
+its input gene, query ORF, ortholog, and matching query/ortholog domains.
+Multiple hits, domain occurrences, and motifs remain distinct. ORF rows retain
+candidates even when no accepted domain exists, and an input row records a
+gene with no ORF. ``orfs.fasta`` stores each unique discovered candidate
+protein once under a deterministic full-sequence SHA-256 identifier
+referenced by the TSV; gene associations and selection status remain in the
+TSV. Candidate export does not run downstream analysis on unselected
+candidates.
+
+BLAST identity is the identity ratio from the HSP with the lowest E-value and
+is distinct from domain-pair identity, which is the exact-match ratio across
+every column of a global amino-acid alignment of matching Pfam domains
+(including gaps).
+The TSV reports BLAST identity and query coverage as ratios and percentages,
+and records every computed domain-pair identity, including values below the
+threshold. Domain start and end coordinates in exported rows are zero-based,
+end-exclusive amino-acid positions. The domain-alignment identity score is
+exported as a ratio and percentage, but the aligned sequences themselves are
+not currently exported.
 
 ``metadata.json`` records run timestamps, settings, input paths/checksums,
 sequence-ID conventions, known tool versions (unknown versions are reported as

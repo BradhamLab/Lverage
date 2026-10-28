@@ -257,11 +257,30 @@ class Lverage:
         ----------
         tf_sequence : str or list of str
             One sequence or multiple sequence fragments for one factor
+        evidence_collector : object, optional
+            Evidence collector, defaulting to ``None``. When provided,
+            pipeline evidence is reported incrementally as stages complete.
+        stop_after : {None, 'alignment'}, optional
+            ``None`` (the default) runs the full pipeline, including motif
+            lookup. ``'alignment'`` intentionally stops after domain
+            alignment and before motif lookup.
 
         Returns
         -------
         list
-            Motif results with flattened query, ortholog, domain, and database evidence
+            Motif result records. Returns an empty list when no motif records
+            are found, including when stopped after alignment.
+
+        Raises
+        ------
+        TypeError
+            The input is not a string or a list containing only strings
+        ValueError
+            The input is empty, contains an empty sequence, or ``stop_after``
+            is neither ``None`` nor ``'alignment'``
+        Exception
+            An exception raised by an injected pipeline component or evidence
+            collector; such exceptions are propagated to the caller
         """
 
         self.lverage_code = LverageCode.NOT_SET

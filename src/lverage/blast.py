@@ -195,6 +195,10 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
         ----------
         sequence : str
             Protein sequence used as the BLAST query
+        evidence_collector : object, optional
+            Evidence collector, defaulting to ``None``. When provided, BLAST
+            search, retrieval attempts, and retained ortholog evidence are
+            reported incrementally as the search progresses.
 
         Returns
         -------
