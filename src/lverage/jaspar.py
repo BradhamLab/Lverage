@@ -1,309 +1,404 @@
-"""
-This file contains the Jaspar2024 Motif Database class which can be found at https://jaspar.elixir.no/.
-Citation:
-    Rauluseviciute I, Riudavets-Puig R, Blanc-Mathieu R, Castro-Mondragon JA, Ferenc K, Kumar V, Lemma RB, 
-    Lucas J, Chèneby J, Baranasic D, Khan A, Fornes O, Gundersen S, Johansen M, Hovig E, Lenhard B, 
-    Sandelin A, Wasserman WW, Parcy F, Mathelier A JASPAR 2024: 20th anniversary of the open-access 
-    database of transcription factor binding profiles Nucleic Acids Res. 2024 Jan 5;52(D1):D174-D182.; 
-    doi: 10.1093/nar/gkad1059
+"""Local JASPAR 2026 motif database adapter for Lverage."""
 
-Copyright (C) <RELEASE_YEAR_HERE> Bradham Lab
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published
-    by the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-Correspondence: 
-    - Cynthia A. Bradham - cbradham@bu.edu - *
-    - Anthony B. Garza   - abgarza@bu.edu  - **
-    - Stephanie P. Hao   - sphao@bu.edu    - **
-    - Yeting Li          - yetingli@bu.edu - **
-    - Thomas Shin        - thshin@bu.edu   - **
-
-    \* Principle Investigator, ** Software Developers
-"""
-
-#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@
-# Imports
+from contextlib import closing
 from dataclasses import dataclass
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import re
+import sqlite3
+import tempfile
 
+from .jaspar_inference import JASPAR_TAXA, infer_sequence, load_jaspar_data
+from .jaspar_models import load_cisbp_models
 from .motif_database import MotifDBRecordTemplate, MotifDBTemplate, MotifSearchRequest
-import requests
+
+
+# Algorithm provenance only. Runtime does not import from or inspect this checkout.
+UPSTREAM_REPOSITORY = "https://github.com/amathelier/JASPAR-inference-tool"
+UPSTREAM_REVISION = "ac4024148f1f140c7370d7b13a70556b4d13f7a3"
+UPSTREAM_VERSION = "2026.1.0"
+JASPAR_RELEASE = "JASPAR2026"
+MATRIX_ID_PATTERN = re.compile(r"^(MA\d{4,5})\.(\d+)$")
 
 
 @dataclass
 class JasparRecord(MotifDBRecordTemplate):
-    """
-    Motif record returned by the JASPAR adapter.
+    """One exact-version JASPAR profile and its inference evidence."""
 
-    Parameters
-    ----------
-    matrix_id : str
-        JASPAR matrix identifier
-    motif_name : str
-        Name of the motif
-    pfm : dict
-        Position frequency matrix supplied by JASPAR
-    motif_url : str
-        URL for the motif page or logo
-    motif_class : str
-        JASPAR motif class
-    inference_evalue : float
-        E-value reported by sequence inference
-    """
-
-    matrix_id : str
-    motif_name : str
-    pfm : dict
-    motif_url : str
-    motif_class : str
-    inference_evalue : float
+    matrix_id: str
+    motif_name: str
+    pfm: dict
+    motif_url: str
+    motif_class: str
+    inference_evalue: float
+    inference_tf_name: str = ""
+    inference_query_region: str = ""
+    inference_tf_region: str = ""
+    inference_dbd_identity: float = 0.0
 
     headers = (
-        "Matrix ID",
-        "Motif Name",
-        "PFM",
-        "Motif URL",
-        "Motif Class",
-        "Inference E-value",
+        "Matrix ID", "Motif Name", "PFM", "Motif URL", "Motif Class",
+        "JASPAR Tool TF Name", "JASPAR Tool BLAST E-value",
+        "JASPAR Tool Query Region", "JASPAR Tool TF Region",
+        "JASPAR Tool DBD Identity Ratio",
     )
 
     def get_values(self) -> list:
-        """
-        Return values in the JASPAR record schema.
-
-        Returns
-        -------
-        list
-            Serialized JASPAR values
-        """
-
         return [
-            self.matrix_id,
-            self.motif_name,
-            self.pfm,
-            self.motif_url,
-            self.motif_class,
-            self.inference_evalue,
+            self.matrix_id, self.motif_name, self.pfm, self.motif_url,
+            self.motif_class, self.inference_tf_name, self.inference_evalue,
+            self.inference_query_region, self.inference_tf_region,
+            self.inference_dbd_identity,
         ]
 
 
-class Jaspar2024MotifDB(MotifDBTemplate):
-    """
-    Class for the JASPAR2024 Motif Database, which can be found at https://jaspar.elixir.no/
+class Jaspar2026MotifDB(MotifDBTemplate):
+    """Run the adapted upstream algorithm against local JASPAR 2026 data.
 
-    Parameters
-    ----------
-    n_hits : int
-        Number of motif hits to return
-    escore_threshold : float
-        Maximum e-score threshold for motif hits
-    request_timeout_seconds : float
-        Maximum number of seconds allowed for each API request
-
-    Attributes
-    ----------
-    name: str
-        Name of the motif database
-    metainfo: dict
-        Any extra information regarding this motif database
-    jaspar_rest_url: str
-        URL for the JASPAR REST API
-    n_hits: int
-        Number of motif hits to return
-    escore_threshold: float
-        Minimum e-score threshold for motif hits
-    request_timeout_seconds: float
-        Maximum number of seconds allowed for each API request
+    Only ``data_dir`` (the fork-generated ``files`` tree), ``sqlite_db``, and
+    external BLASTP/HMMER executable locations are configurable. The upstream
+    repository revision below records algorithm provenance, not a runtime
+    checkout or interpreter requirement.
     """
 
-    name = "JASPAR2024"
+    name = "JASPAR2026-local"
     metainfo = {
-                "citation":"Rauluseviciute I, Riudavets-Puig R, Blanc-Mathieu R, Castro-Mondragon JA, Ferenc K, Kumar V, Lemma RB, Lucas J, Chèneby J, Baranasic D, Khan A, Fornes O, Gundersen S, Johansen M, Hovig E, Lenhard B, Sandelin A, Wasserman WW, Parcy F, Mathelier A JASPAR 2024: 20th anniversary of the open-access database of transcription factor binding profiles Nucleic Acids Res. 2024 Jan 5;52(D1):D174-D182.; doi: 10.1093/nar/gkad1059",
-                "version": "JASPAR2024",
-                "collection":"JASPAR CORE",
-                "url":"https://jaspar.elixir.no/"
-            }
-    
-    # URL for the JASPAR REST API
-    jaspar_rest_url = "https://jaspar.elixir.no/api/v1"
+        "version": JASPAR_RELEASE,
+        "collection": "JASPAR CORE",
+        "inference_source": UPSTREAM_REPOSITORY,
+        "inference_source_revision": UPSTREAM_REVISION,
+        "inference_source_version": UPSTREAM_VERSION,
+        "online_requests": False,
+    }
 
-    # URL for retrieving species information
-    jaspar_rest_species_url = "https://jaspar.elixir.no/api/v1/species/"
-
-    # Parameters for getting all species
-    species_params = {"page":1,
-                      "page_size":1000,
-                      "release":"2024"
-                      }
-
-    def __init__(self, 
-                 n_hits : int = 10, 
-                 escore_threshold : float = 10**-6,
-                 request_timeout_seconds : float = 30):
-        """
-        Initialize a JASPAR motif database adapter.
-
-        Parameters
-        ----------
-        n_hits : int, optional
-            Maximum number of accepted motif hits
-        escore_threshold : float, optional
-            Maximum inference E-value
-        request_timeout_seconds : float, optional
-            Maximum number of seconds allowed for each API request
-        """
-
+    def __init__(self, n_hits=10, escore_threshold=1e-6, *, data_dir=None,
+                 sqlite_db=None, blastp_path="blastp", hmmscan_path="hmmscan",
+                 hmmalign_path="hmmalign"):
         if isinstance(n_hits, bool) or not isinstance(n_hits, int) or n_hits <= 0:
             raise ValueError("n_hits must be a positive integer")
-        if not isinstance(escore_threshold, (int, float)) or escore_threshold <= 0:
-            raise ValueError("escore_threshold must be positive")
-        if not isinstance(request_timeout_seconds, (int, float)) or request_timeout_seconds <= 0:
-            raise ValueError("request_timeout_seconds must be positive")
-        
+        if (isinstance(escore_threshold, bool)
+                or not isinstance(escore_threshold, (int, float))
+                or not math.isfinite(escore_threshold) or escore_threshold <= 0):
+            raise ValueError("escore_threshold must be a positive finite number")
+
         self.n_hits = n_hits
-        self.escore_threshold = escore_threshold
-        self.request_timeout_seconds = request_timeout_seconds
-        self.jaspar_species = None
+        self.escore_threshold = float(escore_threshold)
+        self.data_dir = self._configured_path(data_dir, "LVERAGE_JASPAR_DATA_DIR")
+        self.sqlite_db = self._configured_path(sqlite_db, "LVERAGE_JASPAR_SQLITE_DB")
+        self.blastp_path = blastp_path
+        self.hmmscan_path = hmmscan_path
+        self.hmmalign_path = hmmalign_path
+        self._validated = False
+        self._species_ids = None
+        self._inference_data = None
+        self._database_sha256_value = None
 
-    def search(self, request : MotifSearchRequest) -> list[JasparRecord]:
-        """
-        Search JASPAR for motif records.
+    @staticmethod
+    def _configured_path(value, environment_name):
+        configured = value if value is not None else os.environ.get(environment_name)
+        if configured == "":
+            raise ValueError(f"{environment_name} must not be empty")
+        return Path(configured).expanduser() if configured is not None else None
 
-        Parameters
-        ----------
-        request : MotifSearchRequest
-            Query and ortholog evidence used for motif inference
+    def configuration_metadata(self):
+        """Return code provenance separately from the required data release."""
+        return {
+            "release": JASPAR_RELEASE,
+            "release_verification_method": (
+                "JASPAR2026.sqlite schema and exact per-taxonomy CORE inventory comparison"
+            ),
+            "inference_algorithm_provenance": {
+                "repository": UPSTREAM_REPOSITORY,
+                "source_revision": UPSTREAM_REVISION,
+                "source_version": UPSTREAM_VERSION,
+                "runtime_checkout_required": False,
+                "runtime_python_required": False,
+            },
+            "data": {
+                "release": JASPAR_RELEASE,
+                "directory": str(self.data_dir) if self.data_dir else None,
+                "annotations_and_matrices_database": (
+                    str(self.sqlite_db) if self.sqlite_db else None
+                ),
+                "database_sha256": self._database_sha256_value,
+            },
+            "executables": {
+                "blastp": self.blastp_path,
+                "hmmscan": self.hmmscan_path,
+                "hmmalign": self.hmmalign_path,
+            },
+            "online_requests": False,
+        }
 
-        Returns
-        -------
-        list
-            Accepted JASPAR motif records ordered by inference E-value
-        """
+    def _validate_configuration(self):
+        if self._validated:
+            return
+        missing = [
+            name for name, value in (
+                ("--jaspar-data-dir / LVERAGE_JASPAR_DATA_DIR", self.data_dir),
+                ("--jaspar-sqlite-db / LVERAGE_JASPAR_SQLITE_DB", self.sqlite_db),
+            ) if value is None
+        ]
+        if missing:
+            raise RuntimeError(
+                "local JASPAR inference is not configured; provide " + ", ".join(missing)
+            )
+        for name, executable in (
+            ("blastp", self.blastp_path),
+            ("hmmscan", self.hmmscan_path),
+            ("hmmalign", self.hmmalign_path),
+        ):
+            if not isinstance(executable, str) or not executable.strip():
+                raise RuntimeError(f"configured {name} executable must not be empty")
 
+        data_dir = self.data_dir.resolve()
+        sqlite_db = self.sqlite_db.resolve()
+        repository_root = Path(__file__).resolve().parents[2]
+        for label, path in (("JASPAR inference data", data_dir),
+                            ("JASPAR SQLite database", sqlite_db)):
+            if path == repository_root or repository_root in path.parents:
+                raise RuntimeError(f"{label} must be outside the Lverage repository: {path}")
+        if not data_dir.is_dir():
+            raise RuntimeError(f"JASPAR inference data directory does not exist: {data_dir}")
+        if sqlite_db.name != "JASPAR2026.sqlite" or not sqlite_db.is_file():
+            raise RuntimeError(
+                "JASPAR annotation database must be a local JASPAR2026.sqlite file"
+            )
+
+        self._verify_inference_data(data_dir)
+        self._verify_annotation_database(sqlite_db, data_dir)
+        self.data_dir, self.sqlite_db = data_dir, sqlite_db
+        self._database_sha256_value = self._database_sha256()
+        self._validated = True
+
+    @staticmethod
+    def _verify_inference_data(data_dir):
+        hmm_prefix = data_dir / "pfam" / "All.hmm"
+        required = [data_dir / "cisbp", hmm_prefix]
+        required.extend(Path(str(hmm_prefix) + suffix)
+                        for suffix in (".h3f", ".h3i", ".h3m", ".h3p"))
+        for taxon in JASPAR_TAXA:
+            required.extend(data_dir / f"{taxon}.{suffix}.json"
+                            for suffix in ("pfam", "profiles", "uniprot"))
+            fasta_prefix = data_dir / f"{taxon}.fa"
+            required.append(fasta_prefix)
+            required.extend(Path(str(fasta_prefix) + suffix)
+                            for suffix in (".phr", ".pin", ".psq"))
+        missing = [str(path) for path in required if not path.exists()]
+        if not (data_dir / "cisbp").is_dir():
+            missing.append(str(data_dir / "cisbp/*.json"))
+        elif not any((data_dir / "cisbp").glob("*.json")):
+            missing.append(str(data_dir / "cisbp/*.json"))
+        if missing:
+            raise RuntimeError(
+                "JASPAR inference data directory is incomplete; missing: "
+                + ", ".join(missing[:12])
+            )
+
+    @staticmethod
+    def _readonly_connection(path):
+        return sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
+
+    def _verify_annotation_database(self, path, data_dir):
+        try:
+            with closing(self._readonly_connection(path)) as connection:
+                tables = {row[0] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )}
+                required = {"MATRIX", "MATRIX_DATA", "MATRIX_SPECIES", "MATRIX_ANNOTATION"}
+                if not required.issubset(tables):
+                    raise RuntimeError(
+                        "JASPAR 2026 SQLite database lacks required motif tables: "
+                        + ", ".join(sorted(required - tables))
+                    )
+                if connection.execute("SELECT 1 FROM MATRIX LIMIT 1").fetchone() is None:
+                    raise RuntimeError("JASPAR 2026 SQLite database contains no matrices")
+        except sqlite3.Error as error:
+            raise RuntimeError(f"cannot read local JASPAR 2026 SQLite database: {error}") from error
+
+        for taxon in JASPAR_TAXA:
+            profile_path = data_dir / f"{taxon}.profiles.json"
+            try:
+                with profile_path.open(encoding="utf-8") as handle:
+                    profiles = json.load(handle)
+            except (OSError, UnicodeError, ValueError) as error:
+                raise RuntimeError(f"cannot read local profile annotations {profile_path}: {error}") from error
+            if not isinstance(profiles, dict) or not profiles:
+                raise RuntimeError(f"local JASPAR profile annotations are empty or malformed: {profile_path}")
+            with closing(self._readonly_connection(path)) as connection:
+                rows = connection.execute(
+                    "SELECT m.BASE_ID, m.VERSION, m.NAME FROM MATRIX m "
+                    "JOIN MATRIX_ANNOTATION a ON a.ID = m.ID "
+                    "WHERE upper(m.COLLECTION) = 'CORE' "
+                    "AND a.TAG = 'tax_group' AND lower(a.VAL) = ?",
+                    (taxon,),
+                )
+                database_profiles = {
+                    f"{base_id}.{version}": name
+                    for base_id, version, name in rows
+                }
+            if profiles != database_profiles:
+                raise RuntimeError(
+                    f"{profile_path} does not match the {taxon} CORE profiles "
+                    "in the configured JASPAR2026 database"
+                )
+
+    def _database_sha256(self):
+        digest = hashlib.sha256()
+        with self.sqlite_db.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+
+    def _load_inference_data(self):
+        if self._inference_data is None:
+            self._inference_data = (
+                load_cisbp_models(self.data_dir), load_jaspar_data(self.data_dir),
+            )
+        return self._inference_data
+
+    def check_species_validity(self, species_tax_id: int) -> bool:
+        if isinstance(species_tax_id, bool) or not isinstance(species_tax_id, int) or species_tax_id <= 0:
+            raise ValueError("species_tax_id must be a positive integer")
+        self._validate_configuration()
+        if self._species_ids is None:
+            try:
+                with closing(self._readonly_connection(self.sqlite_db)) as connection:
+                    values = connection.execute("SELECT DISTINCT TAX_ID FROM MATRIX_SPECIES")
+                    self._species_ids = {
+                        int(tax_id)
+                        for (tax_id,) in values
+                        if tax_id is not None and str(tax_id).strip()
+                    }
+            except (sqlite3.Error, TypeError, ValueError) as error:
+                raise RuntimeError(f"cannot read local JASPAR species annotations: {error}") from error
+        return species_tax_id in self._species_ids
+
+    def search(self, request: MotifSearchRequest) -> list[JasparRecord]:
         if not isinstance(request, MotifSearchRequest):
             raise TypeError("request must be a MotifSearchRequest")
-        if isinstance(request.ortholog_species_tax_id, bool):
-            raise ValueError("ortholog_species_tax_id must be a positive integer")
-        if not isinstance(request.ortholog_species_tax_id, int) or request.ortholog_species_tax_id <= 0:
+        if (isinstance(request.ortholog_species_tax_id, bool)
+                or not isinstance(request.ortholog_species_tax_id, int)
+                or request.ortholog_species_tax_id <= 0):
             raise ValueError("ortholog_species_tax_id must be a positive integer")
 
         sequence = self._window_ortholog_sequence(
-            request.ortholog_sequence,
-            request.ortholog_domain,
+            request.ortholog_sequence, request.ortholog_domain,
         )
-        response = requests.get(
-            f"{self.jaspar_rest_url}/infer/{sequence}/",
-            timeout=self.request_timeout_seconds,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        results = self.__get_results(payload, "JASPAR inference")
+        self._validate_configuration()
+        cisbp_models, jaspar_data = self._load_inference_data()
+        temporary_root = Path(tempfile.gettempdir()).resolve()
+        repository_root = Path(__file__).resolve().parents[2]
+        if temporary_root == repository_root or repository_root in temporary_root.parents:
+            for candidate in (Path("/tmp"), Path("/var/tmp")):
+                if candidate.is_dir() and candidate.resolve() != repository_root \
+                        and repository_root not in candidate.resolve().parents:
+                    temporary_root = candidate.resolve()
+                    break
+            else:
+                raise RuntimeError("no temporary directory is available outside the Lverage repository")
 
-        try:
-            results = sorted(results, key=lambda result: float(result["evalue"]))
-        except (KeyError, TypeError, ValueError) as error:
-            raise ValueError("JASPAR inference returned malformed results") from error
-
-        records = []
-        for result in results:
-            try:
-                inference_evalue = float(result["evalue"])
-                motif_url = result["url"]
-                if not isinstance(motif_url, str) or not motif_url:
-                    raise ValueError
-            except (KeyError, TypeError, ValueError) as error:
-                raise ValueError("JASPAR inference returned a malformed hit") from error
-            if inference_evalue > self.escore_threshold:
-                continue
-
-            motif_response = requests.get(
-                motif_url,
-                timeout=self.request_timeout_seconds,
+        with tempfile.TemporaryDirectory(prefix="lverage-jaspar-", dir=temporary_root) as work_dir:
+            predictions = infer_sequence(
+                sequence,
+                data_dir=self.data_dir,
+                cisbp_models=cisbp_models,
+                jaspar_data=jaspar_data,
+                work_dir=work_dir,
+                blastp_path=self.blastp_path,
+                hmmscan_path=self.hmmscan_path,
+                hmmalign_path=self.hmmalign_path,
+                query_id="lverage_query",
             )
-            motif_response.raise_for_status()
-            motif = motif_response.json()
-            if not isinstance(motif, dict):
-                raise ValueError("JASPAR returned malformed motif details")
 
-            try:
-                motif_species = motif["species"]
-                species_ids = {int(species["tax_id"]) for species in motif_species}
-            except (KeyError, TypeError, ValueError) as error:
-                raise ValueError("JASPAR motif details contain malformed species") from error
+        accepted = []
+        for prediction in predictions:
+            if prediction["evalue"] > self.escore_threshold:
+                continue
+            record, species_ids = self._resolve_matrix(prediction)
             if request.ortholog_species_tax_id not in species_ids:
                 continue
-
-            records.append(self.__create_record(motif, inference_evalue))
-            if len(records) == self.n_hits:
+            accepted.append(record)
+            if len(accepted) >= self.n_hits:
                 break
-        return records
+        return accepted
 
-    def __create_record(self, motif, inference_evalue):
+    def _resolve_matrix(self, inference):
+        matrix_id = inference["matrix_id"]
+        match = MATRIX_ID_PATTERN.fullmatch(matrix_id)
+        if match is None:
+            raise ValueError(f"JASPAR matrix ID must be exact and versioned: {matrix_id!r}")
         try:
-            matrix_id = motif["matrix_id"]
-            motif_name = motif["name"]
-            pfm = motif["pfm"]
-            motif_class = motif["class"]
-            if isinstance(motif_class, list):
-                motif_class = motif_class[0]
-            if not all(isinstance(value, str) and value for value in [matrix_id, motif_name, motif_class]):
-                raise ValueError
-            if not isinstance(pfm, dict):
-                raise ValueError
-        except (KeyError, IndexError, TypeError, ValueError) as error:
-            raise ValueError("JASPAR returned malformed motif details") from error
+            with closing(self._readonly_connection(self.sqlite_db)) as connection:
+                matrix = connection.execute(
+                    "SELECT ID, NAME, COLLECTION FROM MATRIX "
+                    "WHERE BASE_ID = ? AND VERSION = ?",
+                    (match.group(1), int(match.group(2))),
+                ).fetchone()
+                if matrix is None or str(matrix[2]).upper() != "CORE":
+                    raise ValueError(
+                        f"exact matrix {matrix_id} is absent from local JASPAR 2026 CORE data"
+                    )
+                internal_id, motif_name, _ = matrix
+                species = connection.execute(
+                    "SELECT TAX_ID FROM MATRIX_SPECIES WHERE ID = ?", (internal_id,),
+                ).fetchall()
+                annotations = connection.execute(
+                    "SELECT VAL FROM MATRIX_ANNOTATION WHERE ID = ? AND TAG = 'class'",
+                    (internal_id,),
+                ).fetchall()
+                pfm = {}
+                for base in "ACGT":
+                    values = connection.execute(
+                        "SELECT VAL FROM MATRIX_DATA WHERE ID = ? AND ROW = ? ORDER BY COL",
+                        (internal_id, base),
+                    ).fetchall()
+                    if not values:
+                        raise ValueError(f"local JASPAR matrix {matrix_id} lacks its {base} row")
+                    pfm[base] = [float(value[0]) for value in values]
+        except sqlite3.Error as error:
+            raise RuntimeError(
+                f"cannot resolve exact JASPAR matrix {matrix_id} from local data: {error}"
+            ) from error
+
+        lengths = {len(values) for values in pfm.values()}
+        if len(lengths) != 1 or not lengths.pop():
+            raise ValueError(f"local JASPAR matrix {matrix_id} has inconsistent PFM rows")
+        if not annotations or not annotations[0][0]:
+            raise ValueError(f"local JASPAR matrix {matrix_id} has no TF class annotation")
+        try:
+            species_ids = {
+                int(tax_id)
+                for (tax_id,) in species
+                if tax_id is not None and str(tax_id).strip()
+            }
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"local JASPAR matrix {matrix_id} has invalid species annotations") from error
 
         return JasparRecord(
             matrix_id=matrix_id,
             motif_name=motif_name,
             pfm=pfm,
             motif_url=f"https://jaspar.elixir.no/matrix/{matrix_id}/",
-            motif_class=motif_class,
-            inference_evalue=inference_evalue,
-        )
-
-    @staticmethod
-    def __get_results(payload, service_name):
-        if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
-            raise ValueError(f"{service_name} returned a malformed response")
-        return payload["results"]
+            motif_class=annotations[0][0],
+            inference_evalue=inference["evalue"],
+            inference_tf_name=inference["tf_name"],
+            inference_query_region=inference["query_region"],
+            inference_tf_region=inference["tf_region"],
+            inference_dbd_identity=inference["dbd_identity"],
+        ), species_ids
 
     @staticmethod
     def _window_ortholog_sequence(sequence, ortholog_domain):
-        """
-        Limit an ortholog sequence while retaining its complete domain.
-
-        Parameters
-        ----------
-        sequence : str
-            Complete ortholog protein sequence
-        ortholog_domain : DomainRecord
-            Domain with zero-based, half-open bounds
-
-        Returns
-        -------
-        str
-            Sequence window of at most 2,000 residues
-
-        Raises
-        ------
-        ValueError
-            The sequence or domain bounds are invalid
-        """
-
+        """Return the same at-most-2,000-aa ortholog window used previously."""
         try:
             start = ortholog_domain.start
             end = ortholog_domain.end
         except AttributeError as error:
             raise ValueError("ortholog domains must provide start and end bounds") from error
-
         if not isinstance(sequence, str) or not sequence:
             raise ValueError("ortholog sequences must be nonempty strings")
         if isinstance(start, bool) or isinstance(end, bool):
@@ -312,55 +407,12 @@ class Jaspar2024MotifDB(MotifDBTemplate):
             raise ValueError("ortholog domain bounds must be integers")
         if start < 0 or end > len(sequence) or start >= end:
             raise ValueError("ortholog domain bounds must define a nonempty slice within the sequence")
-
         window_length = 2000
         if end - start > window_length:
             raise ValueError("ortholog domains must fit inside the JASPAR sequence window")
         if len(sequence) <= window_length:
             return sequence
-
         domain_center = (start + end) // 2
         window_start = domain_center - window_length // 2
         window_start = max(0, min(window_start, len(sequence) - window_length))
         return sequence[window_start:window_start + window_length]
-
-    def check_species_validity(self, species_tax_id : int) -> bool:
-        """
-        Check whether a species appears in JASPAR.
-
-        Parameters
-        ----------
-        species_tax_id : int
-            Taxonomic identifier of the species
-
-        Returns
-        -------
-        bool
-            If the species appears in the database
-        """
-
-        if self.jaspar_species is None:
-            species_ids = set()
-            species_url = self.jaspar_rest_species_url
-            species_params = self.species_params.copy()
-            while species_url is not None:
-                response = requests.get(
-                    species_url,
-                    params=species_params,
-                    timeout=self.request_timeout_seconds,
-                )
-                response.raise_for_status()
-                payload = response.json()
-                results = self.__get_results(payload, "JASPAR species")
-                try:
-                    species_ids.update(int(species["tax_id"]) for species in results)
-                except (KeyError, TypeError, ValueError) as error:
-                    raise ValueError("JASPAR species returned malformed results") from error
-                next_url = payload.get("next")
-                if next_url is not None and (not isinstance(next_url, str) or not next_url):
-                    raise ValueError("JASPAR species returned malformed pagination")
-                species_url = next_url
-                species_params = None
-            self.jaspar_species = species_ids
-
-        return species_tax_id in self.jaspar_species

@@ -19,7 +19,6 @@ DEFAULT_EXCLUDED_TERMS = (
     "uncharacterized",
     "unknown",
     "partial",
-    "isoform",
 )
 
 
@@ -251,7 +250,18 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
                 raise
 
         try:
-            for hit in hits:
+            for hit_index, hit in enumerate(hits, start=1):
+                retrieval_fields = {
+                    "hit_group": hit_index,
+                    "description": hit["description"],
+                    "species_name": hit["species_name"],
+                    "species_tax_id": hit["species_tax_id"],
+                    "evalue": hit["evalue"],
+                    "identity_ratio": hit["identity"],
+                    "identity_percent": hit["identity"] * 100,
+                    "query_coverage_ratio": hit["query_coverage"],
+                    "query_coverage_percent": hit["query_coverage"] * 100,
+                }
                 complete_sequence = ""
                 entries = [hit["hit_id"]]
                 if hit["accession"] and hit["accession"] != hit["hit_id"]:
@@ -270,6 +280,7 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
                             "ortholog_retrieval", status="attempt-failed",
                             hit_id=hit.get("hit_id"), accession=hit.get("accession"),
                             attempted_identifier=entry, error=reason,
+                            **retrieval_fields,
                         )
                         continue
                     except Exception as error:
@@ -280,6 +291,7 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
                                 hit_id=hit.get("hit_id"), accession=hit.get("accession"),
                                 attempted_identifier=entry,
                                 error=_safe_retrieval_reason(error),
+                                **retrieval_fields,
                             )
                         except Exception:
                             LOGGER.exception("Failed to emit BLAST retrieval diagnostic")
@@ -292,6 +304,7 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
                         hit_id=hit.get("hit_id"), accession=hit.get("accession"),
                         attempted_identifier=entry,
                         error="empty sequence returned",
+                        **retrieval_fields,
                     )
                 if not complete_sequence:
                     LOGGER.warning(
@@ -304,6 +317,7 @@ class LocalBlastSearcher(OrthologSearcherTemplate):
                         "ortholog_retrieval", status="skipped",
                         hit_id=hit.get("hit_id"), accession=hit.get("accession"),
                         attempted_identifier="", error=reason,
+                        **retrieval_fields,
                     )
                     continue
                 try:

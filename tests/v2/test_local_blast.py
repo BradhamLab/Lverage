@@ -242,6 +242,11 @@ class LocalBlastSearcherTests(unittest.TestCase):
         self.assertEqual(len(ortholog_events), 3)
         self.assertEqual(len(skipped), 1)
         self.assertEqual(skipped[0]["hit_id"], "ref|NP_000004.1|")
+        self.assertEqual(skipped[0]["hit_group"], 4)
+        self.assertEqual(skipped[0]["description"], "Homeobox protein [Homo sapiens]")
+        self.assertEqual(skipped[0]["species_tax_id"], 9606)
+        self.assertEqual(skipped[0]["identity_ratio"], 0.8)
+        self.assertEqual(skipped[0]["query_coverage_ratio"], 20.0)
         self.assertEqual(len(summaries), 1)
         self.assertEqual(summaries[0]["status"], "partial-retrieval-failure")
 
@@ -334,6 +339,25 @@ class LocalBlastSearcherTests(unittest.TestCase):
             records = searcher.get_orthologs("QUERY")
 
         self.assertEqual(records[0].species_name, "Homo sapiens")
+
+    def test_default_filters_retain_isoform_titled_hit_and_retrieve_sequence(self):
+        searcher = self.make_searcher()
+        description = "forkhead box protein P2 isoform I [Homo sapiens]"
+        blast_xml = (FIXTURE_DIR / "blastp.xml").read_text().replace(
+            "<Hit_def>Homeobox protein [Homo sapiens]</Hit_def>",
+            f"<Hit_def>{description}</Hit_def>",
+        )
+        self.mock_run.side_effect = [
+            SimpleNamespace(stdout=blast_xml),
+            SimpleNamespace(stdout="MPEPTIDE"),
+        ]
+
+        records = searcher.get_orthologs("QUERY")
+
+        self.assertEqual(searcher.excluded_terms, list(DEFAULT_EXCLUDED_TERMS))
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].description, description)
+        self.assertEqual(records[0].sequence, "MPEPTIDE")
 
     def test_excluded_and_unresolved_hits_are_skipped(self):
         searcher = self.make_searcher()
