@@ -14,11 +14,17 @@ class JasparRecordTests(unittest.TestCase):
             "https://jaspar.elixir.no/matrix/MA0001.1/",
             "Homeobox",
             1e-8,
+            "Example TF",
+            "1-80",
+            "2-81",
+            0.875,
         )
 
         self.assertEqual(record.get_headers(), [
             "Matrix ID", "Motif Name", "PFM", "Motif URL",
-            "Motif Class", "Inference E-value",
+            "Motif Class", "JASPAR Tool TF Name",
+            "JASPAR Tool BLAST E-value", "JASPAR Tool Query Region",
+            "JASPAR Tool TF Region", "JASPAR Tool DBD Identity Ratio",
         ])
         self.assertEqual(record.get_values(), [
             "MA0001.1",
@@ -26,7 +32,11 @@ class JasparRecordTests(unittest.TestCase):
             pfm,
             "https://jaspar.elixir.no/matrix/MA0001.1/",
             "Homeobox",
+            "Example TF",
             1e-8,
+            "1-80",
+            "2-81",
+            0.875,
         ])
 
     def test_headers_are_immutable_and_returned_as_a_list_copy(self):

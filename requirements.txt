@@ -1,4 +1,5 @@
 selenium
 biopython
+numpy>=1.24
 six
 ete3
