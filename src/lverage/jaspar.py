@@ -26,7 +26,33 @@ MATRIX_ID_PATTERN = re.compile(r"^(MA\d{4,5})\.(\d+)$")
 
 @dataclass
 class JasparRecord(MotifDBRecordTemplate):
-    """One exact-version JASPAR profile and its inference evidence."""
+    """One exact-version JASPAR profile and its inference evidence.
+
+    Parameters
+    ----------
+    matrix_id : str
+        Exact versioned profile identifier, for example ``MA0593.1``.
+    motif_name : str
+        Profile name from the local matrix database.
+    pfm : dict
+        Position frequency matrix with A, C, G and T count rows.
+    motif_url : str
+        Convenience link to the hosted profile; not used for inference.
+    motif_class : str
+        Transcription factor class annotated for the profile.
+    inference_evalue : float
+        BLAST E-value reported by local motif inference.
+    inference_tf_name : str, optional
+        Reference transcription factor name reported by inference.
+    inference_query_region : str, optional
+        BLAST query endpoints, one-based and inclusive, in the submitted
+        ortholog protein or its window.
+    inference_tf_region : str, optional
+        One-based inclusive BLAST endpoints in the reference protein.
+    inference_dbd_identity : float, optional
+        Inference-tool domain identity ratio, distinct from Lverage's
+        query-domain versus ortholog-domain alignment identity.
+    """
 
     matrix_id: str
     motif_name: str
@@ -47,6 +73,13 @@ class JasparRecord(MotifDBRecordTemplate):
     )
 
     def get_values(self) -> list:
+        """Return the record fields in export-header order.
+
+        Returns
+        -------
+        list
+            Field values in the order returned by ``get_headers()``.
+        """
         return [
             self.matrix_id, self.motif_name, self.pfm, self.motif_url,
             self.motif_class, self.inference_tf_name, self.inference_evalue,
@@ -62,6 +95,26 @@ class Jaspar2026MotifDB(MotifDBTemplate):
     external BLASTP/HMMER executable locations are configurable. The upstream
     repository revision below records algorithm provenance, not a runtime
     checkout or interpreter requirement.
+
+    Parameters
+    ----------
+    n_hits : int, optional
+        Maximum retained predictions per request; default is 10.
+    escore_threshold : float, optional
+        Maximum inference BLAST E-value; default is ``1e-6``. Equivalence
+        to the former REST endpoint's E-value has not been established.
+    data_dir : str or pathlib.Path, optional
+        Local inference reference-data tree. Defaults to the
+        ``LVERAGE_JASPAR_DATA_DIR`` environment variable.
+    sqlite_db : str or pathlib.Path, optional
+        Local ``JASPAR2026.sqlite`` matrix and annotation database.
+        Defaults to ``LVERAGE_JASPAR_SQLITE_DB``.
+    blastp_path : str, optional
+        BLASTP executable name or path; default is ``blastp``.
+    hmmscan_path : str, optional
+        HMMER domain-scan executable name or path; default is ``hmmscan``.
+    hmmalign_path : str, optional
+        HMMER alignment executable name or path; default is ``hmmalign``.
     """
 
     name = "JASPAR2026-local"
@@ -104,7 +157,14 @@ class Jaspar2026MotifDB(MotifDBTemplate):
         return Path(configured).expanduser() if configured is not None else None
 
     def configuration_metadata(self):
-        """Return code provenance separately from the required data release."""
+        """Return code provenance separately from the required data release.
+
+        Returns
+        -------
+        dict
+            Source revision, data locations and release, configured executable
+            paths, and database checksum once configuration is validated.
+        """
         return {
             "release": JASPAR_RELEASE,
             "release_verification_method": (
@@ -261,6 +321,19 @@ class Jaspar2026MotifDB(MotifDBTemplate):
         return self._inference_data
 
     def check_species_validity(self, species_tax_id: int) -> bool:
+        """Check whether local motif annotations include a species.
+
+        Parameters
+        ----------
+        species_tax_id : int
+            Positive NCBI taxonomy identifier to match exactly. Blank and
+            null database annotations are treated as missing.
+
+        Returns
+        -------
+        bool
+            Whether the identifier appears in the local species annotations.
+        """
         if isinstance(species_tax_id, bool) or not isinstance(species_tax_id, int) or species_tax_id <= 0:
             raise ValueError("species_tax_id must be a positive integer")
         self._validate_configuration()
@@ -278,6 +351,21 @@ class Jaspar2026MotifDB(MotifDBTemplate):
         return species_tax_id in self._species_ids
 
     def search(self, request: MotifSearchRequest) -> list[JasparRecord]:
+        """Infer local motifs from the supporting ortholog protein window.
+
+        Parameters
+        ----------
+        request : MotifSearchRequest
+            Query and ortholog sequences, supporting domains, and ortholog
+            species identifier. Inference uses the ortholog sequence or an
+            at-most-2,000-residue window retaining the complete domain.
+
+        Returns
+        -------
+        list of JasparRecord
+            Exact-version predictions passing the inference E-value and
+            species filters, limited to ``n_hits``. Empty if none survive.
+        """
         if not isinstance(request, MotifSearchRequest):
             raise TypeError("request must be a MotifSearchRequest")
         if (isinstance(request.ortholog_species_tax_id, bool)
