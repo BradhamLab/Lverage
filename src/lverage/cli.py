@@ -17,29 +17,13 @@ import sys
 DNA_ALPHABET = frozenset("ACGTRYSWKMBDHVN")
 FASTA_SUFFIXES = frozenset({".fa", ".fasta", ".fna"})
 RESULT_HEADERS = [
-    "Gene", "Gene Status", "Gene Error", "Gene Outcome",
-    "ORF Candidate Order", "ORF ID", "ORF Length (aa)",
-    "ORF Examination Status", "ORF Selection Status", "ORF Outcome",
-    "Query Pfam Occurrence", "Query Pfam ID", "Query Pfam Name",
-    "Query Pfam Start (0-based aa)", "Query Pfam End (0-based-exclusive aa)",
-    "Query Pfam Status", "Query Pfam Error", "Query Pfam Outcome",
-    "BLAST Hit Group", "BLAST Hit ID", "BLAST Accession", "BLAST Description",
-    "BLAST Species Name", "BLAST Species Tax ID", "BLAST E-value",
-    "BLAST Identity Ratio", "BLAST Identity Percent", "Query Coverage Ratio",
-    "Query Coverage Percent", "BLAST Status", "BLAST Error", "BLAST Outcome",
-    "BLAST Retrieval Attempted Identifier",
-    "Hit Pfam Occurrence", "Hit Pfam ID", "Hit Pfam Name",
-    "Hit Pfam Start (0-based aa)", "Hit Pfam End (0-based-exclusive aa)",
-    "Hit Pfam Status", "Hit Pfam Error", "Hit Pfam Outcome",
-    "Global Alignment ID", "Global Alignment Identity Ratio",
-    "Global Alignment Identity Percent", "Global Alignment Threshold Ratio",
-    "Global Alignment Threshold Passed", "Global Alignment Status",
-    "Global Alignment Error",
-    "Motif Database", "Motif Matrix ID", "Motif Name", "Motif Class",
-    "JASPAR Tool TF Name", "JASPAR Tool BLAST E-value",
-    "JASPAR Tool Query Region", "JASPAR Tool TF Region",
-    "JASPAR Tool DBD Identity Ratio", "Motif URL", "Motif PFM JSON",
-    "Motif Status", "Motif Error", "Motif Outcome",
+    "Gene", "Ortholog Species", "BLAST Description", "Query Pfam Name",
+    "Hit Pfam Name", "Global Alignment Identity Percent", "Motif Name",
+    "JASPAR Tool DBD Identity Ratio", "Motif PFM JSON", "ORF ID",
+]
+ERROR_HEADERS = [
+    "Gene", "ORF ID", "Stage", "BLAST Hit ID", "BLAST Accession",
+    "Query Pfam Name", "Hit Pfam Name", "Attempted Identifier", "Error",
 ]
 
 
@@ -92,11 +76,11 @@ def build_parser():
         prog="lverage",
         description=(
             "Run V2 on one nucleotide FASTA file per gene. --output-dir creates "
-            "a grouped results.csv, orfs.fasta, and metadata.json evidence bundle."
+            "results.csv, errors.csv, orfs.fasta, and metadata.json."
         ),
         epilog=(
-            "results.csv groups evidence by gene, ORF candidate, query Pfam, "
-            "BLAST hit, hit Pfam, global alignment, and motif. Every row "
+            "results.csv has ten columns ordered by gene and supporting evidence. "
+            "errors.csv holds execution diagnostics. Every row "
             "repeats its applicable supporting fields; blank cells mean "
             "unavailable or not reached. --stop-after alignment "
             "is an intentional pre-JASPAR stop. Exit 0 means completed or intentionally "
@@ -109,7 +93,7 @@ def build_parser():
     parser.add_argument("--blast-db", required=True, metavar="PREFIX", help="local protein BLAST database prefix")
     parser.add_argument("--species-map", required=True, metavar="JSON", help="JSON mapping species names to NCBI tax IDs")
     parser.add_argument("--pfam-db", required=True, metavar="DIR", help="local PfamScan database directory")
-    parser.add_argument("--output-dir", required=True, metavar="DIR", help="new directory for results.csv, orfs.fasta, and metadata.json")
+    parser.add_argument("--output-dir", required=True, metavar="DIR", help="new directory for results.csv, errors.csv, orfs.fasta, and metadata.json")
     parser.add_argument("--blastp", default="blastp", metavar="EXE", help="blastp executable name or path")
     parser.add_argument("--blastdbcmd", default="blastdbcmd", metavar="EXE", help="blastdbcmd executable name or path")
     parser.add_argument("--pfamscan", default="pfam_scan.pl", metavar="EXE", help="pfam_scan.pl executable name or path")
@@ -268,313 +252,152 @@ def _orf_id(sequence):
     return "orf_" + hashlib.sha256(sequence.encode("ascii")).hexdigest()
 
 
-def _ratio_and_percent(value):
-    return value, value * 100 if value is not None else None
-
-
-def _ortholog_fields(ortholog):
-    identity, identity_percent = _ratio_and_percent(ortholog.identity)
-    coverage, coverage_percent = _ratio_and_percent(ortholog.query_coverage)
-    return {
-        "BLAST Hit ID": ortholog.hit_id or "", "BLAST Accession": ortholog.accession,
-        "BLAST Description": ortholog.description, "BLAST Species Name": ortholog.species_name,
-        "BLAST Species Tax ID": ortholog.species_tax_id, "BLAST E-value": ortholog.evalue,
-        "BLAST Identity Ratio": identity, "BLAST Identity Percent": identity_percent,
-        "Query Coverage Ratio": coverage, "Query Coverage Percent": coverage_percent,
-    }
-
-
 def _grouped_result_rows(gene, events, sequence_ids):
-    """Render one gene as contiguous, self-contained result rows.
+    """Order completed evidence without creating diagnostic-only result rows.
 
-    Domain associations use the original objects retained by EvidenceCollector,
-    not names or accessions: two occurrences can have identical annotations.
-    Parent evidence is copied onto each descendant row; associations are built
-    from the event hierarchy, never inferred by filling blank CSV cells.
+    Match domain occurrences by their original objects, rather than their names.
+    Repeated motif records and distinct comparisons remain separate rows even
+    when the selected export columns have identical values.
     """
-    def blank():
-        return {header: "" for header in RESULT_HEADERS}
-
-    def domain_fields(prefix, event, occurrence):
-        domain = event["domain"]
-        return {
-            f"{prefix} Occurrence": occurrence,
-            f"{prefix} ID": domain.accession,
-            f"{prefix} Name": domain.name,
-            f"{prefix} Start (0-based aa)": domain.start,
-            f"{prefix} End (0-based-exclusive aa)": domain.end,
-            f"{prefix} Status": event.get("status", ""),
-        }
-
-    def prepend(fields, children):
-        # Repeat supporting fields on each result row without changing its
-        # event-specific association.
-        if not children:
-            children = [blank()]
-        for child in children:
-            child.update(fields)
-        return children
+    candidates = {}
+    queries = {}
+    hits = {}
+    domains = {}
+    comparisons = {}
+    motifs = {}
+    retrievals = {}
 
     def pair_key(event):
         return tuple(id(event.get(key)) for key in
                      ("ortholog", "query_domain", "ortholog_domain"))
 
-    def motif_fields(event):
-        values = dict(zip(event["motif_record"].get_headers(),
-                          event["motif_record"].get_values()))
-        row = blank()
-        row.update({
-            "Motif Database": event["motif_database_name"],
-            "Motif Matrix ID": values.get("Matrix ID", ""),
-            "Motif Name": values.get("Motif Name", ""),
-            "Motif Class": values.get("Motif Class", ""),
-            "JASPAR Tool TF Name": values.get("JASPAR Tool TF Name", ""),
-            "JASPAR Tool BLAST E-value": values.get("JASPAR Tool BLAST E-value", ""),
-            "JASPAR Tool Query Region": values.get("JASPAR Tool Query Region", ""),
-            "JASPAR Tool TF Region": values.get("JASPAR Tool TF Region", ""),
-            "JASPAR Tool DBD Identity Ratio": values.get("JASPAR Tool DBD Identity Ratio", ""),
-            "Motif URL": values.get("Motif URL", ""),
-            "Motif Status": event.get("status", "retained"),
-        })
-        pfm = values.get("PFM", "")
-        if pfm != "":
-            row["Motif PFM JSON"] = json.dumps(
-                pfm, ensure_ascii=False, separators=(",", ":")
-            )
-        return row
-
-    def diagnostic(prefix, event):
-        row = blank()
-        row[f"{prefix} Status"] = event.get("status", "failed")
-        row[f"{prefix} Error"] = event.get("error", "")
-        if f"{prefix} Outcome" in row:
-            row[f"{prefix} Outcome"] = event.get("detail", "")
-        return row
-
-    def blast_outcome(summary):
-        return "; ".join(
-            [summary.get("status", "")] +
-            [f"{name}={summary[name]}" for name in
-             ("hit_count", "retrieved_count", "skipped_count") if name in summary]
-        )
-
-    failures = [event for event in events if event["event"] == "gene_failure"]
-    retrieval_failures = [event for event in events
-                          if event["event"] == "ortholog_retrieval"
-                          and event.get("status") == "skipped"]
-    handled_failures = set()
-    outcomes = [event for event in events if event["event"] == "gene_outcome"]
-    final = outcomes[-1] if outcomes else {}
-    gene_fields = {
-        "Gene": gene,
-        "Gene Status": "failed" if failures or any(
-            event["event"] == "ortholog_retrieval" and event.get("status") == "skipped"
-            for event in events) else final.get("status", "in-progress"),
-        "Gene Error": (
-            failures[-1].get("error", "") if failures else
-            "; ".join(event.get("error", "") for event in retrieval_failures)
-        ),
-        "Gene Outcome": (
-            f"{failures[-1].get('stage', 'unknown')}: execution failed" if failures
-            else "blast: partial-retrieval-failure" if retrieval_failures
-            else f"{final.get('stage', 'pipeline')}: {final.get('detail') or final.get('status', '')}"
-            if final else ""
-        ),
-    }
-    candidates = {}
     for event in events:
-        if event["event"] == "orf_candidate":
-            candidates.setdefault(event["orf_sequence"], event)
-    ordered_candidates = sorted(candidates, key=lambda sequence: -len(sequence))
-    selections = {event["orf_sequence"]: event for event in events
-                  if event["event"] == "orf_selection"}
-    comparisons = {}
-    for event in events:
-        if event["event"] == "domain_comparison":
-            comparisons.setdefault(pair_key(event), []).append(event)
-    alignment_ids = {id(event): f"A{index}" for index, event in enumerate(
-        (event for event in events if event["event"] == "domain_comparison"), 1)}
+        sequence = event.get("orf_sequence")
+        kind = event["event"]
+        if sequence:
+            candidates.setdefault(sequence, None)
+        if kind == "query_domain":
+            queries.setdefault(sequence, []).append(event)
+        elif kind == "ortholog":
+            hits.setdefault(sequence, []).append(event["ortholog"])
+        elif kind == "ortholog_domain":
+            domains.setdefault(id(event["ortholog"]), []).append(event["domain"])
+        elif kind == "domain_comparison":
+            comparisons[pair_key(event)] = event
+        elif kind == "motif":
+            motifs.setdefault(pair_key(event), []).append(event)
+        elif kind == "ortholog_retrieval" and event.get("error"):
+            key = (sequence, event.get("hit_group") or
+                   event.get("hit_id") or event.get("accession"))
+            retrievals[key] = event
 
-    def comparison_rows(comparison):
-        key = pair_key(comparison)
-        children = []
-        # Preserve completion order, including a database failure after motifs.
-        for event in events:
-            if pair_key(event) != key:
-                continue
-            kind = event["event"]
-            if kind == "motif":
-                children.append(motif_fields(event))
-            elif (kind == "stage_result" and event.get("stage_name") == "motif"
-                  and event.get("motif_count") == 0):
-                row = diagnostic("Motif", event)
-                row["Motif Database"] = event.get("motif_database_name", "")
-                row["Motif Outcome"] = "species unavailable" if event.get("status") == "species-unavailable" else "motif_count=0"
-                children.append(row)
-            elif kind == "gene_failure" and event.get("stage") == "motif":
-                row = diagnostic("Motif", event)
-                row["Motif Database"] = event.get("motif_database_name", "")
-                children.append(row)
-                handled_failures.add(id(event))
-        return prepend({
-            "Global Alignment ID": alignment_ids[id(comparison)],
-            "Global Alignment Identity Ratio": comparison["domain_identity"],
-            "Global Alignment Identity Percent": comparison["domain_identity"] * 100,
-            "Global Alignment Threshold Ratio": comparison.get("threshold", ""),
-            "Global Alignment Threshold Passed": str(comparison.get("status") == "accepted").lower(),
-            "Global Alignment Status": comparison.get("status", ""),
-        }, children)
+    def row(sequence, query=None, hit=None, domain=None, comparison=None,
+            motif=None, retrieval=None):
+        result = {header: "" for header in RESULT_HEADERS}
+        result.update({"Gene": gene, "ORF ID": sequence_ids.get(sequence, "")})
+        if query is not None:
+            result["Query Pfam Name"] = query.name
+        if hit is not None:
+            result["BLAST Description"] = hit.description
+            result["Ortholog Species"] = hit.species_name
+        if retrieval is not None:
+            result["BLAST Description"] = retrieval.get("description", "")
+            result["Ortholog Species"] = retrieval.get("species_name", "")
+        if domain is not None:
+            result["Hit Pfam Name"] = domain.name
+        if comparison is not None:
+            result["Global Alignment Identity Percent"] = comparison["domain_identity"] * 100
+        if motif is not None:
+            record = motif["motif_record"]
+            values = dict(zip(record.get_headers(), record.get_values()))
+            result["Motif Name"] = values.get("Motif Name", "")
+            result["JASPAR Tool DBD Identity Ratio"] = values.get(
+                "JASPAR Tool DBD Identity Ratio", "")
+            pfm = values.get("PFM")
+            if pfm is not None:
+                result["Motif PFM JSON"] = json.dumps(
+                    pfm, ensure_ascii=False, separators=(",", ":"))
+        return result
 
     rows = []
-    for order, sequence in enumerate(ordered_candidates, 1):
-        selection = selections.get(sequence, {})
-        selected = selection.get("status") == "selected"
-        queries = [event for event in events if event["event"] == "query_domain"
-                   and event.get("orf_sequence") == sequence]
-        examined = bool(selection or queries) or any(
-            event["event"] == "stage_attempt" and event.get("stage_name") == "query_pfam"
-            and event.get("orf_sequence") == sequence for event in events)
-        query_failures = [event for event in failures if event.get("stage") == "query_pfam"
-                          and event.get("orf_sequence") == sequence]
-        candidate_fields = {
-            "ORF Candidate Order": order,
-            "ORF ID": sequence_ids.get(sequence, _orf_id(sequence)),
-            "ORF Length (aa)": len(sequence),
-        }
-        if examined:
-            candidate_fields["ORF Examination Status"] = "examined"
-            candidate_fields["ORF Selection Status"] = (
-                "failed" if any(event.get("orf_sequence") == sequence for event in query_failures)
-                else selection.get("status", "not-selected")
+    for sequence in sorted(candidates, key=len, reverse=True):
+        query_events = queries.get(sequence, [])
+        orthologs = hits.get(sequence, [])
+        sequence_rows = []
+        paired_domains = set()
+        for query_event in query_events:
+            query = query_event["domain"]
+            query_rows = []
+            if query_event.get("status") == "accepted":
+                for hit in orthologs:
+                    hit_domains = domains.get(id(hit), [])
+                    matching = [domain for domain in hit_domains
+                                if domain.accession.split(".", 1)[0] ==
+                                query.accession.split(".", 1)[0]]
+                    for domain in matching:
+                        paired_domains.add((id(hit), id(domain)))
+                        key = (id(hit), id(query), id(domain))
+                        comparison = comparisons.get(key)
+                        predictions = motifs.get(key, [])
+                        for prediction in predictions or [None]:
+                            query_rows.append(row(sequence, query, hit, domain,
+                                                  comparison, prediction))
+                    if not hit_domains:
+                        query_rows.append(row(sequence, query, hit))
+            sequence_rows.extend(query_rows or [row(sequence, query)])
+
+        # A domain without a matching query is evidence of a hit-domain scan,
+        # not a query/hit-domain comparison. Leave its query field blank.
+        for hit in orthologs:
+            hit_domains = domains.get(id(hit), [])
+            for domain in hit_domains:
+                if (id(hit), id(domain)) not in paired_domains:
+                    sequence_rows.append(row(sequence, hit=hit, domain=domain))
+            if not query_events and not hit_domains:
+                sequence_rows.append(row(sequence, hit=hit))
+
+        for (orf_sequence, _), event in retrievals.items():
+            if orf_sequence != sequence:
+                continue
+            recovered = any(
+                (event.get("hit_id") and event["hit_id"] == hit.hit_id)
+                or (event.get("accession") and event["accession"] == hit.accession)
+                for hit in orthologs
             )
-        if selection.get("detail"):
-            candidate_fields["ORF Outcome"] = selection["detail"]
-        children = []
-        if query_failures:
-            candidate_fields["ORF Examination Status"] = "failed"
-            for event in query_failures:
-                children.append(diagnostic("Query Pfam", event))
-                handled_failures.add(id(event))
-        if not queries and selection.get("status") == "biological-no-hit":
-            row = blank()
-            row["Query Pfam Status"] = "no accepted domain"
-            row["Query Pfam Outcome"] = selection.get("detail", "no accepted query domain")
-            children.append(row)
+            if not recovered:
+                sequence_rows.append(row(sequence, retrieval=event))
+        rows.extend(sequence_rows or [row(sequence)])
+    rows = rows or [row(None)]
+    # Rank all retained motifs for the gene, across supporting comparisons.
+    # Stable ties preserve the existing evidence order; zero is a real score.
+    def motif_rank(result):
+        identity = result["JASPAR Tool DBD Identity Ratio"]
+        return (identity == "", -float(identity) if identity != "" else 0)
 
-        hit_events = [event for event in events if event["event"] == "ortholog"
-                      and event.get("orf_sequence") == sequence]
-        retrievals = [event for event in events if event["event"] == "ortholog_retrieval"
-                      and event.get("orf_sequence") == sequence]
-        blast_summaries = [event for event in events if event["event"] in
-                           {"blast_search", "blast_search_summary"}
-                           and event.get("orf_sequence") == sequence]
-        accepted = [event for event in queries if event.get("status") == "accepted"]
-        first_query = accepted[0] if accepted else None
+    rows.sort(key=motif_rank)
+    return rows
 
-        for q_index, query in enumerate(queries, 1):
-            qdomain = query["domain"]
-            query_children = []
-            if selected and query.get("status") == "accepted":
-                for h_index, hit_event in enumerate(hit_events, 1):
-                    ortholog = hit_event["ortholog"]
-                    domains = [event for event in events if event["event"] == "ortholog_domain"
-                               and event.get("ortholog") is ortholog]
-                    hit_children = []
-                    for d_index, domain in enumerate(domains, 1):
-                        hdomain = domain["domain"]
-                        key = (id(ortholog), id(qdomain), id(hdomain))
-                        matching = comparisons.get(key, [])
-                        alignment_failures = [event for event in failures
-                                              if event.get("stage") == "alignment"
-                                              and pair_key(event) == key]
-                        matched_any_query = any(
-                            other["domain"].accession.split(".", 1)[0] == hdomain.accession.split(".", 1)[0]
-                            for other in accepted)
-                        # Display unpaired hit domains once, under the first query.
-                        # Matched but not yet evaluated pairs stay visible with blank results.
-                        same_family = qdomain.accession.split(".", 1)[0] == hdomain.accession.split(".", 1)[0]
-                        if not same_family and (matched_any_query or query is not first_query):
-                            continue
-                        domain_children = []
-                        for comparison in matching:
-                            domain_children.extend(comparison_rows(comparison))
-                        for event in alignment_failures:
-                            domain_children.append(diagnostic("Global Alignment", event))
-                            handled_failures.add(id(event))
-                        fields = domain_fields("Hit Pfam", domain, domain.get("domain_index", d_index))
-                        if not matched_any_query:
-                            fields["Hit Pfam Outcome"] = "no matching query Pfam"
-                        hit_children.extend(prepend(fields, domain_children))
-                    scans = [event for event in events if event["event"] == "stage_result"
-                             and event.get("stage_name") == "ortholog_pfam"
-                             and event.get("ortholog") is ortholog]
-                    scan_failures = [event for event in failures
-                                     if event.get("stage") == "ortholog_pfam"
-                                     and event.get("ortholog") is ortholog]
-                    if query is first_query:
-                        for event in scan_failures:
-                            hit_children.append(diagnostic("Hit Pfam", event))
-                            handled_failures.add(id(event))
-                        if not domains and scans:
-                            row = diagnostic("Hit Pfam", scans[-1])
-                            row["Hit Pfam Outcome"] = f"domain_count={scans[-1].get('domain_count', 0)}"
-                            hit_children.append(row)
-                    # Each hit is visible even before it is scanned. On later
-                    # query parents, only display hits with relevant child evidence.
-                    if query is first_query or hit_children:
-                        fields = _ortholog_fields(ortholog)
-                        summary = blast_summaries[-1] if blast_summaries else {}
-                        fields["BLAST Outcome"] = blast_outcome(summary)
-                        fields.update({"BLAST Hit Group": h_index,
-                                       "BLAST Status": hit_event.get("status", "retained")})
-                        query_children.extend(prepend(fields, hit_children))
-                if query is first_query:
-                    # Retrieval attempt diagnostics stay beside their native hit.
-                    for event in retrievals:
-                        row = diagnostic("BLAST", event)
-                        if blast_summaries:
-                            row["BLAST Outcome"] = blast_outcome(blast_summaries[-1])
-                        row.update({"BLAST Hit ID": event.get("hit_id", ""),
-                                    "BLAST Accession": event.get("accession", ""),
-                                    "BLAST Hit Group": event.get("hit_group", ""),
-                                    "BLAST Description": event.get("description", ""),
-                                    "BLAST Species Name": event.get("species_name", ""),
-                                    "BLAST Species Tax ID": event.get("species_tax_id", ""),
-                                    "BLAST E-value": event.get("evalue", ""),
-                                    "BLAST Identity Ratio": event.get("identity_ratio", ""),
-                                    "BLAST Identity Percent": event.get("identity_percent", ""),
-                                    "Query Coverage Ratio": event.get("query_coverage_ratio", ""),
-                                    "Query Coverage Percent": event.get("query_coverage_percent", ""),
-                                    "BLAST Retrieval Attempted Identifier": event.get("attempted_identifier", "")})
-                        query_children.append(row)
-                    blast_failures = [event for event in failures if event.get("stage") == "blast"]
-                    for event in blast_failures:
-                        query_children.append(diagnostic("BLAST", event))
-                        handled_failures.add(id(event))
-                    if not hit_events and not retrievals and not blast_failures:
-                        if blast_summaries:
-                            summary = blast_summaries[-1]
-                            row = diagnostic("BLAST", summary)
-                            row["BLAST Outcome"] = blast_outcome(summary)
-                        elif final.get("stage") == "blast":
-                            row = diagnostic("BLAST", final)
-                        else:
-                            row = None
-                        if row:
-                            query_children.append(row)
-            children.extend(prepend(domain_fields("Query Pfam", query, q_index), query_children))
-        rows.extend(prepend(candidate_fields, children))
 
-    # A failure without sufficiently specific evidence must still be visible.
-    prefixes = {"query_pfam": "Query Pfam", "blast": "BLAST",
-                "ortholog_pfam": "Hit Pfam", "alignment": "Global Alignment", "motif": "Motif"}
-    for event in failures:
-        if id(event) not in handled_failures and event.get("stage") in prefixes:
-            row = diagnostic(prefixes[event["stage"]], event)
-            row["Gene"] = gene  # Restart context: do not attach to the last ORF.
-            row["Gene Outcome"] = f"unassociated failure at {event['stage']}"
-            rows.append(row)
-    return prepend(gene_fields, rows)
+def _error_rows(events, sequence_ids):
+    """Keep execution diagnostics out of the scientific results table."""
+    for gene, event in events:
+        if not event.get("error"):
+            continue
+        hit = event.get("ortholog")
+        query_domain = event.get("query_domain")
+        hit_domain = event.get("ortholog_domain")
+        yield {
+            "Gene": gene,
+            "ORF ID": sequence_ids.get(event.get("orf_sequence"), ""),
+            "Stage": event.get("stage_name") or event.get("stage", ""),
+            "BLAST Hit ID": (hit.hit_id or "") if hit is not None else event.get("hit_id", ""),
+            "BLAST Accession": hit.accession if hit is not None else event.get("accession", ""),
+            "Query Pfam Name": query_domain.name if query_domain is not None else "",
+            "Hit Pfam Name": hit_domain.name if hit_domain is not None else "",
+            "Attempted Identifier": event.get("attempted_identifier", ""),
+            "Error": _redact_error(event["error"]),
+        }
+
 
 class _Bundle:
     def __init__(self, destination, metadata):
@@ -583,8 +406,6 @@ class _Bundle:
         self.events = []
         self.sequence_by_id = {}
         self.sequence_ids = {}
-        self._write_results()
-        self._write_orfs()
         self.flush_metadata()
 
     def add_event(self, gene, event):
@@ -597,31 +418,36 @@ class _Bundle:
         self.metadata["current_gene"] = gene
         self.metadata["current_stage"] = event.get("stage", "unknown")
         self.metadata["updated_at"] = _timestamp()
-        self._write_results()
+        self.flush_metadata()
+
+    def finish(self):
+        """Render ordered in-memory evidence and publish the final output files."""
+        grouped_events = {}
+        for gene, event in self.events:
+            grouped_events.setdefault(gene, []).append(event)
+        rows = []
+        for gene, events in grouped_events.items():
+            rows.extend(_grouped_result_rows(gene, events, self.sequence_ids))
+        errors = list(_error_rows(self.events, self.sequence_ids))
+        self._write_csv("results.csv", RESULT_HEADERS, rows)
+        self._write_csv("errors.csv", ERROR_HEADERS, errors)
         self._write_orfs()
         self.flush_metadata()
 
-    def _write_results(self):
-        grouped_events = {}
-        gene_order = []
-        for gene, event in self.events:
-            if gene not in grouped_events:
-                grouped_events[gene] = []
-                gene_order.append(gene)
-            grouped_events[gene].append(event)
-        path = self.path / "results.csv"
-        temporary = self.path / ".results.csv.tmp"
-        with temporary.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=RESULT_HEADERS, delimiter=",", lineterminator="\n", extrasaction="ignore")
-            writer.writeheader()
-            for gene in gene_order:
-                for row in _grouped_result_rows(
-                    gene, grouped_events[gene], self.sequence_ids
-                ):
-                    writer.writerow(row)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
+    def _write_csv(self, filename, headers, rows):
+        path = self.path / filename
+        temporary = self.path / ("." + filename + ".tmp")
+        try:
+            with temporary.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=headers, lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(rows)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
 
     def _write_orfs(self):
         with (self.path / "orfs.fasta").open("w", encoding="utf-8", newline="\n") as handle:
@@ -649,8 +475,8 @@ def _metadata(args, inputs, species_path):
     except importlib.metadata.PackageNotFoundError:
         package_version = "unknown"
     return {
-        "schema_version": 2,
-        "results_format": "grouped-csv",
+        "schema_version": 3,
+        "results_format": "compact-csv",
         "started_at": _timestamp(), "updated_at": _timestamp(), "finished_at": None,
         "completion": "in-progress", "current_gene": None, "current_stage": "preflight-complete",
         "summary": {"genes_total": len(inputs), "genes_completed": 0, "genes_failed": 0, "genes_intentionally_stopped": 0},
@@ -701,7 +527,13 @@ def _metadata(args, inputs, species_path):
             "blast_database_prefix": args.blast_db, "pfam_database_directory": args.pfam_db,
         },
         "sequence_id_convention": "orf_<full lowercase SHA-256 of ASCII protein sequence>; identical sequences share one FASTA record; table rows retain per-gene associations",
-        "limitations": ["Evidence is flushed as pipeline events complete; this is not checkpoint/resume or arbitrary-crash recovery."],
+        "result_columns": RESULT_HEADERS.copy(),
+        "result_row_order": "gene filename ascending; JASPAR Tool DBD Identity Ratio descending within each gene; blank ratios last; stable ties preserve evidence order",
+        "error_columns": ERROR_HEADERS.copy(),
+        "limitations": [
+            "Results and errors are collected in memory and written after processing, including handled gene failures. An abrupt process termination may leave no final CSV or FASTA.",
+            "The compact CSV omits matrix IDs and domain coordinates; distinct versions and occurrences can produce identical-looking rows. Rows are not deduplicated.",
+        ],
     }
 
 
@@ -764,7 +596,7 @@ def main(argv=None):
         metadata["summary"]["genes_failed"] = failures
         metadata["completion"] = "failed"
         metadata["finished_at"] = _timestamp()
-        bundle.flush_metadata()
+        bundle.finish()
         print(f"lverage: pipeline initialization failed: {safe_error}", file=sys.stderr)
         return 1
 
@@ -853,7 +685,7 @@ def main(argv=None):
     metadata["completion"] = "failed" if failures else ("intentionally-stopped" if metadata["summary"]["genes_intentionally_stopped"] else "completed")
     metadata["current_gene"] = None
     metadata["current_stage"] = "finished"
-    bundle.flush_metadata()
+    bundle.finish()
     return 1 if failures else 0
 
 

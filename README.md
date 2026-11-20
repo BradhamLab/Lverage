@@ -120,8 +120,11 @@ The cutoff is applied to the inference BLAST E-value; equivalence to the former
 REST E-value has not been established, and identical motif results are not
 claimed. See the [V2 FASTA and CLI guide](docs/user_guide.rst) for provenance,
 local-data requirements, portable examples, output fields, selection behavior,
-and status codes. See the local BLAST database instructions above for database
-setup.
+and exit codes. The final output bundle contains a ten-column `results.csv`,
+a separate `errors.csv`, candidate proteins in `orfs.fasta`, and run details
+in `metadata.json`. Results are collected in memory, ordered, and written at
+the end; applicable parent fields repeat on each motif row. See the local
+BLAST database instructions above for database setup.
 
 ## Legacy Command-Line Workflow
 

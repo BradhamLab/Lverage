@@ -99,8 +99,9 @@ class StubMotifDatabase(MotifDBTemplate):
 
 def make_motif(matrix_id, name):
     return JasparRecord(
-        matrix_id, name, {"A": [1, 2], "C": [3, 4]},
+        matrix_id, name, {"A": [1, 2], "C": [3, 4], "G": [4, 3], "T": [2, 1]},
         f"https://example.org/matrix/{matrix_id}/", "Homeobox", 1e-8,
+        inference_dbd_identity=0.875,
     )
 
 
@@ -162,277 +163,322 @@ class LverageCliTests(unittest.TestCase):
         with (output_dir / "results.csv").open(encoding="utf-8", newline="") as handle:
             return list(csv.DictReader(handle, delimiter=","))
 
-    def test_bundle_contains_all_three_files_and_unique_orfs_with_gene_associations(self):
-        self.write_fasta("alpha.fa")
-        self.write_fasta("beta.fa", "TGCA")
-        pipeline = self.make_pipeline(
-            orfs={"ACGT": ["AAAA", "CCCC"], "TGCA": ["AAAA"]},
-            domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)]})
-        pipeline.ortholog_searcher.excluded_terms = ["configured description term"]
-        code, _ = self.run_cli(pipeline, *self.arguments())
+    def read_errors(self, output_dir):
+        with (output_dir / "errors.csv").open(encoding="utf-8", newline="") as handle:
+            return list(csv.DictReader(handle))
+
+    def matched_pipeline(self, database=None):
+        return self.make_pipeline(
+            orfs={"ACGT": ["AAAA"]},
+            domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)],
+                     "CCCC": [DomainRecord("Homeobox", "PF00046.2", 0, 4)]},
+            orthologs=[make_ortholog(sequence="CCCC")], database=database,
+        )
+
+    def test_exact_ten_column_contract_and_separate_error_file(self):
+        self.write_fasta("gene.fa")
+        pipeline = self.matched_pipeline(StubMotifDatabase([make_motif("MA0001.1", "Example")]))
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments())
         destination = self.root / "bundle"
         self.assertEqual(code, 0)
-        self.assertEqual({p.name for p in destination.iterdir()}, {"results.csv", "orfs.fasta", "metadata.json"})
-        fasta = (destination / "orfs.fasta").read_text()
-        shared_id = "orf_" + hashlib.sha256(b"AAAA").hexdigest()
-        self.assertEqual(fasta.count(">"), 2)
-        self.assertIn(f">{shared_id}\nAAAA\n", fasta)
-        self.assertEqual({r["Gene"] for r in self.read_rows(destination) if r["ORF ID"] == shared_id}, {"alpha", "beta"})
+        self.assertEqual({p.name for p in destination.iterdir()},
+                         {"results.csv", "errors.csv", "orfs.fasta", "metadata.json"})
+        rows = self.read_rows(destination)
+        self.assertEqual(list(rows[0]), [
+            "Gene", "Ortholog Species", "BLAST Description", "Query Pfam Name",
+            "Hit Pfam Name", "Global Alignment Identity Percent", "Motif Name",
+            "JASPAR Tool DBD Identity Ratio", "Motif PFM JSON", "ORF ID",
+        ])
+        self.assertEqual(rows[0]["Global Alignment Identity Percent"], "90.0")
+        self.assertEqual(rows[0]["Motif Name"], "Example")
+        self.assertEqual(rows[0]["JASPAR Tool DBD Identity Ratio"], "0.875")
+        self.assertEqual(json.loads(rows[0]["Motif PFM JSON"])["A"], [1, 2])
+        self.assertEqual(self.read_errors(destination), [])
         metadata = json.loads((destination / "metadata.json").read_text())
-        self.assertEqual(metadata["summary"]["genes_completed"], 2)
-        self.assertEqual(metadata["schema_version"], 2)
-        self.assertEqual(metadata["results_format"], "grouped-csv")
-        self.assertEqual(
-            metadata["settings"]["blast_description_excluded_terms"],
-            ["configured description term"],
-        )
-        with (destination / "results.csv").open() as f:
-            lines = list(csv.reader(f, delimiter=","))
-        self.assertEqual(lines[0], RESULT_HEADERS)
-        self.assertTrue(all(len(line) == len(RESULT_HEADERS) for line in lines))
+        self.assertEqual(metadata["schema_version"], 3)
+        self.assertEqual(metadata["results_format"], "compact-csv")
+        self.assertEqual(metadata["summary"]["genes_completed"], 1)
 
-    def test_candidate_order_selection_and_blank_unexamined_stages(self):
-        self.write_fasta("candidates.fa")
+    def test_candidates_are_longest_first_and_shared_fasta_is_unique(self):
+        self.write_fasta("alpha.fa")
+        self.write_fasta("beta.fa", "TGCA")
         selected = "AAAAAA"
         pipeline = self.make_pipeline(
-            orfs={"ACGT": ["CCC", selected, "MMMMMMMM", selected]},
+            orfs={"ACGT": ["CCC", selected, "MMMMMMMM", selected], "TGCA": [selected]},
             domains={selected: [DomainRecord("Homeobox", "PF00046.1", 0, 4)]})
         code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 0)
-        self.assertEqual([r["ORF Length (aa)"] for r in rows], ["8", "6", "3"])
-        self.assertEqual(pipeline.domain_scanner.scanned, ["MMMMMMMM", selected])
-        self.assertEqual(rows[0]["Query Pfam Status"], "no accepted domain")
-        self.assertEqual(rows[1]["ORF Selection Status"], "selected")
-        self.assertEqual(rows[2]["ORF Examination Status"], "")
-        self.assertEqual(rows[2]["ORF Selection Status"], "")
-        self.assertTrue(all(not rows[2][h] for h in RESULT_HEADERS[10:]))
-        self.assertTrue(all(r["Gene"] == "candidates" for r in rows))
+        alpha = [r for r in rows if r["Gene"] == "alpha"]
+        self.assertEqual([r["ORF ID"] for r in alpha],
+                         ["orf_" + hashlib.sha256(s.encode()).hexdigest()
+                          for s in ("MMMMMMMM", selected, "CCC")])
+        self.assertEqual(alpha[0]["Query Pfam Name"], "")
+        self.assertEqual(alpha[1]["Query Pfam Name"], "Homeobox")
+        self.assertEqual(alpha[2]["Query Pfam Name"], "")
+        self.assertEqual((self.root / "bundle/orfs.fasta").read_text().count(">"), 3)
+        self.assertEqual(pipeline.domain_scanner.scanned, ["MMMMMMMM", selected, selected])
 
-    def test_no_orfs_and_no_blast_hits_are_biological_no_hits(self):
+    def test_no_orfs_and_no_blast_hits_are_successful_with_blank_downstream_cells(self):
         self.write_fasta("empty.fa")
         code, _ = self.run_cli(self.make_pipeline(), *self.arguments("no-orfs"))
         rows = self.read_rows(self.root / "no-orfs")
         self.assertEqual(code, 0)
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["Gene Status"], "biological-no-hit")
-        self.assertEqual(rows[0]["ORF ID"], "")
+        self.assertEqual(rows, [{h: "empty" if h == "Gene" else "" for h in RESULT_HEADERS}])
+        self.assertEqual(self.read_errors(self.root / "no-orfs"), [])
         pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]},
             domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)]})
         code, _ = self.run_cli(pipeline, *self.arguments("no-hits"))
-        rows = self.read_rows(self.root / "no-hits")
+        row = self.read_rows(self.root / "no-hits")[0]
         self.assertEqual(code, 0)
-        self.assertEqual(rows[0]["BLAST Status"], "biological-no-hit")
-        self.assertEqual(rows[0]["BLAST Accession"], "")
+        self.assertEqual(row["Query Pfam Name"], "Homeobox")
+        self.assertEqual(row["BLAST Description"], "")
+        self.assertEqual(self.read_errors(self.root / "no-hits"), [])
 
-    def test_below_threshold_comparison_is_exported_with_distinct_status(self):
-        self.write_fasta("below.fa")
-        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]},
-            domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)],
-                     "TTTT": [DomainRecord("Homeobox", "PF00046.2", 0, 4)]},
-            orthologs=[make_ortholog("NP_low", "TTTT")])
-        code, _ = self.run_cli(pipeline, *self.arguments())
+    def test_below_threshold_keeps_alignment_and_does_not_call_motif_search(self):
+        self.write_fasta("gene.fa")
+        database = StubMotifDatabase()
+        pipeline = self.matched_pipeline(database)
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.4):
+            code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 0)
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["Global Alignment Status"], "below-threshold")
-        self.assertEqual(rows[0]["Global Alignment Threshold Passed"], "false")
-        self.assertEqual(rows[0]["Global Alignment Identity Ratio"], "0.0")
-        self.assertEqual(rows[0]["Motif Status"], "")
-
-    def test_hits_one_to_three_are_exported_once_when_hit_four_is_skipped(self):
-        self.write_fasta("partial.fa")
-        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]},
-            domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)]})
-        pipeline.ortholog_searcher = IncrementalPartialSearcher([make_ortholog(f"NP_{i}") for i in range(1, 4)])
-        code, _ = self.run_cli(pipeline, *self.arguments())
-        rows = self.read_rows(self.root / "bundle")
-        self.assertEqual(code, 1)
-        self.assertEqual([r["BLAST Accession"] for r in rows], ["NP_1", "NP_2", "NP_3", "NP_4"])
-        self.assertEqual(rows[-1]["BLAST Status"], "skipped")
-        self.assertEqual(rows[-1]["BLAST Hit ID"], "native|hit4|")
-        self.assertEqual(rows[-1]["BLAST Hit Group"], "4")
-        self.assertEqual(rows[-1]["BLAST Description"], "Skipped protein [Homo sapiens]")
-        self.assertEqual(rows[-1]["BLAST Identity Percent"], "80.0")
-        self.assertEqual(rows[-1]["Query Coverage Percent"], "90.0")
-        self.assertIn("partial-retrieval-failure", rows[0]["BLAST Outcome"])
-        self.assertEqual(rows[0]["Gene Status"], "failed")
-
-    def test_multiple_motifs_each_have_one_correctly_supported_row(self):
-        self.write_fasta("motifs.fa")
-        database = StubMotifDatabase([make_motif("MA0001.1", "one"), make_motif("MA0002.1", "two")])
-        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]},
-            domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)]},
-            orthologs=[make_ortholog()], database=database)
-        code, _ = self.run_cli(pipeline, *self.arguments())
-        raw = self.read_rows(self.root / "bundle")
-        self.assertEqual(code, 0)
-        self.assertEqual(len(raw), 2)  # No extra ORF/hit/alignment-only rows.
-        self.assertEqual([r["Motif Matrix ID"] for r in raw], ["MA0001.1", "MA0002.1"])
-        repeated_fields = [
-            "Gene", "Gene Status", "ORF Candidate Order", "ORF ID",
-            "ORF Selection Status", "Query Pfam Occurrence", "Query Pfam ID",
-            "BLAST Hit Group", "BLAST Hit ID", "BLAST Accession",
-            "Hit Pfam Occurrence", "Hit Pfam ID", "Global Alignment ID",
-            "Global Alignment Identity Ratio",
-        ]
-        self.assertTrue(all(all(row[field] for field in repeated_fields) for row in raw))
-        self.assertEqual({row["Motif Matrix ID"] for row in raw}, {"MA0001.1", "MA0002.1"})
-        self.assertTrue(all(row["Gene"] == "motifs" and row["BLAST Accession"] == "NP_1" for row in raw))
-        self.assertTrue(all(row["Query Pfam ID"] == "PF00046.1" and row["Hit Pfam ID"] == "PF00046.1" for row in raw))
-        self.assertEqual(raw[0]["Global Alignment ID"], raw[1]["Global Alignment ID"])
-        self.assertEqual(json.loads(raw[0]["Motif PFM JSON"]), {"A": [1, 2], "C": [3, 4]})
-
-    def test_unpaired_domain_is_visible_once_without_alignment(self):
-        self.write_fasta("domains.fa")
-        query = "AAAAAAAA"
-        hit = "AAAAAAAT"
-        pipeline = self.make_pipeline(orfs={"ACGT": [query]}, domains={
-            query: [DomainRecord("Q1", "PF00046.1", 0, 4), DomainRecord("Q2", "PF00047.1", 4, 8)],
-            hit: [DomainRecord("H1", "PF00046.2", 0, 4), DomainRecord("H2", "PF00047.2", 4, 8),
-                  DomainRecord("Other", "PF99999.1", 0, 3)]},
-            orthologs=[make_ortholog(sequence=hit)])
-        code, _ = self.run_cli(pipeline, *self.arguments("domains", "--stop-after", "alignment"))
-        rows = self.read_rows(self.root / "domains")
-        self.assertEqual(code, 0)
-        self.assertEqual(len(rows), 3)
-        unmatched = [r for r in rows if r["Hit Pfam ID"] == "PF99999.1"]
-        self.assertEqual(len(unmatched), 1)
-        self.assertEqual(unmatched[0]["Global Alignment ID"], "")
-        matched = [r for r in rows if r.get("Global Alignment ID")]
-        self.assertEqual([(r["Query Pfam ID"].split('.')[0], r["Hit Pfam ID"].split('.')[0]) for r in matched],
-                         [("PF00046", "PF00046"), ("PF00047", "PF00047")])
-
-    def test_identical_domain_annotations_keep_occurrence_associations(self):
-        self.write_fasta("occurrences.fa")
-        sequence = "AAAAAAAA"
-        domain1 = DomainRecord("Same", "PF00046.1", 0, 4)
-        domain2 = DomainRecord("Same", "PF00046.1", 4, 8)
-        pipeline = self.make_pipeline(orfs={"ACGT": [sequence]},
-            domains={sequence: [domain1, domain2]}, orthologs=[make_ortholog(sequence=sequence)],
-            database=StubMotifDatabase([make_motif("MA0001.1", "one")]))
-        code, _ = self.run_cli(pipeline, *self.arguments())
-        rows = self.read_rows(self.root / "bundle")
-        self.assertEqual(code, 0)
-        self.assertEqual(len(rows), 4)
-        self.assertEqual({(r["Query Pfam Start (0-based aa)"], r["Hit Pfam Start (0-based aa)"]) for r in rows},
-                         {("0", "0"), ("0", "4"), ("4", "0"), ("4", "4")})
-        self.assertTrue(all(r["Motif Matrix ID"] == "MA0001.1" for r in rows))
-
-    def test_later_ortholog_failure_preserves_completed_first_ortholog_evidence(self):
-        self.write_fasta("later.fa")
-        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]},
-            domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)]},
-            orthologs=[make_ortholog("NP_first"), make_ortholog("NP_second", "CCCC")], scanner_fail_on="CCCC")
-        code, _ = self.run_cli(pipeline, *self.arguments())
-        rows = self.read_rows(self.root / "bundle")
-        self.assertEqual(code, 1)
-        self.assertTrue(any(r["BLAST Accession"] == "NP_first" and r.get("Global Alignment ID") for r in rows))
-        self.assertTrue(any(r["BLAST Accession"] == "NP_second" and r["Hit Pfam Status"] == "failed" for r in rows))
-
-    def test_jaspar_failure_preserves_prior_motif_and_alignment_evidence(self):
-        self.write_fasta("jaspar.fa")
-        sequence = "AAAAAAAA"
-        database = StubMotifDatabase([make_motif("MA0001.1", "first")], fail_on_call=2)
-        pipeline = self.make_pipeline(orfs={"ACGT": [sequence]}, domains={sequence: [
-            DomainRecord("First", "PF00046.1", 0, 4), DomainRecord("Second", "PF00046.2", 4, 8)]},
-            orthologs=[make_ortholog(sequence=sequence)], database=database)
-        code, _ = self.run_cli(pipeline, *self.arguments())
-        rows = self.read_rows(self.root / "bundle")
-        self.assertEqual(code, 1)
-        self.assertEqual(sum(bool(r["Global Alignment ID"]) for r in rows), 2)
-        self.assertEqual(sum(bool(r["Motif Matrix ID"]) for r in rows), 1)
-        failed = [r for r in rows if r["Motif Status"] == "failed"]
-        self.assertEqual(len(failed), 1)
-        self.assertIn("simulated JASPAR failure", failed[0]["Motif Error"])
-
-    def test_cli_continues_after_gene_execution_failure(self):
-        self.write_fasta("first.fa")
-        self.write_fasta("second.fa", "TGCA")
-        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"], "TGCA": ["CCCC"]}, scanner_fail_on="AAAA")
-        code, stderr = self.run_cli(pipeline, *self.arguments())
-        rows = self.read_rows(self.root / "bundle")
-        self.assertEqual(code, 1)
-        self.assertIn("gene first", stderr)
-        self.assertEqual([r["Gene"] for r in rows], ["first", "second"])
-        self.assertEqual(rows[0]["Query Pfam Status"], "failed")
-        self.assertEqual(rows[1]["Query Pfam Status"], "no accepted domain")
-        metadata = json.loads((self.root / "bundle/metadata.json").read_text())
-        self.assertEqual(metadata["summary"]["genes_failed"], 1)
-        self.assertEqual(metadata["summary"]["genes_completed"], 1)
-
-    def test_stop_after_alignment_never_calls_jaspar(self):
-        self.write_fasta("alignment.fa")
-        database = StubMotifDatabase([make_motif("MA0001.1", "unused")])
-        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]},
-            domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)]},
-            orthologs=[make_ortholog()], database=database)
-        code, _ = self.run_cli(pipeline, *self.arguments("alignment", "--stop-after", "alignment"))
-        rows = self.read_rows(self.root / "alignment")
-        self.assertEqual(code, 0)
+        self.assertEqual(rows[0]["Global Alignment Identity Percent"], "40.0")
+        self.assertEqual(rows[0]["Motif Name"], "")
         self.assertEqual(database.calls, 0)
-        self.assertEqual(len(rows), 1)
-        self.assertTrue(rows[0]["Global Alignment ID"])
-        self.assertTrue(all(not rows[0][h] for h in RESULT_HEADERS if h.startswith("Motif ")))
-        self.assertIn("intentional-stop", rows[0]["Gene Outcome"])
-        self.assertEqual({r["Query Pfam Occurrence"] for r in rows}, {"1"})
-        self.assertEqual({r["Hit Pfam Occurrence"] for r in rows}, {"1"})
+        self.assertEqual(self.read_errors(self.root / "bundle"), [])
 
-    def test_alignment_failure_does_not_erase_domain_evidence(self):
-        self.write_fasta("alignment_error.fa")
+    def test_multiple_motifs_repeat_actual_parent_fields_without_deduplication(self):
+        self.write_fasta("gene.fa")
+        database = StubMotifDatabase([make_motif("MA0001.1", "Same name"),
+                                      make_motif("MA0001.2", "Same name")])
+        pipeline = self.matched_pipeline(database)
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments())
+        rows = self.read_rows(self.root / "bundle")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0], rows[1])
+        self.assertTrue(all(r["Query Pfam Name"] == r["Hit Pfam Name"] == "Homeobox" for r in rows))
+
+    def test_same_named_domain_occurrences_keep_their_own_alignment_scores(self):
+        self.write_fasta("gene.fa")
+        pipeline = self.make_pipeline(
+            orfs={"ACGT": ["AAAAAAAA"]},
+            domains={
+                "AAAAAAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4),
+                             DomainRecord("Homeobox", "PF00046.1", 4, 8)],
+                "CCCCCCCC": [DomainRecord("Homeobox", "PF00046.2", 0, 8)],
+            },
+            orthologs=[make_ortholog(sequence="CCCCCCCC")],
+            database=StubMotifDatabase([make_motif("MA0001.1", "Example")]),
+        )
+        with patch.object(pipeline, "_calculate_domain_identity", side_effect=[0.9, 0.8]):
+            code, _ = self.run_cli(pipeline, *self.arguments())
+        rows = self.read_rows(self.root / "bundle")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual([r["Global Alignment Identity Percent"] for r in rows], ["90.0", "80.0"])
+        self.assertTrue(all(r["Motif Name"] == "Example" for r in rows))
+
+    def test_csv_quotes_commas_newlines_and_matrix_json(self):
+        self.write_fasta("gene.fa")
+        description = 'Protein, "example"\n[Homo sapiens]'
+        pipeline = self.matched_pipeline(StubMotifDatabase([make_motif("MA0001.1", "TF, example")]))
+        pipeline.ortholog_searcher.orthologs[0].description = description
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments())
+        rows = self.read_rows(self.root / "bundle")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["BLAST Description"], description)
+        self.assertEqual(rows[0]["Motif Name"], "TF, example")
+        self.assertEqual(set(json.loads(rows[0]["Motif PFM JSON"])), set("ACGT"))
+        self.assertEqual(set(rows[0]), set(RESULT_HEADERS))
+
+    def test_gene_motifs_rank_across_hits_with_zero_before_blank_and_genes_together(self):
+        self.write_fasta("alpha.fa")
+        self.write_fasta("beta.fa", "TGCA")
+        database = StubMotifDatabase()
+        def predictions(request):
+            scores = [0.8, 0.0] if request.ortholog_sequence == "CCCC" else [1.0, 0.9]
+            records = [make_motif(f"MA000{i+1}.1", f"motif {i}") for i in range(2)]
+            for record, score in zip(records, scores):
+                record.inference_dbd_identity = score
+            return records
+        database.search = predictions
+        domain = DomainRecord("Homeobox", "PF00046.1", 0, 4)
+        pipeline = self.make_pipeline(
+            orfs={"ACGT": ["MMMMMMMM", "AAAA"], "TGCA": ["MMMMMMMM", "AAAA"]},
+            domains={"AAAA": [domain], "CCCC": [domain], "GGGG": [domain]},
+            orthologs=[make_ortholog("NP_1", "CCCC", "First hit"),
+                       make_ortholog("NP_2", "GGGG", "Second hit")],
+            database=database,
+        )
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments())
+        rows = self.read_rows(self.root / "bundle")
+        self.assertEqual(code, 0)
+        self.assertEqual([r["Gene"] for r in rows], ["alpha"] * 5 + ["beta"] * 5)
+        for gene in ("alpha", "beta"):
+            group = [r for r in rows if r["Gene"] == gene]
+            self.assertEqual([r["JASPAR Tool DBD Identity Ratio"] for r in group],
+                             ["1.0", "0.9", "0.8", "0.0", ""])
+            self.assertEqual(group[0]["BLAST Description"], "Second hit")
+            self.assertEqual(group[-1]["Query Pfam Name"], "")
+            self.assertEqual(group[-1]["ORF ID"],
+                             "orf_" + hashlib.sha256(b"MMMMMMMM").hexdigest())
+
+    def test_equal_identity_preserves_inference_order(self):
+        self.write_fasta("gene.fa")
+        records = [make_motif("MA0002.1", "Second alphabetically"),
+                   make_motif("MA0001.1", "First alphabetically")]
+        pipeline = self.matched_pipeline(StubMotifDatabase(records))
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments())
+        self.assertEqual(code, 0)
+        self.assertEqual([r["Motif Name"] for r in self.read_rows(self.root / "bundle")],
+                         [record.motif_name for record in records])
+
+    def test_unmatched_hit_domain_has_no_invented_query_or_alignment(self):
+        self.write_fasta("gene.fa")
         pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]}, domains={
-            "AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)],
-            "CCCC": [DomainRecord("Homeobox", "PF00046.2", 0, 4)]},
+            "AAAA": [DomainRecord("Homeobox", "PF00046", 0, 4)],
+            "CCCC": [DomainRecord("Other", "PF99999", 0, 4)]},
             orthologs=[make_ortholog(sequence="CCCC")])
+        code, _ = self.run_cli(pipeline, *self.arguments())
+        rows = self.read_rows(self.root / "bundle")
+        hit = next(r for r in rows if r["Hit Pfam Name"])
+        self.assertEqual(code, 0)
+        self.assertEqual(hit["Hit Pfam Name"], "Other")
+        self.assertEqual(hit["Query Pfam Name"], "")
+        self.assertEqual(hit["Global Alignment Identity Percent"], "")
+
+    def test_alignment_failure_keeps_domain_evidence_and_logs_error_separately(self):
+        self.write_fasta("gene.fa")
+        pipeline = self.matched_pipeline()
         with patch.object(pipeline, "_calculate_domain_identity", side_effect=RuntimeError("alignment failed")):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)
-        self.assertEqual(rows[0]["Hit Pfam ID"], "PF00046.2")
-        self.assertEqual(rows[0]["Global Alignment Status"], "failed")
-        self.assertEqual(rows[0]["Global Alignment Identity Ratio"], "")
-        self.assertEqual(rows[0]["Motif Matrix ID"], "")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["Hit Pfam Name"], "Homeobox")
+        self.assertEqual(rows[0]["Global Alignment Identity Percent"], "")
+        self.assertEqual(rows[0]["Motif Name"], "")
+        error = self.read_errors(self.root / "bundle")[0]
+        self.assertEqual(error["Stage"], "alignment")
+        self.assertEqual(error["Error"], "alignment failed")
+        self.assertEqual(error["ORF ID"], rows[0]["ORF ID"])
 
-    def test_motif_failure_after_partial_generator_preserves_first_motif(self):
-        self.write_fasta("partial_motifs.fa")
+    def test_partial_motif_generator_keeps_first_prediction_without_error_result_row(self):
+        self.write_fasta("gene.fa")
         database = StubMotifDatabase()
         def partial(request):
             yield make_motif("MA0001.1", "first")
             raise RuntimeError("later motif failed")
         database.search = partial
-        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]},
-            domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)]},
-            orthologs=[make_ortholog()], database=database)
-        code, _ = self.run_cli(pipeline, *self.arguments())
+        pipeline = self.matched_pipeline(database)
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments())
+        rows = self.read_rows(self.root / "bundle")
+        self.assertEqual(code, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["Motif Name"], "first")
+        self.assertEqual(self.read_errors(self.root / "bundle")[0]["Stage"], "motif")
+
+    def test_later_hit_pfam_failure_preserves_prior_motifs_and_failed_hit(self):
+        self.write_fasta("gene.fa")
+        pipeline = self.matched_pipeline(StubMotifDatabase([make_motif("MA0001.1", "first")]))
+        pipeline.ortholog_searcher.orthologs.append(make_ortholog("NP_2", "GGGG", "Second hit"))
+        pipeline.domain_scanner.fail_on = "GGGG"
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)
         self.assertEqual(len(rows), 2)
-        self.assertEqual(rows[0]["Motif Matrix ID"], "MA0001.1")
-        self.assertEqual(rows[1]["Motif Status"], "failed")
-        self.assertEqual(rows[1]["Global Alignment ID"], rows[0]["Global Alignment ID"])
-        self.assertEqual(rows[1]["BLAST Accession"], rows[0]["BLAST Accession"])
+        self.assertEqual(rows[0]["Motif Name"], "first")
+        self.assertEqual(rows[1]["BLAST Description"], "Second hit")
+        self.assertEqual(rows[1]["Hit Pfam Name"], "")
+        self.assertEqual(rows[1]["Motif Name"], "")
+        self.assertEqual(self.read_errors(self.root / "bundle")[0]["BLAST Accession"], "NP_2")
 
-    def test_filtered_query_domain_is_not_lost_when_another_is_accepted(self):
-        self.write_fasta("filtered.fa")
-        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAAAAAA"]}, domains={"AAAAAAAA": [
-            DomainRecord("Other", "PF99999.1", 0, 4), DomainRecord("Homeobox", "PF00046.1", 4, 8)]})
-        pipeline.valid_pfam_list = ["PF00046"]
-        code, _ = self.run_cli(pipeline, *self.arguments())
+    def test_skipped_retrieval_keeps_available_hit_details_and_separate_diagnostic(self):
+        self.write_fasta("gene.fa")
+        pipeline = self.matched_pipeline()
+        pipeline.ortholog_searcher = IncrementalPartialSearcher([make_ortholog(sequence="CCCC")])
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
-        self.assertEqual(code, 0)
-        self.assertEqual([r["Query Pfam ID"] for r in rows], ["PF99999.1", "PF00046.1"])
-        self.assertEqual(rows[0]["Query Pfam Status"], "not-selected")
-        self.assertEqual(rows[0]["BLAST Accession"], "")
+        self.assertEqual(code, 1)
+        skipped = [r for r in rows if r["BLAST Description"] == "Skipped protein [Homo sapiens]"]
+        self.assertEqual(len(skipped), 1)
+        self.assertEqual(skipped[0]["Hit Pfam Name"], "")
+        self.assertEqual(self.read_errors(self.root / "bundle")[0]["BLAST Accession"], "NP_4")
 
-    def test_atomic_result_write_preserves_previous_file_on_formatter_error(self):
+    def test_cli_continues_after_gene_failure_and_finalizes_both_genes(self):
+        self.write_fasta("alpha.fa")
+        self.write_fasta("beta.fa", "TGCA")
+        pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"], "TGCA": ["CCCC"]},
+            domains={"CCCC": [DomainRecord("Homeobox", "PF00046", 0, 4)]},
+            scanner_fail_on="AAAA")
+        code, _ = self.run_cli(pipeline, *self.arguments())
+        self.assertEqual(code, 1)
+        rows = self.read_rows(self.root / "bundle")
+        self.assertEqual([r["Gene"] for r in rows], ["alpha", "beta"])
+        self.assertEqual(self.read_errors(self.root / "bundle")[0]["Gene"], "alpha")
+
+    def test_stop_after_alignment_does_not_call_jaspar(self):
+        self.write_fasta("gene.fa")
+        database = StubMotifDatabase(fail_on_call=1)
+        pipeline = self.matched_pipeline(database)
+        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+            code, _ = self.run_cli(pipeline, *self.arguments("stopped", "--stop-after", "alignment"))
+        self.assertEqual(code, 0)
+        self.assertEqual(database.calls, 0)
+        rows = self.read_rows(self.root / "stopped")
+        self.assertEqual(rows[0]["Global Alignment Identity Percent"], "90.0")
+        self.assertEqual(rows[0]["Motif Name"], "")
+        self.assertEqual(self.read_errors(self.root / "stopped"), [])
+
+    def test_initialization_failure_writes_gene_rows_and_separate_errors(self):
+        self.write_fasta("alpha.fa")
+        self.write_fasta("beta.fa")
+        with patch("lverage.cli._build_pipeline", side_effect=RuntimeError("setup failed")):
+            with redirect_stderr(io.StringIO()):
+                code = main(self.arguments())
+        rows = self.read_rows(self.root / "bundle")
+        errors = self.read_errors(self.root / "bundle")
+        self.assertEqual(code, 1)
+        self.assertEqual([r["Gene"] for r in rows], ["alpha", "beta"])
+        self.assertTrue(all(not value for r in rows for key, value in r.items() if key != "Gene"))
+        self.assertEqual([r["Stage"] for r in errors], ["initialization", "initialization"])
+        self.assertTrue(all(r["Error"] == "setup failed" for r in errors))
+
+    def test_csv_is_not_written_on_events_and_is_published_only_at_finish(self):
+        from lverage.cli import _Bundle
+        destination = self.root / "deferred"
+        destination.mkdir()
+        bundle = _Bundle(destination, {})
+        bundle.add_event("gene", {"event": "gene_start", "stage": "input"})
+        self.assertFalse((destination / "results.csv").exists())
+        self.assertFalse((destination / "errors.csv").exists())
+        bundle.finish()
+        self.assertTrue((destination / "results.csv").exists())
+        self.assertTrue((destination / "errors.csv").exists())
+
+    def test_formatter_failure_preserves_previous_csv(self):
         from lverage.cli import _Bundle
         destination = self.root / "atomic"
         destination.mkdir()
         bundle = _Bundle(destination, {})
+        bundle.add_event("gene", {"event": "gene_start", "stage": "input"})
+        bundle.finish()
         before = (destination / "results.csv").read_bytes()
         with patch("lverage.cli._grouped_result_rows", side_effect=RuntimeError("format failed")):
-            with self.assertRaises(RuntimeError):
-                bundle.add_event("gene", {"event": "gene_start", "stage": "input"})
+            with self.assertRaisesRegex(RuntimeError, "format failed"):
+                bundle.finish()
         self.assertEqual((destination / "results.csv").read_bytes(), before)
 
     def test_invalid_inputs_and_existing_output_exit_two(self):
