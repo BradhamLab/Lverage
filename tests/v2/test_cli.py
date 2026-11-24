@@ -18,6 +18,33 @@ from lverage.ortholog_searcher import OrthologRecord, OrthologSearcherTemplate
 from lverage.pipeline import Lverage
 
 
+def stub_identities(pipeline, *, return_value=None, side_effect=None):
+    """Patch the pipeline's alignment component to return fixed identities.
+
+    The pipeline asks ``alignment_component.calc_identities`` for one ratio per
+    matching ortholog domain. ``return_value`` answers every domain with the
+    same ratio; ``side_effect`` is either an exception to raise or an iterable
+    of ratios consumed one per domain, in the order the pipeline requests them.
+    """
+
+    if isinstance(side_effect, BaseException) or (
+        isinstance(side_effect, type) and issubclass(side_effect, BaseException)
+    ):
+        def calc_identities(query_dbd, ortholog_dbds):
+            raise side_effect
+    elif side_effect is not None:
+        values = iter(side_effect)
+
+        def calc_identities(query_dbd, ortholog_dbds):
+            return [next(values) for _ in ortholog_dbds]
+    else:
+        def calc_identities(query_dbd, ortholog_dbds):
+            return [return_value for _ in ortholog_dbds]
+
+    return patch.object(pipeline.alignment_component, "calc_identities",
+                        side_effect=calc_identities)
+
+
 class StubOrfSearcher(OrfSearcherTemplate):
 
     def __init__(self, results):
@@ -319,7 +346,10 @@ class LverageCliTests(unittest.TestCase):
                          {("0", "0"), ("0", "4"), ("4", "0"), ("4", "4")})
         self.assertTrue(all(r["Motif Matrix ID"] == "MA0001.1" for r in rows))
 
-    def test_later_ortholog_failure_preserves_completed_first_ortholog_evidence(self):
+    def test_later_ortholog_failure_preserves_first_ortholog_domain_evidence(self):
+        # Every hit's Pfam scan runs before any alignment, so a later hit's
+        # Pfam failure stops the gene before alignment; the first hit's
+        # domain evidence is still written.
         self.write_fasta("later.fa")
         pipeline = self.make_pipeline(orfs={"ACGT": ["AAAA"]},
             domains={"AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)]},
@@ -327,7 +357,9 @@ class LverageCliTests(unittest.TestCase):
         code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)
-        self.assertTrue(any(r["BLAST Accession"] == "NP_first" and r.get("Global Alignment ID") for r in rows))
+        first = [r for r in rows if r["BLAST Accession"] == "NP_first"]
+        self.assertTrue(first and all(r["Hit Pfam ID"] == "PF00046.1" for r in first))
+        self.assertFalse(any(r["Global Alignment ID"] for r in rows))
         self.assertTrue(any(r["BLAST Accession"] == "NP_second" and r["Hit Pfam Status"] == "failed" for r in rows))
 
     def test_jaspar_failure_preserves_prior_motif_and_alignment_evidence(self):
@@ -340,7 +372,10 @@ class LverageCliTests(unittest.TestCase):
         code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)
-        self.assertEqual(sum(bool(r["Global Alignment ID"]) for r in rows), 2)
+        # Both query domains share base accession PF00046 with both ortholog
+        # domains, so there are four pairs. All four are aligned before the
+        # first motif search, and the second motif request fails.
+        self.assertEqual(sum(bool(r["Global Alignment ID"]) for r in rows), 4)
         self.assertEqual(sum(bool(r["Motif Matrix ID"]) for r in rows), 1)
         failed = [r for r in rows if r["Motif Status"] == "failed"]
         self.assertEqual(len(failed), 1)
@@ -384,7 +419,7 @@ class LverageCliTests(unittest.TestCase):
             "AAAA": [DomainRecord("Homeobox", "PF00046.1", 0, 4)],
             "CCCC": [DomainRecord("Homeobox", "PF00046.2", 0, 4)]},
             orthologs=[make_ortholog(sequence="CCCC")])
-        with patch.object(pipeline, "_calculate_domain_identity", side_effect=RuntimeError("alignment failed")):
+        with stub_identities(pipeline, side_effect=RuntimeError("alignment failed")):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)

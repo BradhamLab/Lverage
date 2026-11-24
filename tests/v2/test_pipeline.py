@@ -362,7 +362,9 @@ class LveragePipelineTests(unittest.TestCase):
             for event in evidence.events
         ))
 
-    def test_later_ortholog_domain_failure_keeps_earlier_events(self):
+    def test_later_ortholog_domain_failure_keeps_earlier_ortholog_events(self):
+        # Every ortholog's Pfam scan runs before any alignment, so a later
+        # ortholog's failure stops the run before any domain comparison.
         first = make_ortholog("AAAA")
         second = make_ortholog("TTTT")
         second.accession = "NP_000002.1"
@@ -385,7 +387,7 @@ class LveragePipelineTests(unittest.TestCase):
         comparisons = [event for event in evidence.events if event["event"] == "domain_comparison"]
         self.assertEqual(len(retained), 2)
         self.assertEqual(len(domains), 1)
-        self.assertEqual(len(comparisons), 1)
+        self.assertEqual(len(comparisons), 0)
 
     def test_later_motif_failure_keeps_earlier_motif_event(self):
         first_record = ExampleMotifRecord("MA0001.1")
@@ -414,7 +416,10 @@ class LveragePipelineTests(unittest.TestCase):
         motifs = [event for event in evidence.events if event["event"] == "motif"]
         comparisons = [event for event in evidence.events if event["event"] == "domain_comparison"]
         self.assertEqual(len(motifs), 1)
-        self.assertEqual(len(comparisons), 2)
+        # All four same-family domain pairs are compared before the first
+        # motif search; the second motif request then fails.
+        self.assertEqual(len(comparisons), 4)
+        self.assertEqual(len(database.requests), 2)
 
     def test_stop_after_alignment_does_not_call_motif_database(self):
         database = StubMotifDB(motifs=[ExampleMotifRecord("MA0001.1")])
