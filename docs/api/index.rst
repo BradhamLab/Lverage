@@ -2,8 +2,8 @@ API reference
 =============
 
 This reference documents the current version 2 core interfaces. Package-level
-exports and a command-line interface are intentionally deferred, so import
-classes from the modules shown below.
+exports are intentionally deferred, so import classes from the modules shown
+below. The V2 command-line interface is documented in the user guide.
 
 .. toctree::
    :maxdepth: 1

@@ -1,5 +1,6 @@
 selenium
 biopython
+numpy>=1.24
 orffinder==1.8
 six
 ete3

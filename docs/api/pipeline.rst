@@ -9,9 +9,14 @@ and how to inject a different alignment implementation.
 
 Each run deduplicates ORFs, selects the first longest ORF with an accepted
 domain, compares matching base PFAM accessions, and searches motif databases
-for domain pairs meeting the identity threshold. Intermediate evidence remains
-local to the run; the instance retains its copied configuration and the latest
-:class:`lverage.pipeline.LverageCode`.
+for domain pairs meeting the identity threshold. Intermediate evidence is not
+retained by default. Callers may pass an optional ``evidence_collector`` to
+``Lverage.run()`` to receive completed stage events as they occur; this supports
+incremental reporting but is not checkpoint or crash recovery. The instance
+retains its copied configuration and latest :class:`lverage.pipeline.LverageCode`.
+
+``stop_after="alignment"`` deliberately returns before motif-database searches
+while preserving full-pipeline behavior when the option is omitted.
 
 For each query-domain occurrence, the pipeline gathers matching ortholog
 domains in ortholog/domain order and calls the alignment component once. It

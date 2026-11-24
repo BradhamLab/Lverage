@@ -15,7 +15,10 @@ cd Lverage
 ```
 
 ### Python
-Lverage requires Python3.8 at minimum to run. The tool was developed using Python3.10.12. To obtain python and the required libraries, we advise using Conda.
+The legacy workflow requires Python 3.8 at minimum and was developed with
+Python 3.10.12. The V2 package requires Python 3.11 or newer; see the V2 CLI
+section below. To obtain Python and the required libraries, we advise using
+Conda.
 
 #### Downloading Conda
 To install Conda, follow the instructions on their [website user guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html "https://conda.io/projects/conda/en/latest/user-guide/install/index.html"). We suggest downloading Miniconda.
@@ -95,7 +98,36 @@ the
 [API documentation](docs/api/index.rst) for how to pass them to the V2
 pipeline.
 
-## How to Use
+## V2 Command-Line Interface
+
+Install the V2 package from the repository root into your Python 3.11+
+environment with `python -m pip install -e .`. This installs the Python
+dependencies declared in `pyproject.toml`, including NumPy and the pinned
+`orffinder` adapter dependency. The Python 3.10 Conda configuration above
+is for the legacy workflow; it is not a V2 environment specification.
+BLAST+, HMMER, PfamScan, and their reference databases are separate
+requirements and are not installed by this command.
+
+The V2 CLI is separate from the legacy workflow below. Run the installed
+`lverage` command or use `PYTHONPATH=src python -m lverage.cli` from the Lverage
+source checkout. It requires Python 3.11+, local BLAST+ and PfamScan tools/data,
+and a local protein database; full motif inference uses the JASPAR calculations
+adapted into Lverage and local JASPAR 2026 files, with no online requests.
+Users need the external reference data directory and ``JASPAR2026.sqlite``,
+but not the upstream checkout or a separate interpreter. HMMER/BLASTP remain
+external executables. An alignment-only stop does not require JASPAR resources.
+The cutoff is applied to the inference BLAST E-value; equivalence to the former
+REST E-value has not been established, and identical motif results are not
+claimed. See the [V2 FASTA and CLI guide](docs/user_guide.rst) for provenance,
+local-data requirements, portable examples, output fields, selection behavior,
+and status codes. See the local BLAST database instructions above for database
+setup.
+
+## Legacy Command-Line Workflow
+
+This older workflow is separate from the V2 package and CLI. The options and
+examples in this section refer only to the legacy implementation.
+
 We warn against moving any file within the directory anywhere else as this will create errors. If you wish to access from other places, we suggest appending the directory to your PATH environment variable, creating an alias, or creating a shortcut.
 
 To call Lverage, ensure that the requirements above are all met. Within the directory is a file called *lverage.py*. All calls should be made with this file.
