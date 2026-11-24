@@ -88,9 +88,10 @@ For a local pre-JASPAR run that stops after domain alignment:
 
 Required options are ``--input-dir``, ``--blast-db``, ``--species-map``,
 ``--pfam-db``, and ``--output-dir``. The output directory must be new. It
-contains three files: ``results.csv`` contains typed pipeline evidence,
-``orfs.fasta`` stores each unique candidate protein sequence once, and
-``metadata.json`` records run settings and summaries. Optional executable
+contains four files: ``results.csv`` contains the scientific results,
+``errors.csv`` contains execution diagnostics, ``orfs.fasta`` stores each
+unique candidate protein sequence once, and ``metadata.json`` records run
+settings and summaries. Optional executable
 overrides are ``--blastp`` (``blastp``),
 ``--blastdbcmd`` (``blastdbcmd``), and ``--pfamscan`` (``pfam_scan.pl``).
 The adapted motif inference also accepts ``--hmmscan`` and ``--hmmalign``
@@ -130,84 +131,118 @@ fragments, and it cannot determine from record headers whether they really
 belong to the same gene. Empty files/records and unsupported DNA symbols are
 rejected before external-tool adapters are constructed.
 
-``results.csv`` is a comma-separated UTF-8 table ordered by gene, ORF candidate,
-query Pfam, BLAST hit, hit Pfam, global alignment, and motif hit. Each row is a
-self-contained evidence record: every applicable gene, ORF, query-Pfam,
-BLAST-hit, hit-Pfam, and alignment field is repeated on each descendant result
-row. Columns are named for their stage (for example, ``Query Pfam ID``,
-``BLAST Accession``, and ``Global Alignment Identity Ratio``). Candidates are
-listed in longest-first examination order. The ORF examination and selection
-columns identify examined candidates, candidates with no accepted domain, and
-the selected candidate. Unexamined candidates still show their order, ID, and
-length; their examination, selection, and downstream cells remain blank. All
-unique ORFs are represented.
+``results.csv`` is a comma-separated UTF-8 table with exactly ten columns,
+in this order:
 
-Within the selected ORF, each query-domain occurrence has its own occurrence
-number and retains its Pfam ID, name, and zero-based, end-exclusive amino-acid
-coordinates. BLAST hits are grouped beneath query Pfams and retain accession,
-native hit ID, description, species, E-value, identity, and query coverage.
-Occurrence and hit-group numbers, BLAST descriptive fields, and supporting
-alignment fields are repeated on every associated motif row. When a hit is
-evaluated against multiple query-Pfam occurrences, each row identifies the
-specific query/hit-domain occurrence pair. Hit Pfam occurrences remain visible
-even when no query Pfam matches them. Domain comparisons are associated by the
-actual query-domain and hit-domain occurrences, not by protein name. Each
-computed global domain alignment has an identity ratio, threshold, and pass/fail
-decision. There is one row per motif hit per supporting domain comparison;
-multiple motifs and multiple comparisons therefore remain distinct rows.
+.. list-table:: Results columns
+   :header-rows: 1
+   :widths: 35 65
 
-Rows remain grouped contiguously for convenient reading, but their meaning does
-not depend on carrying values forward from preceding rows. Do not forward-fill
-blank cells: a field is blank only when the information is unavailable or its
-stage was not reached. No-hit outcomes and execution errors are recorded in the
-relevant stage status, outcome, and error columns. Sorting or filtering may
-change presentation order, but each row retains its own gene, candidate, hit,
-domain-occurrence, alignment, and motif associations.
-BLAST no hits and failed sequence retrieval are distinct outcomes. An empty
-Pfam result, a domain pair below threshold, no matching Pfam, and a motif
-search with no returned motifs are also distinguishable.
+   * - Column
+     - Meaning
+   * - Gene
+     - Input FASTA filename without its extension.
+   * - Ortholog Species
+     - Species assigned to the retained BLAST hit, or parsed from a hit whose
+       protein retrieval failed.
+   * - BLAST Description
+     - Description of the local protein BLAST hit.
+   * - Query Pfam Name
+     - Pfam domain detected in the candidate ORF protein.
+   * - Hit Pfam Name
+     - Pfam domain detected in the BLAST-hit protein.
+   * - Global Alignment Identity Percent
+     - Exact amino-acid matches divided by all columns, including gaps, in
+       the global alignment of the paired Pfam domains, multiplied by 100.
+       Values below the configured threshold are also retained.
+   * - Motif Name
+     - Name of the retained JASPAR profile resolved from the local database.
+   * - JASPAR Tool DBD Identity Ratio
+     - Domain identity reported by the adapted JASPAR inference algorithm,
+       on a 0 to 1 scale. This is separate from Lverage's global-alignment
+       identity; it is not a calibrated confidence or probability.
+   * - Motif PFM JSON
+     - Position frequency matrix serialized as a JSON object with A, C, G,
+       and T arrays. Each array gives that nucleotide's count at successive
+       motif positions. Standard CSV quoting keeps the JSON in one cell.
+   * - ORF ID
+     - ``orf_`` followed by the full SHA-256 of the candidate protein sequence.
+       Use this identifier to retrieve its sequence from ``orfs.fasta``.
 
-``orfs.fasta`` stores each unique discovered candidate protein once under a
-deterministic full-sequence SHA-256 identifier referenced by the table; gene
-associations and selection status are retained in the grouped rows. Candidate export does not run downstream analysis on
+Genes are listed in input-filename order (alphabetical, case-insensitive).
+Within each gene, rows are sorted by ``JASPAR Tool DBD Identity Ratio`` from
+highest to lowest, across all supporting ORFs, BLAST hits, and domain
+comparisons. The highest-identity retained motif appears first for that gene.
+Rows with blank ratios follow scored rows; zero is a valid score and precedes
+blanks. Equal scores preserve the original evidence order: longest-first ORF,
+query-domain occurrence, BLAST hit, hit-domain occurrence, then inference
+result order. A gene's rows remain together, but its domain comparisons may be
+interleaved by identity rank. This export sort does not change which ORF is
+selected, which motifs pass filtering, or the configured motif hit limit.
+There is one row per retained motif hit per supporting domain comparison.
+Every applicable supporting field is repeated on each motif row. Associations
+are taken from the actual query and hit domains, not inferred from matching
+names or from preceding spreadsheet rows.
+
+Completed earlier evidence remains visible when there is no downstream result:
+for example, an alignment below threshold retains its identity percentage and
+has blank motif fields. A failed hit-domain scan keeps the available BLAST
+fields and leaves the hit-domain and later fields blank. A hit domain without
+a matching query domain has a blank query-domain field. ORFs without further
+evidence still have a row with their gene and ORF ID; a gene with no ORFs has
+only its gene filled in. Candidate export does not run downstream analysis on
 unselected candidates.
 
-BLAST identity is the identity ratio from the HSP with the lowest E-value and
-is distinct from domain-pair identity, which is the exact-match ratio across
-every column of a global amino-acid alignment of matching Pfam domains
-(including gaps).
-The CSV reports BLAST identity and query coverage as ratios and percentages,
-and records every computed domain-pair identity, including values below the
-threshold. Domain start and end coordinates in exported rows are zero-based,
-end-exclusive amino-acid positions. The domain-alignment identity score is
-exported as a ratio and percentage, but the aligned sequences themselves are
-not currently exported.
+There are no status, error, or outcome columns in this table. A blank cell
+means that value was unavailable or that stage did not produce a result;
+blanks alone do not distinguish an unexamined candidate, biological no-hit,
+intentional stop, and execution failure. Do not forward-fill them. Consult
+``errors.csv`` for execution failures and ``metadata.json`` for run completion
+and settings. Biological no-hits are not execution errors.
 
-Motif rows separately record the upstream inference tool's BLAST E-value,
-query/TF regions, TF name, and upstream DBD identity ratio. This upstream DBD
-identity is not the Lverage global-alignment identity and is not substituted
-for it. The local BLAST E-value is not established to be equivalent to the old
-REST inference E-value; identical motif results between those services are not
-claimed. The input sent to local inference is the same ortholog-protein window
-previously sent to the REST endpoint: at most 2,000 amino acids centered on the
-supporting ortholog domain, retaining the complete domain. It is not replaced
-by the query protein or by a domain-only sequence. Matrix IDs must be
-versioned, and each ID is resolved exactly in the configured local SQLite
-database; there is no version fallback. Motif species are filtered against
-exact local NCBI taxonomy IDs, not broad taxonomic groups.
+The compact table intentionally omits matrix IDs, domain coordinates, candidate
+order numbers, and selection flags. Different exact matrix versions or domain
+occurrences can therefore produce identical-looking rows. They are preserved
+as distinct results, not deduplicated. Versioned matrix IDs are still resolved
+exactly during inference, with no fallback to another version, but cannot be
+reconstructed from the exported motif name alone.
 
-Metadata schema version 2 identifies this layout with
-``results_format="grouped-csv"``. It replaces the former event-row TSV schema. Fields containing commas,
-quotation marks, or line breaks are quoted using standard CSV rules.
+``errors.csv`` contains only events with an execution error, with these columns:
+``Gene``, ``ORF ID``, ``Stage``, ``BLAST Hit ID``, ``BLAST Accession``,
+``Query Pfam Name``, ``Hit Pfam Name``, ``Attempted Identifier``, and ``Error``.
+Identifying context is included when available. Retrieval diagnostics include
+failed attempts even when a subsequent attempt recovers the protein. A run
+without recorded errors produces a header-only error file. Error messages do
+not create additional diagnostic-only rows in ``results.csv``.
+
+``orfs.fasta`` stores each unique discovered candidate protein once under its
+full-sequence SHA-256 identifier. Identical proteins share a FASTA record;
+the results table retains their per-gene associations.
+
+The input to local motif inference remains the ortholog-protein window:
+at most 2,000 amino acids centered on the supporting ortholog domain, retaining
+the complete domain. Species are filtered against exact local NCBI taxonomy
+IDs. The inference BLAST E-value cutoff still applies, although that metric is
+not exported in the compact table. Its equivalence to the former REST E-value
+has not been established; identical results between those services are not
+claimed. The aligned domain sequences are not exported.
+
+Metadata schema version 3 identifies this layout with
+``results_format="compact-csv"`` and lists both CSV column sets. This replaces
+the wider grouped CSV layout. Fields containing commas, quotation marks, or
+line breaks follow standard CSV quoting rules.
 
 ``metadata.json`` records run timestamps, settings, input paths/checksums,
 sequence-ID conventions, known tool versions (unknown versions are reported as
-``unknown``), and completion/failure summaries. Results and metadata are
-flushed as pipeline evidence completes. This is incremental evidence retention,
-not checkpoint/resume or recovery from arbitrary crashes. After execution
-begins, the bundle is preserved on failure. Execution failures are caught per
-gene and processing continues to other genes, retaining completed evidence if
-a later stage fails.
+``unknown``), and completion/failure summaries. Progress metadata is updated
+during execution. Scientific evidence and diagnostics are accumulated in memory,
+ordered, and written to ``results.csv`` and ``errors.csv`` after processing all
+genes. ``orfs.fasta`` is also written at that point. Each CSV is published via
+a temporary file and atomic replacement. Execution failures are caught per
+gene; processing continues to the other genes and the final files include
+completed evidence from failed genes. This is not checkpoint/resume or crash
+recovery: forcibly terminating the process may leave progress metadata without
+final CSV or FASTA files.
 
 Use ``--stop-after alignment`` for pre-JASPAR validation. This intentional stop
 does not call JASPAR and does not require the JASPAR options or data; it is not
