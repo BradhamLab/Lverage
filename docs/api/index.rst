@@ -9,6 +9,7 @@ below. The V2 command-line interface is documented in the user guide.
    :maxdepth: 1
 
    domain_scanner
+   alignment
    blast
    jaspar
    motif_database

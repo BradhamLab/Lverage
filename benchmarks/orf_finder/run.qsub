@@ -1,0 +1,64 @@
+#!/bin/bash -l
+
+# Grid Engine (SGE/UGE) job script for the ORFfinder benchmark. Nothing
+# site- or user-specific is stored here; add scheduler options your cluster
+# needs (for example -P <project>) on the qsub command line, and configure
+# the job through environment variables (qsub -v NAME=value, or export before
+# qsub):
+#
+#   ORFFINDER_EXECUTABLE   path to the NCBI ORFfinder binary (required unless
+#                          an "ORFfinder" command is already on PATH)
+#   ORF_BENCHMARK_INPUTS   directory holding HoxA13.fa, Jun.fa, MITF.fa
+#                          (default: benchmarks/orf_finder/data/test_inputs)
+#   CONDA_ENV              conda environment name or prefix to activate
+#                          (default: none; the job uses whatever "python"
+#                          resolves to)
+#   CONDA_MODULE           environment module to load before activating
+#                          CONDA_ENV, on clusters that provide conda that way
+#                          (default: none)
+#
+# The job runs from the directory it was submitted from (-cwd), which must be
+# the repository root of the checkout you want to benchmark.
+#$ -N lverage_orf_benchmark
+#$ -cwd
+#$ -j y
+#$ -l h_rt=02:00:00
+#$ -pe omp 1
+
+set -euo pipefail
+
+REPO_ROOT="${SGE_O_WORKDIR:-$PWD}"
+cd "$REPO_ROOT"
+if [[ ! -f pyproject.toml || ! -f benchmarks/orf_finder/benchmark.py ]]; then
+    echo "Submit this job from the Lverage repository root (got: $REPO_ROOT)" >&2
+    exit 2
+fi
+
+if [[ -n "${CONDA_ENV:-}" ]]; then
+    if [[ -n "${CONDA_MODULE:-}" ]]; then
+        module load "$CONDA_MODULE"
+    fi
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+    conda activate "$CONDA_ENV"
+fi
+
+# Import the checkout being benchmarked, not whatever lverage happens to be
+# installed in the environment (for example another clone in editable mode).
+export PYTHONPATH="$REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+
+ORFFINDER_EXECUTABLE="${ORFFINDER_EXECUTABLE:-$(command -v ORFfinder || true)}"
+if [[ -z "$ORFFINDER_EXECUTABLE" || ! -x "$ORFFINDER_EXECUTABLE" ]]; then
+    echo "Set ORFFINDER_EXECUTABLE to the NCBI ORFfinder binary (got: '${ORFFINDER_EXECUTABLE}')" >&2
+    exit 2
+fi
+export ORFFINDER_EXECUTABLE
+INPUT_DIR="${ORF_BENCHMARK_INPUTS:-$REPO_ROOT/benchmarks/orf_finder/data/test_inputs}"
+
+printf 'Host: %s\n' "$(hostname)"
+printf 'Repository: %s\n' "$REPO_ROOT"
+printf 'Python: %s\n' "$(command -v python)"
+printf 'ORFfinder: %s\n' "$ORFFINDER_EXECUTABLE"
+printf 'Test input FASTAs: %s\n' "$INPUT_DIR"
+python -m benchmarks.orf_finder.benchmark run \
+    --executable "$ORFFINDER_EXECUTABLE" \
+    --input-dir "$INPUT_DIR"
