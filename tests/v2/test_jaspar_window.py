@@ -1,7 +1,7 @@
 import unittest
 
 from lverage.domain_scanner import DomainRecord
-from lverage.jaspar import Jaspar2024MotifDB
+from lverage.jaspar import Jaspar2026MotifDB
 
 
 class JasparWindowTests(unittest.TestCase):
@@ -10,13 +10,13 @@ class JasparWindowTests(unittest.TestCase):
         sequence = "A" * 1500
         domain = DomainRecord("Homeobox", "PF00046.1", 10, 20)
 
-        self.assertEqual(Jaspar2024MotifDB._window_ortholog_sequence(sequence, domain), sequence)
+        self.assertEqual(Jaspar2026MotifDB._window_ortholog_sequence(sequence, domain), sequence)
 
     def test_window_is_centered_on_domain(self):
         sequence = "A" * 5000
         domain = DomainRecord("Homeobox", "PF00046.1", 2400, 2450)
 
-        window = Jaspar2024MotifDB._window_ortholog_sequence(sequence, domain)
+        window = Jaspar2026MotifDB._window_ortholog_sequence(sequence, domain)
 
         self.assertEqual(window, sequence[1425:3425])
         self.assertEqual(len(window), 2000)
@@ -26,7 +26,7 @@ class JasparWindowTests(unittest.TestCase):
         domain = DomainRecord("Homeobox", "PF00046.1", 50, 120)
 
         self.assertEqual(
-            Jaspar2024MotifDB._window_ortholog_sequence(sequence, domain),
+            Jaspar2026MotifDB._window_ortholog_sequence(sequence, domain),
             sequence[:2000],
         )
 
@@ -35,7 +35,7 @@ class JasparWindowTests(unittest.TestCase):
         domain = DomainRecord("Homeobox", "PF00046.1", 4900, 4980)
 
         self.assertEqual(
-            Jaspar2024MotifDB._window_ortholog_sequence(sequence, domain),
+            Jaspar2026MotifDB._window_ortholog_sequence(sequence, domain),
             sequence[-2000:],
         )
 
@@ -51,7 +51,7 @@ class JasparWindowTests(unittest.TestCase):
         for domain in invalid_domains:
             with self.subTest(domain=domain):
                 with self.assertRaises(ValueError):
-                    Jaspar2024MotifDB._window_ortholog_sequence(sequence, domain)
+                    Jaspar2026MotifDB._window_ortholog_sequence(sequence, domain)
 
 
 if __name__ == "__main__":

@@ -149,6 +149,10 @@ class Lverage:
 
     def _select_orf_from_candidates(self, orf_list, evidence_collector=None):
         for orf_index, orf in enumerate(orf_list, start=1):
+            if evidence_collector is not None:
+                evidence_collector.emit(
+                    "stage_attempt", stage_name="query_pfam", orf_sequence=orf,
+                )
             domains = self.domain_scanner.get_domains(orf)
             detected_domains = list(domains)
             if self.valid_pfam_list:
@@ -313,6 +317,10 @@ class Lverage:
         supports_evidence = getattr(
             self.ortholog_searcher, "supports_evidence_collector", False
         )
+        if evidence_collector is not None:
+            evidence_collector.emit(
+                "stage_attempt", stage_name="blast", orf_sequence=query_orf,
+            )
         if evidence_collector is not None and supports_evidence:
             orthologs = self.ortholog_searcher.get_orthologs(
                 query_orf, evidence_collector=evidence_collector
@@ -346,8 +354,18 @@ class Lverage:
         for ortholog in orthologs:
             if evidence_collector is not None:
                 evidence_collector.set_stage("ortholog_pfam")
-            ortholog_domains = self.domain_scanner.get_domains(ortholog.sequence)
+                evidence_collector.emit(
+                    "stage_attempt", stage_name="ortholog_pfam",
+                    orf_sequence=query_orf, ortholog=ortholog,
+                )
+            ortholog_domains = list(self.domain_scanner.get_domains(ortholog.sequence))
             if evidence_collector is not None:
+                evidence_collector.emit(
+                    "stage_result", stage_name="ortholog_pfam",
+                    orf_sequence=query_orf, ortholog=ortholog,
+                    status="domains-found" if ortholog_domains else "no-domains",
+                    domain_count=len(ortholog_domains), error="",
+                )
                 for domain_index, domain in enumerate(ortholog_domains, start=1):
                     evidence_collector.emit(
                         "ortholog_domain", orf_sequence=query_orf, ortholog=ortholog,
@@ -360,6 +378,13 @@ class Lverage:
                 for ortholog_domain in ortholog_domains:
                     if self._base_accession(query_domain.accession) != self._base_accession(ortholog_domain.accession):
                         continue
+                    if evidence_collector is not None:
+                        evidence_collector.emit(
+                            "stage_attempt", stage_name="alignment",
+                            orf_sequence=query_orf, ortholog=ortholog,
+                            query_domain=query_domain,
+                            ortholog_domain=ortholog_domain,
+                        )
                     domain_identity = self._calculate_domain_identity(
                         query_orf,
                         query_domain,
@@ -390,17 +415,36 @@ class Lverage:
                     )
                     if stop_after == "alignment":
                         continue
-                    if evidence_collector is not None:
-                        evidence_collector.set_stage("motif")
                     for motif_database in self.motif_database_list:
+                        if evidence_collector is not None:
+                            evidence_collector.set_stage("motif")
+                            evidence_collector.emit(
+                                "stage_attempt", stage_name="motif",
+                                orf_sequence=query_orf, ortholog=ortholog,
+                                query_domain=query_domain,
+                                ortholog_domain=ortholog_domain,
+                                motif_database_name=motif_database.name,
+                            )
                         if not motif_database.check_species_validity(ortholog.species_tax_id):
                             LOGGER.info(
                                 "Skipping %s for unavailable species %s",
                                 motif_database.name,
                                 ortholog.species_tax_id,
                             )
+                            if evidence_collector is not None:
+                                evidence_collector.emit(
+                                    "stage_result", stage_name="motif",
+                                    orf_sequence=query_orf, ortholog=ortholog,
+                                    query_domain=query_domain,
+                                    ortholog_domain=ortholog_domain,
+                                    motif_database_name=motif_database.name,
+                                    status="species-unavailable", motif_count=0,
+                                    error="",
+                                )
                             continue
+                        motif_count = 0
                         for motif_record in motif_database.search(request):
+                            motif_count += 1
                             records.append(LverageRecord(
                                 query_domain=query_domain,
                                 ortholog=ortholog,
@@ -418,6 +462,16 @@ class Lverage:
                                     motif_database_name=motif_database.name,
                                     motif_record=motif_record, status="retained", error="",
                                 )
+                        if evidence_collector is not None:
+                            evidence_collector.emit(
+                                "stage_result", stage_name="motif",
+                                orf_sequence=query_orf, ortholog=ortholog,
+                                query_domain=query_domain,
+                                ortholog_domain=ortholog_domain,
+                                motif_database_name=motif_database.name,
+                                status="motifs-found" if motif_count else "no-hits",
+                                motif_count=motif_count, error="",
+                            )
 
         if stop_after == "alignment":
             self.lverage_code = LverageCode.STOPPED_AFTER_ALIGNMENT

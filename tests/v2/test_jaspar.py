@@ -1,161 +1,152 @@
+import sqlite3
+import tempfile
 import unittest
-from unittest.mock import Mock, call, patch
-
-import requests
+from pathlib import Path
+from unittest.mock import patch
 
 from lverage.domain_scanner import DomainRecord
-from lverage.jaspar import Jaspar2024MotifDB
+from lverage.jaspar import Jaspar2026MotifDB
 from lverage.motif_database import MotifSearchRequest
 
 
-def make_response(payload):
-    response = Mock()
-    response.json.return_value = payload
-    return response
-
-
-def make_request(sequence="ORTHOLOG", tax_id=9606):
+def make_request(sequence="ORTHOLOG", tax_id=9606, domain=None):
+    domain = domain or DomainRecord("Homeobox", "PF00046.1", 0, len(sequence))
     return MotifSearchRequest(
-        "QUERY",
-        DomainRecord("Homeobox", "PF00046.1", 0, 5),
-        sequence,
-        DomainRecord("Homeobox", "PF00046.2", 0, 5),
-        tax_id,
+        "QUERY", DomainRecord("Homeobox", "PF00046.1", 0, 5),
+        sequence, domain, tax_id,
     )
 
 
-def make_motif(matrix_id, species_ids, motif_class=None):
-    if motif_class is None:
-        motif_class = ["Homeobox"]
-    return {
-        "matrix_id": matrix_id,
-        "name": f"Motif {matrix_id}",
-        "pfm": {"A": [1], "C": [2], "G": [3], "T": [4]},
-        "class": motif_class,
-        "species": [{"tax_id": species_id} for species_id in species_ids],
-    }
+class LocalJasparTests(unittest.TestCase):
 
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.database_path = self.root / "JASPAR2026.sqlite"
+        with sqlite3.connect(self.database_path) as connection:
+            connection.executescript("""
+                CREATE TABLE MATRIX (ID INTEGER, BASE_ID TEXT, VERSION INTEGER, COLLECTION TEXT, NAME TEXT);
+                CREATE TABLE MATRIX_SPECIES (ID INTEGER, TAX_ID TEXT);
+                CREATE TABLE MATRIX_ANNOTATION (ID INTEGER, TAG TEXT, VAL TEXT);
+                CREATE TABLE MATRIX_DATA (ID INTEGER, ROW TEXT, COL INTEGER, VAL REAL);
+            """)
+            for matrix_id, internal_id, name, species in (
+                ("MA0001.1", 1, "First motif", [9606]),
+                ("MA0001.2", 4, "First motif newer", [9606]),
+                ("MA0002.3", 2, "Second motif", [10090, 9606]),
+                ("MA0003.1", 3, "Mouse-only motif", [10090]),
+            ):
+                base_id, version = matrix_id.split(".")
+                connection.execute(
+                    "INSERT INTO MATRIX VALUES (?, ?, ?, 'CORE', ?)",
+                    (internal_id, base_id, int(version), name),
+                )
+                connection.executemany(
+                    "INSERT INTO MATRIX_SPECIES VALUES (?, ?)",
+                    [(internal_id, str(tax_id)) for tax_id in species],
+                )
+                connection.execute(
+                    "INSERT INTO MATRIX_ANNOTATION VALUES (?, 'class', 'Homeobox')",
+                    (internal_id,),
+                )
+                for row_index, base in enumerate("ACGT"):
+                    connection.executemany(
+                        "INSERT INTO MATRIX_DATA VALUES (?, ?, ?, ?)",
+                        [(internal_id, base, column, row_index + column)
+                         for column in range(2)],
+                    )
+        self.adapter = Jaspar2026MotifDB(
+            data_dir=self.root,
+            sqlite_db=self.database_path,
+            blastp_path="blastp-test",
+            hmmscan_path="hmmscan-test",
+            hmmalign_path="hmmalign-test",
+        )
+        self.adapter._validated = True
 
-class Jaspar2024MotifDBTests(unittest.TestCase):
+    def tearDown(self):
+        self.temporary.cleanup()
 
-    def test_import_and_constructor_do_not_make_requests(self):
-        with patch("lverage.jaspar.requests.get") as mock_get:
-            Jaspar2024MotifDB()
+    def test_local_species_filter_threshold_and_limit_preserve_metrics(self):
+        self.adapter.n_hits = 1
+        self.adapter.escore_threshold = 1e-6
+        rows = [
+            {"matrix_id": "MA0003.1", "tf_name": "Mouse", "evalue": 1e-12,
+             "query_region": "1-30", "tf_region": "4-32", "dbd_identity": 0.99},
+            {"matrix_id": "MA0002.3", "tf_name": "Second", "evalue": 1e-10,
+             "query_region": "2-30", "tf_region": "3-31", "dbd_identity": 0.81},
+            {"matrix_id": "MA0001.1", "tf_name": "First", "evalue": 1e-5,
+             "query_region": "1-30", "tf_region": "1-30", "dbd_identity": 0.7},
+        ]
+        with patch("lverage.jaspar.load_cisbp_models", return_value={None: {}}), \
+            patch("lverage.jaspar.load_jaspar_data", return_value={}), \
+            patch("lverage.jaspar.infer_sequence", return_value=rows):
+            records = self.adapter.search(make_request())
 
-        mock_get.assert_not_called()
+        self.assertEqual([record.matrix_id for record in records], ["MA0002.3"])
+        self.assertEqual(records[0].inference_evalue, 1e-10)
+        self.assertEqual(records[0].inference_dbd_identity, 0.81)
+        self.assertEqual(records[0].motif_name, "Second motif")
+        self.assertEqual(records[0].pfm["A"], [0.0, 1.0])
 
-    @patch("lverage.jaspar.requests.get")
-    def test_search_uses_windowed_ortholog_sequence_and_timeout(self, mock_get):
-        mock_get.return_value = make_response({"results": []})
+    def test_exact_matrix_version_is_required(self):
+        with self.assertRaisesRegex(ValueError, "MA0001.3"):
+            self.adapter._resolve_matrix({
+                "matrix_id": "MA0001.3", "tf_name": "Wrong version",
+                "evalue": 1e-10, "query_region": "1-10",
+                "tf_region": "1-10", "dbd_identity": 0.8,
+            })
+
+    def test_search_retains_multiple_returned_versions_of_one_matrix(self):
+        rows = [
+            {"matrix_id": "MA0001.1", "tf_name": "First", "evalue": 1e-10,
+             "query_region": "1-30", "tf_region": "1-30", "dbd_identity": 0.8},
+            {"matrix_id": "MA0001.2", "tf_name": "First newer", "evalue": 2e-10,
+             "query_region": "1-30", "tf_region": "1-30", "dbd_identity": 0.85},
+        ]
+        with patch("lverage.jaspar.load_cisbp_models", return_value={None: {}}), \
+            patch("lverage.jaspar.load_jaspar_data", return_value={}), \
+            patch("lverage.jaspar.infer_sequence", return_value=rows):
+            records = self.adapter.search(make_request())
+
+        self.assertEqual(
+            [record.matrix_id for record in records], ["MA0001.1", "MA0001.2"]
+        )
+
+    def test_species_check_uses_exact_local_taxonomy_ids(self):
+        self.adapter._validated = False
+        with patch.object(self.adapter, "_validate_configuration"):
+            self.assertTrue(self.adapter.check_species_validity(9606))
+            self.assertTrue(self.adapter.check_species_validity(10090))
+            self.assertFalse(self.adapter.check_species_validity(7227))
+
+    def test_search_calls_in_package_inference_with_window_and_configured_executables(self):
+        sequence = "A" * 2000
+        prediction = {
+            "matrix_id": "MA0001.1", "tf_name": "Example TF", "evalue": 1e-12,
+            "query_region": "1-40", "tf_region": "2-41", "dbd_identity": 0.875,
+        }
+        with patch("lverage.jaspar.load_cisbp_models", return_value={None: {}}), \
+                patch("lverage.jaspar.load_jaspar_data", return_value={}), \
+                patch("lverage.jaspar.infer_sequence", return_value=[prediction]) as infer:
+            records = self.adapter.search(make_request(sequence=sequence))
+
+        self.assertEqual([record.matrix_id for record in records], ["MA0001.1"])
+        self.assertEqual(infer.call_args.args[0], sequence)
+        self.assertEqual(infer.call_args.kwargs["query_id"], "lverage_query")
+        self.assertEqual(infer.call_args.kwargs["blastp_path"], "blastp-test")
+        self.assertEqual(infer.call_args.kwargs["hmmscan_path"], "hmmscan-test")
+        self.assertEqual(infer.call_args.kwargs["hmmalign_path"], "hmmalign-test")
+        self.assertEqual(infer.call_args.kwargs["data_dir"], self.root)
+        self.assertFalse(Path(infer.call_args.kwargs["work_dir"]).exists())
+
+    def test_existing_online_behavior_window_is_unchanged(self):
         sequence = "A" * 5000
-        request = MotifSearchRequest(
-            "QUERY",
-            DomainRecord("Homeobox", "PF00046.1", 0, 5),
-            sequence,
-            DomainRecord("Homeobox", "PF00046.2", 2400, 2450),
-            9606,
+        domain = DomainRecord("Homeobox", "PF00046.1", 2400, 2450)
+        self.assertEqual(
+            self.adapter._window_ortholog_sequence(sequence, domain),
+            sequence[1425:3425],
         )
-        database = Jaspar2024MotifDB(request_timeout_seconds=7)
-        expected_window = database._window_ortholog_sequence(sequence, request.ortholog_domain)
-
-        self.assertEqual(database.search(request), [])
-        mock_get.assert_called_once_with(
-            f"https://jaspar.elixir.no/api/v1/infer/{expected_window}/",
-            timeout=7,
-        )
-        mock_get.return_value.raise_for_status.assert_called_once_with()
-
-    @patch("lverage.jaspar.requests.get")
-    def test_results_are_sorted_filtered_and_limited_after_acceptance(self, mock_get):
-        infer_response = make_response({"results": [
-            {"evalue": 1e-4, "url": "https://jaspar.elixir.no/api/v1/matrix/HIGH/"},
-            {"evalue": 1e-10, "url": "https://jaspar.elixir.no/api/v1/matrix/WRONG/"},
-            {"evalue": 1e-9, "url": "https://jaspar.elixir.no/api/v1/matrix/FIRST/"},
-            {"evalue": 1e-8, "url": "https://jaspar.elixir.no/api/v1/matrix/SECOND/"},
-            {"evalue": 1e-7, "url": "https://jaspar.elixir.no/api/v1/matrix/THIRD/"},
-        ]})
-        mock_get.side_effect = [
-            infer_response,
-            make_response(make_motif("WRONG", [10090])),
-            make_response(make_motif("FIRST", [9606])),
-            make_response(make_motif("SECOND", [10090, 9606])),
-        ]
-        database = Jaspar2024MotifDB(n_hits=2, escore_threshold=1e-6)
-
-        records = database.search(make_request())
-
-        self.assertEqual([record.matrix_id for record in records], ["FIRST", "SECOND"])
-        self.assertEqual([record.inference_evalue for record in records], [1e-9, 1e-8])
-        self.assertEqual(mock_get.call_count, 4)
-
-    @patch("lverage.jaspar.requests.get")
-    def test_record_parses_current_motif_fields_and_url(self, mock_get):
-        mock_get.side_effect = [
-            make_response({"results": [{"evalue": "1e-12", "url": "DETAIL"}]}),
-            make_response(make_motif("MA0001.1", [9606], "Homeobox")),
-        ]
-
-        record = Jaspar2024MotifDB().search(make_request())[0]
-
-        self.assertEqual(record.matrix_id, "MA0001.1")
-        self.assertEqual(record.motif_name, "Motif MA0001.1")
-        self.assertEqual(record.motif_class, "Homeobox")
-        self.assertEqual(record.motif_url, "https://jaspar.elixir.no/matrix/MA0001.1/")
-        self.assertEqual(record.inference_evalue, 1e-12)
-
-    @patch("lverage.jaspar.requests.get")
-    def test_species_pagination_is_loaded_once_and_cached(self, mock_get):
-        mock_get.side_effect = [
-            make_response({
-                "results": [{"tax_id": 9606}],
-                "next": "https://jaspar.elixir.no/api/v1/species/?page=2",
-            }),
-            make_response({"results": [{"tax_id": "10090"}], "next": None}),
-        ]
-        database = Jaspar2024MotifDB(request_timeout_seconds=11)
-
-        self.assertTrue(database.check_species_validity(9606))
-        self.assertTrue(database.check_species_validity(10090))
-        self.assertFalse(database.check_species_validity(7227))
-        self.assertEqual(mock_get.call_args_list, [
-            call(
-                database.jaspar_rest_species_url,
-                params=database.species_params,
-                timeout=11,
-            ),
-            call(
-                "https://jaspar.elixir.no/api/v1/species/?page=2",
-                params=None,
-                timeout=11,
-            ),
-        ])
-
-    @patch("lverage.jaspar.requests.get")
-    def test_http_errors_propagate(self, mock_get):
-        response = make_response({"results": []})
-        response.raise_for_status.side_effect = requests.HTTPError("service failure")
-        mock_get.return_value = response
-
-        with self.assertRaises(requests.HTTPError):
-            Jaspar2024MotifDB().search(make_request())
-
-    @patch("lverage.jaspar.requests.get")
-    def test_request_timeouts_propagate(self, mock_get):
-        mock_get.side_effect = requests.Timeout("service timeout")
-
-        with self.assertRaises(requests.Timeout):
-            Jaspar2024MotifDB().search(make_request())
-
-    @patch("lverage.jaspar.requests.get")
-    def test_malformed_responses_raise_value_error(self, mock_get):
-        mock_get.return_value = make_response({"unexpected": []})
-
-        with self.assertRaises(ValueError):
-            Jaspar2024MotifDB().search(make_request())
-
-    def test_search_validates_request_contract(self):
-        with self.assertRaises(TypeError):
-            Jaspar2024MotifDB().search(object())
 
 
 if __name__ == "__main__":

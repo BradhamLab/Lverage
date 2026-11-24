@@ -100,14 +100,28 @@ pipeline.
 
 ## V2 Command-Line Interface
 
+Install the V2 package from the repository root into your Python 3.11+
+environment with `python -m pip install -e .`. This installs the Python
+dependencies declared in `pyproject.toml`, including NumPy and the pinned
+`orffinder` adapter dependency. The Python 3.10 Conda configuration above
+is for the legacy workflow; it is not a V2 environment specification.
+BLAST+, HMMER, PfamScan, and their reference databases are separate
+requirements and are not installed by this command.
+
 The V2 CLI is separate from the legacy workflow below. Run the installed
-`lverage` command or use `PYTHONPATH=src python -m lverage.cli` from a source
-checkout. It requires Python 3.11+, local BLAST+ and PfamScan tools/data, and a
-local protein database; full motif lookup uses the online JASPAR2024 service.
-See the [V2 FASTA and CLI guide](docs/user_guide.rst) for input mapping,
-portable examples (including local runs stopped after alignment), output
-formats, selection behavior, and status codes. See the local BLAST database
-instructions above for database setup.
+`lverage` command or use `PYTHONPATH=src python -m lverage.cli` from the Lverage
+source checkout. It requires Python 3.11+, local BLAST+ and PfamScan tools/data,
+and a local protein database; full motif inference uses the JASPAR calculations
+adapted into Lverage and local JASPAR 2026 files, with no online requests.
+Users need the external reference data directory and ``JASPAR2026.sqlite``,
+but not the upstream checkout or a separate interpreter. HMMER/BLASTP remain
+external executables. An alignment-only stop does not require JASPAR resources.
+The cutoff is applied to the inference BLAST E-value; equivalence to the former
+REST E-value has not been established, and identical motif results are not
+claimed. See the [V2 FASTA and CLI guide](docs/user_guide.rst) for provenance,
+local-data requirements, portable examples, output fields, selection behavior,
+and status codes. See the local BLAST database instructions above for database
+setup.
 
 ## Legacy Command-Line Workflow
 
