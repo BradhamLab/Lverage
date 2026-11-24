@@ -18,6 +18,33 @@ from lverage.ortholog_searcher import OrthologRecord, OrthologSearcherTemplate
 from lverage.pipeline import Lverage
 
 
+def stub_identities(pipeline, *, return_value=None, side_effect=None):
+    """Patch the pipeline's alignment component to return fixed identities.
+
+    The pipeline asks ``alignment_component.calc_identities`` for one ratio per
+    matching ortholog domain. ``return_value`` answers every domain with the
+    same ratio; ``side_effect`` is either an exception to raise or an iterable
+    of ratios consumed one per domain, in the order the pipeline requests them.
+    """
+
+    if isinstance(side_effect, BaseException) or (
+        isinstance(side_effect, type) and issubclass(side_effect, BaseException)
+    ):
+        def calc_identities(query_dbd, ortholog_dbds):
+            raise side_effect
+    elif side_effect is not None:
+        values = iter(side_effect)
+
+        def calc_identities(query_dbd, ortholog_dbds):
+            return [next(values) for _ in ortholog_dbds]
+    else:
+        def calc_identities(query_dbd, ortholog_dbds):
+            return [return_value for _ in ortholog_dbds]
+
+    return patch.object(pipeline.alignment_component, "calc_identities",
+                        side_effect=calc_identities)
+
+
 class StubOrfSearcher(OrfSearcherTemplate):
 
     def __init__(self, results):
@@ -178,7 +205,7 @@ class LverageCliTests(unittest.TestCase):
     def test_exact_ten_column_contract_and_separate_error_file(self):
         self.write_fasta("gene.fa")
         pipeline = self.matched_pipeline(StubMotifDatabase([make_motif("MA0001.1", "Example")]))
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments())
         destination = self.root / "bundle"
         self.assertEqual(code, 0)
@@ -240,7 +267,7 @@ class LverageCliTests(unittest.TestCase):
         self.write_fasta("gene.fa")
         database = StubMotifDatabase()
         pipeline = self.matched_pipeline(database)
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.4):
+        with stub_identities(pipeline, return_value=0.4):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 0)
@@ -255,7 +282,7 @@ class LverageCliTests(unittest.TestCase):
         database = StubMotifDatabase([make_motif("MA0001.1", "Same name"),
                                       make_motif("MA0001.2", "Same name")])
         pipeline = self.matched_pipeline(database)
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 0)
@@ -275,7 +302,7 @@ class LverageCliTests(unittest.TestCase):
             orthologs=[make_ortholog(sequence="CCCCCCCC")],
             database=StubMotifDatabase([make_motif("MA0001.1", "Example")]),
         )
-        with patch.object(pipeline, "_calculate_domain_identity", side_effect=[0.9, 0.8]):
+        with stub_identities(pipeline, side_effect=[0.9, 0.8]):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 0)
@@ -288,7 +315,7 @@ class LverageCliTests(unittest.TestCase):
         description = 'Protein, "example"\n[Homo sapiens]'
         pipeline = self.matched_pipeline(StubMotifDatabase([make_motif("MA0001.1", "TF, example")]))
         pipeline.ortholog_searcher.orthologs[0].description = description
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 0)
@@ -317,7 +344,7 @@ class LverageCliTests(unittest.TestCase):
                        make_ortholog("NP_2", "GGGG", "Second hit")],
             database=database,
         )
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 0)
@@ -336,7 +363,7 @@ class LverageCliTests(unittest.TestCase):
         records = [make_motif("MA0002.1", "Second alphabetically"),
                    make_motif("MA0001.1", "First alphabetically")]
         pipeline = self.matched_pipeline(StubMotifDatabase(records))
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments())
         self.assertEqual(code, 0)
         self.assertEqual([r["Motif Name"] for r in self.read_rows(self.root / "bundle")],
@@ -359,7 +386,7 @@ class LverageCliTests(unittest.TestCase):
     def test_alignment_failure_keeps_domain_evidence_and_logs_error_separately(self):
         self.write_fasta("gene.fa")
         pipeline = self.matched_pipeline()
-        with patch.object(pipeline, "_calculate_domain_identity", side_effect=RuntimeError("alignment failed")):
+        with stub_identities(pipeline, side_effect=RuntimeError("alignment failed")):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)
@@ -380,7 +407,7 @@ class LverageCliTests(unittest.TestCase):
             raise RuntimeError("later motif failed")
         database.search = partial
         pipeline = self.matched_pipeline(database)
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)
@@ -388,17 +415,22 @@ class LverageCliTests(unittest.TestCase):
         self.assertEqual(rows[0]["Motif Name"], "first")
         self.assertEqual(self.read_errors(self.root / "bundle")[0]["Stage"], "motif")
 
-    def test_later_hit_pfam_failure_preserves_prior_motifs_and_failed_hit(self):
+    def test_later_hit_pfam_failure_preserves_prior_hit_domains_and_failed_hit(self):
+        # Every hit's Pfam scan runs before any alignment or motif search, so a
+        # failure on a later hit stops the gene before motifs are reached; the
+        # earlier hit's domain evidence is still written.
         self.write_fasta("gene.fa")
         pipeline = self.matched_pipeline(StubMotifDatabase([make_motif("MA0001.1", "first")]))
         pipeline.ortholog_searcher.orthologs.append(make_ortholog("NP_2", "GGGG", "Second hit"))
         pipeline.domain_scanner.fail_on = "GGGG"
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)
         self.assertEqual(len(rows), 2)
-        self.assertEqual(rows[0]["Motif Name"], "first")
+        self.assertEqual(rows[0]["Hit Pfam Name"], "Homeobox")
+        self.assertEqual(rows[0]["Motif Name"], "")
+        self.assertEqual(pipeline.motif_database_list[0].calls, 0)
         self.assertEqual(rows[1]["BLAST Description"], "Second hit")
         self.assertEqual(rows[1]["Hit Pfam Name"], "")
         self.assertEqual(rows[1]["Motif Name"], "")
@@ -408,7 +440,7 @@ class LverageCliTests(unittest.TestCase):
         self.write_fasta("gene.fa")
         pipeline = self.matched_pipeline()
         pipeline.ortholog_searcher = IncrementalPartialSearcher([make_ortholog(sequence="CCCC")])
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments())
         rows = self.read_rows(self.root / "bundle")
         self.assertEqual(code, 1)
@@ -433,7 +465,7 @@ class LverageCliTests(unittest.TestCase):
         self.write_fasta("gene.fa")
         database = StubMotifDatabase(fail_on_call=1)
         pipeline = self.matched_pipeline(database)
-        with patch.object(pipeline, "_calculate_domain_identity", return_value=0.9):
+        with stub_identities(pipeline, return_value=0.9):
             code, _ = self.run_cli(pipeline, *self.arguments("stopped", "--stop-after", "alignment"))
         self.assertEqual(code, 0)
         self.assertEqual(database.calls, 0)
