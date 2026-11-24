@@ -147,7 +147,5 @@ class LocalJasparTests(unittest.TestCase):
             self.adapter._window_ortholog_sequence(sequence, domain),
             sequence[1425:3425],
         )
-
-
 if __name__ == "__main__":
     unittest.main()

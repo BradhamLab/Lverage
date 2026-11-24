@@ -2,9 +2,10 @@
 
 from enum import Enum
 import logging
+import math
+from numbers import Real
 
-from Bio.Align import PairwiseAligner
-
+from .alignment import AlignmentTemplate, BiopythonGlobalAlignment
 from .domain_scanner import DomainRecord
 from .domain_scanner import DomainScannerTemplate
 from .motif_database import MotifDBTemplate, MotifSearchRequest
@@ -66,6 +67,8 @@ class Lverage:
         Accepted PFAM accessions; an empty list accepts every detected domain
     dbd_identity_thresh : float, optional
         Minimum domain identity ratio from zero to one
+    alignment_component : AlignmentTemplate, optional
+        Component that calculates ordered query-to-ortholog domain identities
     """
 
     lverage_code_info = {
@@ -85,7 +88,8 @@ class Lverage:
                  domain_scanner,
                  ortholog_searcher,
                  valid_pfam_list=None,
-                 dbd_identity_thresh=0.7):
+                 dbd_identity_thresh=0.7,
+                 alignment_component=None):
         if valid_pfam_list is None:
             valid_pfam_list = []
 
@@ -93,6 +97,11 @@ class Lverage:
         self.orf_searcher = orf_searcher
         self.domain_scanner = domain_scanner
         self.ortholog_searcher = ortholog_searcher
+        self.alignment_component = (
+            BiopythonGlobalAlignment()
+            if alignment_component is None
+            else alignment_component
+        )
         self.valid_pfam_list = valid_pfam_list.copy() if isinstance(valid_pfam_list, list) else valid_pfam_list
         self.dbd_identity_thresh = dbd_identity_thresh
         self.lverage_code = LverageCode.NOT_SET
@@ -115,6 +124,8 @@ class Lverage:
             raise TypeError("domain_scanner must be a DomainScannerTemplate instance")
         if not isinstance(self.ortholog_searcher, OrthologSearcherTemplate):
             raise TypeError("ortholog_searcher must be an OrthologSearcherTemplate instance")
+        if not isinstance(self.alignment_component, AlignmentTemplate):
+            raise TypeError("alignment_component must be an AlignmentTemplate instance")
 
         if not isinstance(self.valid_pfam_list, list):
             raise TypeError("valid_pfam_list must be a list")
@@ -218,21 +229,7 @@ class Lverage:
 
         query_slice = Lverage._get_domain_slice(query_sequence, query_domain)
         ortholog_slice = Lverage._get_domain_slice(ortholog_sequence, ortholog_domain)
-
-        aligner = PairwiseAligner()
-        aligner.mode = "global"
-        aligner.match_score = 2
-        aligner.mismatch_score = -1
-        aligner.open_gap_score = -2
-        aligner.extend_gap_score = -0.5
-        alignment = aligner.align(query_slice, ortholog_slice)[0]
-
-        exact_matches = 0
-        for query_index, ortholog_index in zip(alignment.indices[0], alignment.indices[1]):
-            if query_index != -1 and ortholog_index != -1:
-                if query_slice[query_index] == ortholog_slice[ortholog_index]:
-                    exact_matches += 1
-        return exact_matches / alignment.length
+        return BiopythonGlobalAlignment().calc_identities(query_slice, [ortholog_slice])[0]
 
     @staticmethod
     def _get_domain_slice(sequence, domain):
@@ -349,8 +346,7 @@ class Lverage:
                 )
             return []
 
-        records = []
-        has_valid_domain_pair = False
+        ortholog_domain_sets = []
         for ortholog in orthologs:
             if evidence_collector is not None:
                 evidence_collector.set_stage("ortholog_pfam")
@@ -359,6 +355,7 @@ class Lverage:
                     orf_sequence=query_orf, ortholog=ortholog,
                 )
             ortholog_domains = list(self.domain_scanner.get_domains(ortholog.sequence))
+            ortholog_domain_sets.append(ortholog_domains)
             if evidence_collector is not None:
                 evidence_collector.emit(
                     "stage_result", stage_name="ortholog_pfam",
@@ -372,12 +369,21 @@ class Lverage:
                         domain=domain, domain_index=domain_index,
                         status="retained", error="",
                     )
-            if evidence_collector is not None:
-                evidence_collector.set_stage("alignment")
-            for query_domain in query_domains:
-                for ortholog_domain in ortholog_domains:
+
+        if evidence_collector is not None:
+            evidence_collector.set_stage("alignment")
+        identities_by_query_domain = []
+        for query_domain in query_domains:
+            matching_positions = []
+            ortholog_dbds = []
+            for ortholog_index, (ortholog, ortholog_domains) in enumerate(
+                zip(orthologs, ortholog_domain_sets)
+            ):
+                for domain_index, ortholog_domain in enumerate(ortholog_domains):
                     if self._base_accession(query_domain.accession) != self._base_accession(ortholog_domain.accession):
                         continue
+                    matching_positions.append((ortholog_index, domain_index))
+                    ortholog_dbds.append(self._get_domain_slice(ortholog.sequence, ortholog_domain))
                     if evidence_collector is not None:
                         evidence_collector.emit(
                             "stage_attempt", stage_name="alignment",
@@ -385,23 +391,58 @@ class Lverage:
                             query_domain=query_domain,
                             ortholog_domain=ortholog_domain,
                         )
-                    domain_identity = self._calculate_domain_identity(
-                        query_orf,
-                        query_domain,
-                        ortholog.sequence,
-                        ortholog_domain,
+
+            identity_matrix = [
+                [None] * len(ortholog_domains)
+                for ortholog_domains in ortholog_domain_sets
+            ]
+            if matching_positions:
+                query_dbd = self._get_domain_slice(query_orf, query_domain)
+                returned_identities = self.alignment_component.calc_identities(
+                    query_dbd,
+                    ortholog_dbds,
+                )
+                try:
+                    domain_identities = list(returned_identities)
+                except TypeError as error:
+                    raise TypeError("alignment component must return an ordered sequence of ratios") from error
+                if len(domain_identities) != len(matching_positions):
+                    raise ValueError("alignment component must return one ratio per ortholog domain")
+                for (ortholog_index, domain_index), identity in zip(
+                    matching_positions,
+                    domain_identities,
+                ):
+                    if isinstance(identity, bool) or not isinstance(identity, Real):
+                        raise ValueError("alignment identities must be finite numeric ratios")
+                    if not math.isfinite(identity) or identity < 0 or identity > 1:
+                        raise ValueError("alignment identities must be finite ratios between zero and one")
+                    identity_matrix[ortholog_index][domain_index] = float(identity)
+            identities_by_query_domain.append(identity_matrix)
+
+            if evidence_collector is not None:
+                for ortholog_index, domain_index in matching_positions:
+                    ortholog = orthologs[ortholog_index]
+                    ortholog_domain = ortholog_domain_sets[ortholog_index][domain_index]
+                    domain_identity = identity_matrix[ortholog_index][domain_index]
+                    evidence_collector.emit(
+                        "domain_comparison", orf_sequence=query_orf, ortholog=ortholog,
+                        query_domain=query_domain, ortholog_domain=ortholog_domain,
+                        domain_identity=domain_identity,
+                        threshold=self.dbd_identity_thresh,
+                        status=("accepted" if domain_identity >= self.dbd_identity_thresh
+                                else "below-threshold"),
+                        error="",
                     )
-                    passes_threshold = domain_identity >= self.dbd_identity_thresh
-                    if evidence_collector is not None:
-                        evidence_collector.set_stage("alignment")
-                        evidence_collector.emit(
-                            "domain_comparison", orf_sequence=query_orf, ortholog=ortholog,
-                            query_domain=query_domain, ortholog_domain=ortholog_domain,
-                            domain_identity=domain_identity,
-                            threshold=self.dbd_identity_thresh,
-                            status="accepted" if passes_threshold else "below-threshold",
-                            error="",
-                        )
+
+        records = []
+        has_valid_domain_pair = False
+        for ortholog_index, ortholog in enumerate(orthologs):
+            ortholog_domains = ortholog_domain_sets[ortholog_index]
+            for query_index, query_domain in enumerate(query_domains):
+                for domain_index, ortholog_domain in enumerate(ortholog_domains):
+                    if self._base_accession(query_domain.accession) != self._base_accession(ortholog_domain.accession):
+                        continue
+                    domain_identity = identities_by_query_domain[query_index][ortholog_index][domain_index]
                     if domain_identity < self.dbd_identity_thresh:
                         continue
 
